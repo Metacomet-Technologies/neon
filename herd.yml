@@ -1,0 +1,5 @@
+integrations:
+  forge:
+    discord-bot.metacomet.tech:
+      site-id: 2594810
+      server-id: 847680
