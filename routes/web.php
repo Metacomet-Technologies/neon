@@ -1,53 +1,16 @@
 <?php
 
-use App\Models\User;
-use Carbon\Carbon;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\Auth\LoginCallbackController;
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\LogoutController;
 use Illuminate\Support\Facades\Route;
-use Laravel\Socialite\Facades\Socialite;
 
-Route::get('/', function () {
-    return inertia('Home');
-})->name('home');
+Route::inertia('/', 'Home')->name('home');
 
-Route::get('login', function () {
-    return Socialite::driver('discord')->redirect();
-})->name('login');
+Route::get('login', LoginController::class)->name('login');
 
-Route::get('discord/callback', function () {
-    $user = Socialite::driver('discord')->user();
+Route::get('discord/callback', LoginCallbackController::class)->name('discord.callback')->name('discord.callback');
 
-    $now = Carbon::now()->toImmutable();
-
-    $auth_user = User::updateOrCreate([
-        'email' => $user->email,
-    ], [
-        'name' => $user->name,
-        'password' => bcrypt($user->token),
-        'avatar' => $user->avatar,
-        'created_at' => $now,
-        'updated_at' => $now,
-        'email_verified_at' => $now,
-        'discord_id' => $user->id,
-        'access_token' => $user->token,
-        'refresh_token' => $user->refreshToken,
-        'refresh_token_expires_at' => $now->addSeconds($user->expiresIn),
-    ]);
-
-    try {
-        Auth::login($auth_user, true);
-    } catch (\Exception $e) {
-        Log::error($e->getMessage());
-
-        return redirect('/');
-    }
-
-    return redirect()->intended('/');
-})->name('discord.callback');
-
-Route::post('logout', function () {
-    Auth::logout();
-
-    return redirect('/');
-})->name('logout')->middleware('auth');
+Route::group(['middleware' => 'auth'], function () {
+    Route::post('logout', LogoutController::class)->name('logout');
+});
