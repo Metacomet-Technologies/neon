@@ -9,11 +9,11 @@ use Laravel\Socialite\Facades\Socialite;
 
 Route::get('/', function () {
     return inertia('Home');
-});
+})->name('home');
 
 Route::get('login', function () {
     return Socialite::driver('discord')->redirect();
-});
+})->name('login');
 
 Route::get('discord/callback', function () {
     $user = Socialite::driver('discord')->user();
@@ -44,4 +44,10 @@ Route::get('discord/callback', function () {
     }
 
     return redirect()->intended('/');
-});
+})->name('discord.callback');
+
+Route::post('logout', function () {
+    Auth::logout();
+
+    return redirect('/');
+})->name('logout')->middleware('auth');

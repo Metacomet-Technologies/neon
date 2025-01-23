@@ -1,5 +1,6 @@
 import { Heading } from '@/Components/heading';
 import { Text } from '@/Components/text';
+import { Layout } from '@/Layout/Layout';
 import React from 'react';
 
 /**
@@ -18,3 +19,5 @@ export default function Home(): React.JSX.Element {
         </div>
     );
 }
+
+Home.layout = (page: React.ReactNode) => <Layout>{page}</Layout>;
