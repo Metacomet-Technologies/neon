@@ -50,24 +50,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     <NavbarSpacer />
                     <NavbarSection>
                         {auth.user ? (
-                            <>
-                                <Dropdown>
-                                    <DropdownButton as={NavbarItem}>
-                                        <Avatar src={auth.user.avatar} alt={auth.user.name} />
-                                    </DropdownButton>
-                                    <DropdownMenu>
-                                        <DropdownItem href={route('logout')} method="post">
-                                            <DropdownLabel>Logout</DropdownLabel>
-                                        </DropdownItem>
-                                    </DropdownMenu>
-                                </Dropdown>
-                                <ThemeToggleButton />
-                            </>
+                            <Dropdown>
+                                <DropdownButton as={NavbarItem}>
+                                    <Avatar src={auth.user.avatar} alt={auth.user.name} />
+                                </DropdownButton>
+                                <DropdownMenu>
+                                    <DropdownItem href={route('logout')} method="post">
+                                        <DropdownLabel>Logout</DropdownLabel>
+                                    </DropdownItem>
+                                </DropdownMenu>
+                            </Dropdown>
                         ) : (
                             <NavbarItem onClick={handleLogin} current={component === 'Login'}>
                                 Login
                             </NavbarItem>
                         )}
+                        <ThemeToggleButton />
                     </NavbarSection>
                 </Navbar>
             }
