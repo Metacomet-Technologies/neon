@@ -6,8 +6,5 @@ import React from 'react';
  * @return {JSX.Element} Home page.
  */
 export default function Home(): React.JSX.Element {
-    return (
-        <div>
-
-        </div>
-    )
+    return <div></div>;
+}
