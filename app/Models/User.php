@@ -18,6 +18,12 @@ use Illuminate\Notifications\Notifiable;
  * @property string|null $remember_token
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property string $avatar
+ * @property string|null $discord_id
+ * @property string|null $access_token
+ * @property string|null $refresh_token
+ * @property string|null $refresh_token_expires_at
+ * @property-read \App\Models\TFactory|null $use_factory
  * @property-read \Illuminate\Notifications\DatabaseNotificationCollection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
  * @property-read int|null $notifications_count
  *
@@ -25,12 +31,17 @@ use Illuminate\Notifications\Notifiable;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereAccessToken($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereAvatar($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereDiscordId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereEmail($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereEmailVerifiedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User wherePassword($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereRefreshToken($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereRefreshTokenExpiresAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereRememberToken($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereUpdatedAt($value)
  *
@@ -51,6 +62,11 @@ final class User extends Authenticatable
         'email',
         'password',
         'email_verified_at',
+        'avatar',
+        'discord_id',
+        'access_token',
+        'refresh_token',
+        'refresh_token_expires_at',
     ];
 
     /**
@@ -61,6 +77,9 @@ final class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'access_token',
+        'refresh_token',
+        'refresh_token_expires_at',
     ];
 
     /**
@@ -73,6 +92,7 @@ final class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'refresh_token_expires_at' => 'datetime',
         ];
     }
 }
