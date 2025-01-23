@@ -14,10 +14,22 @@ import { StackedLayout } from '@/Components/stacked-layout';
 import { PageProps } from '@/types';
 import { usePage } from '@inertiajs/react';
 
+import ThemeToggleButton from './ThemeToggleButton';
+
+/**
+ * Layout component that provides the structure for the application.
+ * It includes a navbar and a sidebar, and renders the children components.
+ *
+ * @param {Object} props - The component props.
+ * @param {React.ReactNode} props.children - The children components to be rendered within the layout.
+ */
 export function Layout({ children }: { children: React.ReactNode }) {
     const { component, props } = usePage<PageProps>();
     const { auth } = props;
 
+    /**
+     * Redirects the user to the login page.
+     */
     const handleLogin = () => {
         window.location.href = route('login');
     };
@@ -49,13 +61,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                         </DropdownItem>
                                     </DropdownMenu>
                                 </Dropdown>
+                                <ThemeToggleButton />
                             </>
                         ) : (
-                            <>
-                                <NavbarItem onClick={handleLogin} current={component === 'Login'}>
-                                    Login
-                                </NavbarItem>
-                            </>
+                            <NavbarItem onClick={handleLogin} current={component === 'Login'}>
+                                Login
+                            </NavbarItem>
                         )}
                     </NavbarSection>
                 </Navbar>
