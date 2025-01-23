@@ -22,7 +22,7 @@ use Illuminate\Notifications\Notifiable;
  * @property string|null $discord_id
  * @property string|null $access_token
  * @property string|null $refresh_token
- * @property string|null $refresh_token_expires_at
+ * @property \Illuminate\Support\Carbon|null $refresh_token_expires_at
  * @property-read \App\Models\TFactory|null $use_factory
  * @property-read \Illuminate\Notifications\DatabaseNotificationCollection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
  * @property-read int|null $notifications_count

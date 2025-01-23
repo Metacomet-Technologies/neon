@@ -27,11 +27,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             navbar={
                 <Navbar>
                     <NavbarSection className="max-lg:hidden">
-                        <Avatar
-                            className="size-8"
-                            src="https://cdn.discordapp.com/embed/avatars/0.png"
-                            alt="discord"
-                        />
+                        <Avatar className="size-8" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="discord" />
                     </NavbarSection>
                     <NavbarDivider className="max-lg:hidden" />
                     <NavbarSection className="max-lg:hidden">
