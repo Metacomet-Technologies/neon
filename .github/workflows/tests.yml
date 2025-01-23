@@ -1,0 +1,58 @@
+name: Tests
+
+on: ['push', 'pull_request']
+
+jobs:
+    ci:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v3
+              with:
+                  ref: ${{ github.event.pull_request.head.sha }}
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v2
+              with:
+                  node-version: '20'
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: 8.3
+                  extensions: json, dom, curl, libxml, mbstring, zip
+                  tools: composer:v2
+                  coverage: xdebug
+
+            - name: Setup Redis
+              uses: supercharge/redis-github-action@1.4.0
+
+            - name: Install Dependencies
+              run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+            - name: Prepare Laravel
+              run: |
+                  cp .env.example .env
+                  php artisan key:generate
+
+            - name: Setup SQLite Database
+              run: |
+                  touch database/database.sqlite
+                  php artisan migrate --force
+
+            - name: Install NPM Dependencies
+              run: npm install
+
+            - name: Build Assets
+              run: npm run build
+
+            - name: Tests
+              run: ./vendor/bin/pest --coverage-cobertura coverage.xml
+
+            - name: Report results to DeepSource
+              run: |
+                  curl https://deepsource.io/cli | sh
+                  ./bin/deepsource report --analyzer test-coverage --key php --value-file ./coverage.xml
+              env:
+                  DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}

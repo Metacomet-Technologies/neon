@@ -1,0 +1,24 @@
+version = 1
+
+exclude_patterns = [
+  "_ide_helper.php",
+  "vendor/*",
+  "node_modules/*",
+  "tests/*",
+]
+
+test_patterns = [
+  "tests/*"
+]
+
+[[analyzers]]
+name = "php"
+
+[[analyzers]]
+name = "javascript"
+
+  [analyzers.meta]
+  plugins = ["react"]
+
+[[analyzers]]
+name = "test-coverage"
