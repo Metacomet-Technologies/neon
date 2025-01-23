@@ -31,6 +31,13 @@ final class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => self::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'avatar' => 'https://www.gravatar.com/avatar/' . fake()->unique()->safeEmail(),
+            'discord_id' => null,
+            'access_token' => null,
+            'refresh_token' => null,
+            'refresh_token_expires_at' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
         ];
     }
 

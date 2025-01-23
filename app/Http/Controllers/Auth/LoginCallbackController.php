@@ -18,27 +18,33 @@ final class LoginCallbackController
      */
     public function __invoke(): \Illuminate\Http\RedirectResponse
     {
-        $user = Socialite::driver('discord')->user();
+        $socialiteUser = Socialite::driver('discord')->user();
 
         $now = Carbon::now()->toImmutable();
 
-        $auth_user = User::updateOrCreate([
-            'email' => $user->email,
+        $user = User::updateOrCreate([
+            'email' => $socialiteUser->getEmail(),
         ], [
-            'name' => $user->name,
-            'password' => bcrypt($user->token),
-            'avatar' => $user->avatar,
+            'name' => $socialiteUser->getName(),
+            'password' => bcrypt($socialiteUser->token),
+            'avatar' => $socialiteUser->getAvatar(),
             'created_at' => $now,
             'updated_at' => $now,
             'email_verified_at' => $now,
-            'discord_id' => $user->id,
-            'access_token' => $user->token,
-            'refresh_token' => $user->refreshToken,
-            'refresh_token_expires_at' => $now->addSeconds($user->expiresIn),
+            'discord_id' => $socialiteUser->getId(),
+            'access_token' => $socialiteUser->token,
+            'refresh_token' => $socialiteUser->refreshToken,
+            'refresh_token_expires_at' => $now->addSeconds($socialiteUser->expiresIn),
         ]);
 
+        if ($user->wasRecentlyCreated || $user->settings === null) {
+            $user->settings()->create([
+                'theme' => 'light',
+            ]);
+        }
+
         try {
-            Auth::login($auth_user, true);
+            Auth::login($user, true);
         } catch (Exception $e) {
             Log::error($e->getMessage());
 

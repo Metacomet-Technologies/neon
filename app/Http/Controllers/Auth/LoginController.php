@@ -11,7 +11,7 @@ final class LoginController
     /**
      * Handle the incoming request.
      */
-    public function __invoke(): \Illuminate\Http\RedirectResponse
+    public function __invoke(): \Symfony\Component\HttpFoundation\RedirectResponse
     {
         return Socialite::driver('discord')->redirect();
     }

@@ -11,7 +11,7 @@ final class LogoutController
     /**
      * Handle the incoming request.
      */
-    public function __invoke()
+    public function __invoke(): \Illuminate\Http\RedirectResponse
     {
         Auth::logout();
 
