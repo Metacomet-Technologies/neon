@@ -39,7 +39,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
             navbar={
                 <Navbar>
                     <NavbarSection className="max-lg:hidden">
-                        <Avatar className="size-8" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="discord" />
+                        <img
+                            alt="Neon"
+                            src="https://cdn.metacomet.tech/neon/logo/pink-600/PNG/neon@4x.png"
+                            className="hidden dark:block size-8"
+                        />
+                        <img
+                            alt="Neon"
+                            src="https://cdn.metacomet.tech/neon/logo/cyan-300/PNG/neon@4x.png"
+                            className="block dark:hidden size-8"
+                        />
                     </NavbarSection>
                     <NavbarDivider className="max-lg:hidden" />
                     <NavbarSection className="max-lg:hidden">
@@ -77,9 +86,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     <SidebarHeader>
                         <div className="flex items-center space-x-2">
                             <img
-                                className="size-8 rounded-full"
-                                src="https://cdn.discordapp.com/embed/avatars/0.png"
-                                alt="discord"
+                                alt="Neon"
+                                src="https://cdn.metacomet.tech/neon/logo/pink-600/PNG/neon@4x.png"
+                                className="hidden dark:block size-8"
+                            />
+                            <img
+                                alt="Neon"
+                                src="https://cdn.metacomet.tech/neon/logo/cyan-300/PNG/neon@4x.png"
+                                className="block dark:hidden size-8"
                             />
                             <SidebarLabel>Discord Bot</SidebarLabel>
                         </div>
