@@ -2,10 +2,17 @@ import { Button } from '@/Components/button';
 import { Link } from '@/Components/link';
 import { useTheme } from '@/Layout/ThemeContext';
 import ThemeToggleButton from '@/Layout/ThemeToggleButton';
+import { PageProps } from '@/types';
 import { ArrowRightIcon } from '@heroicons/react/16/solid';
+import { usePage } from '@inertiajs/react';
 
 export default function Home() {
     const { theme } = useTheme();
+    const { auth } = usePage<PageProps>().props;
+
+    window.Echo.private('App.Models.User.' + auth.user.id).listen('UserUpdated', (e: any) => {
+        console.log(e);
+    });
 
     function handleLogin() {
         window.location.href = route('login');
