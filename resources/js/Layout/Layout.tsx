@@ -46,6 +46,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         <NavbarItem href={route('home')} current={component === 'Home'}>
                             Home
                         </NavbarItem>
+                        <NavbarItem href={route('profile')} current={component === 'Profile'}>
+                            Profile
+                        </NavbarItem>
                     </NavbarSection>
                     <NavbarSpacer />
                     <NavbarSection>
@@ -85,6 +88,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         <SidebarSection>
                             <SidebarItem href={route('home')} current={component === 'Home'}>
                                 Home
+                            </SidebarItem>
+                            <SidebarItem href={route('profile')} current={component === 'Profile'}>
+                                Profile
                             </SidebarItem>
                         </SidebarSection>
                     </SidebarBody>

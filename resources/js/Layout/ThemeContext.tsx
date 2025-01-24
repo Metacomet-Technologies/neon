@@ -23,10 +23,10 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
     useEffect(() => {
         // Apply the theme to the HTML element
-        if (theme === 'dark') {
-            document.documentElement.classList.add('dark');
-        } else {
+        if (theme === 'light') {
             document.documentElement.classList.remove('dark');
+        } else {
+            document.documentElement.classList.add('dark');
         }
 
         // Save theme to localStorage

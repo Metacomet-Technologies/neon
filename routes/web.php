@@ -13,4 +13,5 @@ Route::get('discord/callback', LoginCallbackController::class)->name('discord.ca
 
 Route::group(['middleware' => 'auth'], function () {
     Route::post('logout', LogoutController::class)->name('logout');
+    Route::inertia('profile', 'Profile')->name('profile');
 });
