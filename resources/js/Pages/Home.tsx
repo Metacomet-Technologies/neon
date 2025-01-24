@@ -1,11 +1,16 @@
 import { Button } from '@/Components/button';
 import { Link } from '@/Components/link';
+import { useTheme } from '@/Layout/ThemeContext';
 import ThemeToggleButton from '@/Layout/ThemeToggleButton';
+import { ArrowRightIcon } from '@heroicons/react/16/solid';
 
 export default function Home() {
+    const { theme } = useTheme();
+
     function handleLogin() {
         window.location.href = route('login');
     }
+
     return (
         <div className="bg-white lg:bg-zinc-100 dark:bg-zinc-900 dark:lg:bg-zinc-950">
             <header className="absolute inset-x-0 top-0 z-50">
@@ -13,11 +18,16 @@ export default function Home() {
                     <div className="px-6 pt-6 lg:max-w-2xl lg:pr-0 lg:pl-8">
                         <nav aria-label="Global" className="flex items-center justify-between">
                             <a href="#" className="-m-1.5 p-1.5">
-                                <span className="sr-only">Your Company</span>
+                                <span className="sr-only">Neon</span>
                                 <img
-                                    alt="Your Company"
-                                    src="https://tailwindui.com/plus/img/logos/mark.svg?color=pink&shade=600"
-                                    className="h-8 w-auto"
+                                    alt="Neon"
+                                    src="https://cdn.metacomet.tech/neon/logo/pink-600/PNG/neon@4x.png"
+                                    className="hidden dark:block w-auto h-24"
+                                />
+                                <img
+                                    alt="Neon"
+                                    src="https://cdn.metacomet.tech/neon/logo/cyan-300/PNG/neon@4x.png"
+                                    className="block dark:hidden w-auto h-24"
                                 />
                             </a>
                             <ThemeToggleButton />
@@ -41,31 +51,43 @@ export default function Home() {
 
                         <div className="relative px-6 py-32 sm:py-40 lg:px-8 lg:py-56 lg:pr-0">
                             <div className="mx-auto max-w-2xl lg:mx-0 lg:max-w-xl">
-                                <h1 className="text-5xl font-semibold tracking-tight text-pretty text-gray-900 dark:text-gray-100 sm:text-7xl">
+                                <div className="mb-10 flex">
+                                    <div className="relative rounded-full px-3 py-1 text-sm/6 text-zinc-500 dark:text-zinc-400 ring-1 ring-zinc-900/10 dark:ring-zinc-700 hover:ring-zinc-900/20 dark:hover:ring-zinc-600">
+                                        Coming Soon...{' '}
+                                        <Link
+                                            href="#"
+                                            className="font-semibold whitespace-nowrap text-cyan-600 dark:text-pink-400"
+                                        >
+                                            <span aria-hidden="true" className="absolute inset-0" />
+                                            Join Our Mailing List <span aria-hidden="true">&rarr;</span>
+                                        </Link>
+                                    </div>
+                                </div>
+                                <h1 className="text-5xl font-semibold tracking-tight text-pretty text-zinc-900 dark:text-zinc-100 sm:text-7xl">
                                     Supercharge Discord with AI Power
                                 </h1>
-                                <p className="mt-8 text-lg font-medium text-pretty text-gray-500 dark:text-gray-400 sm:text-xl/8">
+                                <p className="mt-8 text-lg font-medium text-pretty text-zinc-500 dark:text-zinc-400 sm:text-xl/8">
                                     Unlock the full potential of your Discord server with our AI-driven bot. From
                                     automating tasks to delivering personalized experiences and powerful insights, our
                                     bot seamlessly integrates cutting-edge AI features to make managing and engaging
                                     your community effortless. Elevate your server today!
                                 </p>
                                 <div className="mt-10 flex items-center gap-x-6">
-                                    <Button color="pink" onClick={handleLogin}>
+                                    <Button color={theme === 'light' ? 'cyan' : 'pink'} onClick={handleLogin}>
                                         Get started
                                     </Button>
-                                    <Link href="#" className="text-sm/6 font-semibold text-gray-900 dark:text-gray-100">
-                                        Learn more <span aria-hidden="true">→</span>
-                                    </Link>
+                                    <Button plain href={route('profile')}>
+                                        Learn more <ArrowRightIcon />
+                                    </Button>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div className="bg-gray-50 dark:bg-zinc-900 lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2">
+                <div className="bg-zinc-50 dark:bg-zinc-900 lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2">
                     <img
                         alt=""
-                        src="https://cdn.metacomet.tech/bot/bot-home.png"
+                        src="https://cdn.metacomet.tech/neon/home-bg.png"
                         className="aspect-3/2 object-cover lg:aspect-auto lg:size-full"
                     />
                 </div>
