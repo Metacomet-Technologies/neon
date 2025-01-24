@@ -13,6 +13,9 @@ type ThemeProviderProps = {
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+        // Check if SSR and return light theme
+        if (typeof window === 'undefined') return 'light';
+
         // Load theme from localStorage or system preference
         const storedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
         if (storedTheme) return storedTheme;
