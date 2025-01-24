@@ -12,10 +12,12 @@
         "php": "^8.2",
         "inertiajs/inertia-laravel": "^2.0",
         "laravel/framework": "^11.31",
+        "laravel/reverb": "^1.0",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
         "socialiteproviders/discord": "^4.2",
         "spatie/laravel-ignition": "^2.9",
+        "team-reflex/discord-php": "^10.3",
         "tightenco/ziggy": "^2.4"
     },
     "require-dev": {
