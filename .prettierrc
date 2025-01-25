@@ -7,5 +7,5 @@
     "useTabs": false,
     "bracketSpacing": true,
     "arrowParens": "always",
-    "plugins": ["prettier-plugin-import-sort"]
+    "plugins": ["prettier-plugin-organize-imports"]
 }

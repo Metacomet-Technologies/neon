@@ -1,5 +1,5 @@
 import { Avatar } from '@/Components/avatar';
-import { Heading, Subheading } from '@/Components/heading';
+import { Heading } from '@/Components/heading';
 import { Strong, Text } from '@/Components/text';
 import { Layout } from '@/Layout/Layout';
 import { PageProps } from '@/types';
