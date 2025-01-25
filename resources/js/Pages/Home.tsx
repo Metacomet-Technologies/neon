@@ -10,9 +10,11 @@ export default function Home() {
     const { theme } = useTheme();
     const { auth } = usePage<PageProps>().props;
 
-    window.Echo.private('App.Models.User.' + auth.user.id).listen('UserUpdated', (e: any) => {
-        console.log(e);
-    });
+    if (auth) {
+        window.Echo.private('App.Models.User.' + auth.user.id).listen('UserUpdated', (e: any) => {
+            console.log(e);
+        });
+    }
 
     function handleLogin() {
         window.location.href = route('login');
