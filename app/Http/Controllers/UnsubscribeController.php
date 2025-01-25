@@ -20,7 +20,7 @@ final class UnsubscribeController
     /**
      * Update the specified resource in storage.
      */
-    public function update(string $email)
+    public function update(string $email): \Illuminate\Http\RedirectResponse
     {
         $user = User::where('email', $email)
             ->first();

@@ -13,7 +13,7 @@ final class LoginController
     /**
      * Handle the incoming request.
      */
-    public function __invoke(Request $request): \Illuminate\Http\RedirectResponse|\Illuminate\Http\Response
+    public function __invoke(Request $request): \Symfony\Component\HttpFoundation\Response|\Symfony\Component\HttpFoundation\RedirectResponse
     {
         // Check if the request is an Inertia request
         if ($request->header('X-Inertia')) {

@@ -16,10 +16,24 @@ use Symfony\Component\Console\Attribute\AsCommand;
 #[AsCommand(name: 'neon:start')]
 final class StartNeonCommand extends Command
 {
+    /**
+     * The console command signature.
+     *
+     * @var string
+     */
     protected $signature = 'neon:start';
+
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
     protected $description = 'Run Neon';
 
-    public function handle()
+    /**
+     * Execute the console command.
+     */
+    public function handle(): void
     {
         $this->components->info('Starting Neon...');
 
@@ -30,19 +44,23 @@ final class StartNeonCommand extends Command
         $log = new Logger('DiscordPHP');
         $log->pushHandler(new StreamHandler(storage_path('logs/neon.log'), Level::Info));
 
+        $token = config('discord.token');
+
         $discord = new Discord([
-            'token' => config('discord.token'),
+            'token' => $token,
             'intents' => Intents::getDefaultIntents() | Intents::MESSAGE_CONTENT,
             'logger' => $log,
         ]);
 
-        $discord->on('init', function ($discord) {
+        $env = config('app.env');
+
+        $discord->on('init', function ($discord) use ($env) {
             $this->components->info('Neon is running!');
 
-            $discord->on(Event::MESSAGE_CREATE, function ($message) {
+            $discord->on(Event::MESSAGE_CREATE, function ($message) use ($env) {
                 if ($message->content === '!ping') {
                     $this->components->info('Received ping!');
-                    $message->channel->sendMessage('Pong!');
+                    $message->channel->sendMessage($this->setMessageOutput('pong!', $env));
                     $this->components->info('Sent pong!');
                 }
             });
@@ -54,5 +72,17 @@ final class StartNeonCommand extends Command
         if (file_exists($pidFile)) {
             unlink($pidFile);
         }
+    }
+
+    /**
+     * Set the message output based on the environment.
+     */
+    private function setMessageOutput(string $message, string $environment = 'production'): string
+    {
+        if ($environment === 'production') {
+            return $message;
+        }
+
+        return '[' . $environment . '] ' . $message;
     }
 }

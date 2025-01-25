@@ -27,7 +27,7 @@ final class StopNeonCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(): int
     {
         $this->components->info('Stopping Neon...');
 
@@ -42,6 +42,12 @@ final class StopNeonCommand extends Command
 
         $pid = file_get_contents($pidFile);
 
+        if ($pid === false) {
+            $this->components->error('Failed to read PID file.');
+
+            return 1;
+        }
+
         // Determine the operating system
         if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
             // Windows: Use proc_open for taskkill
@@ -51,26 +57,33 @@ final class StopNeonCommand extends Command
                 $pipes
             );
 
+            // if $process is false, the command failed
+            if ($process === false) {
+                $this->components->error('Failed to execute taskkill command.');
+
+                return 1;
+            }
+
             $resultCode = proc_close($process);
+
+            if ($resultCode !== 0) {
+                $this->components->error('Failed to stop Neon process.');
+
+                return 1;
+            }
         } else {
-            // Linux/Unix: Use posix_kill
-            if (function_exists('posix_kill')) {
-                $resultCode = posix_kill((int) $pid, SIGTERM) ? 0 : 1;
-            } else {
-                $this->components->error('posix_kill is not available on this system.');
+            // Unix-based systems: Use posix_kill
+            if (! posix_kill((int) $pid, SIGTERM)) {
+                $this->components->error('Failed to stop Neon process.');
 
                 return 1;
             }
         }
 
-        if ($resultCode === 0) {
-            $this->components->info('Broadcasting Neon stop signal.');
-            unlink($pidFile); // Remove the PID file
-        } else {
-            $this->components->error("Failed to stop the Neon process with PID {$pid}. Check permissions or ensure Neon is running.");
+        // Remove the PID file
+        unlink($pidFile);
 
-            return 1;
-        }
+        $this->components->info('Neon stopped successfully.');
 
         return 0;
     }

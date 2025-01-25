@@ -20,6 +20,7 @@ final class LoginCallbackController
      */
     public function __invoke(): \Illuminate\Http\RedirectResponse
     {
+        /** @var \Laravel\Socialite\Two\User $socialiteUser */
         $socialiteUser = Socialite::driver('discord')->user();
 
         $now = Carbon::now()->toImmutable();
@@ -46,7 +47,7 @@ final class LoginCallbackController
                 'theme' => 'dark',
             ]);
 
-            Mail::to($user)->queue(new WelcomeEmail($user->email));
+            Mail::to($user)->queue(new WelcomeEmail);
         }
 
         try {
