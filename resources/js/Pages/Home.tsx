@@ -56,7 +56,7 @@ export default function Home() {
                                         Coming Soon...{' '}
                                         <Link
                                             href="#"
-                                            className="font-semibold whitespace-nowrap text-cyan-600 dark:text-pink-400"
+                                            className="font-semibold whitespace-nowrap text-pink-600 dark:text-cyan-300"
                                         >
                                             <span aria-hidden="true" className="absolute inset-0" />
                                             Join Our Mailing List <span aria-hidden="true">&rarr;</span>

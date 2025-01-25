@@ -26,7 +26,7 @@ final class UnsubscribeController
             ->first();
 
         if ($user) {
-            $user->update(['subscribed' => false]);
+            $user->update(['is_on_mailing_list' => false]);
         }
 
         return redirect()->route('unsubscribe.show', ['email' => $email]);
