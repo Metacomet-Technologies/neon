@@ -10,8 +10,10 @@ export default function Home() {
     const { theme } = useTheme();
     const { auth } = usePage<PageProps>().props;
 
-    if (auth) {
-        window.Echo.private('App.Models.User.' + auth.user.id).listen('UserUpdated', (e: any) => {
+    console.log(auth);
+
+    if (auth?.user?.id) {
+        window.Echo.private('App.Models.User.' + auth?.user?.id).listen('UserUpdated', (e: any) => {
             console.log(e);
         });
     }
