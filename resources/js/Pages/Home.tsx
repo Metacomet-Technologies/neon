@@ -63,7 +63,7 @@ export default function Home() {
                                         </Link>
                                     </div>
                                 </div>
-                                <h1 className="text-5xl font-semibold tracking-tight text-pretty text-zinc-900 dark:text-zinc-100 sm:text-7xl">
+                                <h1 className="text-5xl font-semibold tracking-tight text-pretty text-zinc-900 dark:text-pink-600 sm:text-7xl">
                                     Supercharge Discord with AI Power
                                 </h1>
                                 <p className="mt-8 text-lg font-medium text-pretty text-zinc-500 dark:text-zinc-400 sm:text-xl/8">

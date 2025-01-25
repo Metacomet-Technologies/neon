@@ -149,7 +149,7 @@ const styles = {
             '[--btn-icon:var(--color-fuchsia-300)] data-active:[--btn-icon:var(--color-fuchsia-200)] data-hover:[--btn-icon:var(--color-fuchsia-200)]',
         ],
         pink: [
-            'text-white [--btn-hover-overlay:var(--color-white)]/10 [--btn-bg:var(--color-pink-500)] [--btn-border:var(--color-pink-600)]/90',
+            'text-white [--btn-hover-overlay:var(--color-white)]/10 [--btn-bg:var(--color-pink-600)] [--btn-border:var(--color-pink-600)]/90',
             '[--btn-icon:var(--color-pink-300)] data-active:[--btn-icon:var(--color-pink-200)] data-hover:[--btn-icon:var(--color-pink-200)]',
         ],
         rose: [

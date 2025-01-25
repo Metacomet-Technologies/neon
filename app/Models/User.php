@@ -23,6 +23,8 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string|null $access_token
  * @property string|null $refresh_token
  * @property \Illuminate\Support\Carbon|null $refresh_token_expires_at
+ * @property bool $is_admin
+ * @property bool $is_on_mailing_list
  * @property-read \App\Models\TFactory|null $use_factory
  * @property-read \Illuminate\Notifications\DatabaseNotificationCollection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
  * @property-read int|null $notifications_count
@@ -41,6 +43,8 @@ use Laravel\Sanctum\HasApiTokens;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereEmail($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereEmailVerifiedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereIsAdmin($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereIsOnMailingList($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User wherePassword($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereRefreshToken($value)
@@ -70,6 +74,8 @@ final class User extends Authenticatable
         'access_token',
         'refresh_token',
         'refresh_token_expires_at',
+        'is_admin',
+        'is_on_mailing_list',
     ];
 
     /**
@@ -96,6 +102,8 @@ final class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'refresh_token_expires_at' => 'datetime',
+            'is_admin' => 'boolean',
+            'is_on_mailing_list' => 'boolean',
         ];
     }
 
@@ -107,5 +115,13 @@ final class User extends Authenticatable
     public function settings(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
         return $this->hasOne(UserSetting::class);
+    }
+
+    /**
+     * Determine if the user is an administrator.
+     */
+    public function isAdmin(): bool
+    {
+        return $this->is_admin;
     }
 }

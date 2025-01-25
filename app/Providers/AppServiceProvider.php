@@ -32,7 +32,7 @@ final class AppServiceProvider extends ServiceProvider
         });
 
         Gate::define('viewPulse', function (User $user) {
-            return $user->email === 'dgarbalo@gmail.com';
+            return $user->isAdmin();
         });
     }
 }

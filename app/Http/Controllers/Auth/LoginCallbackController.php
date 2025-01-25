@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
+use App\Mail\WelcomeEmail;
 use App\Models\User;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Laravel\Socialite\Facades\Socialite;
 
 final class LoginCallbackController
@@ -35,12 +37,16 @@ final class LoginCallbackController
             'access_token' => $socialiteUser->token,
             'refresh_token' => $socialiteUser->refreshToken,
             'refresh_token_expires_at' => $now->addSeconds($socialiteUser->expiresIn),
+            'is_admin' => false,
+            'is_on_mailing_list' => true,
         ]);
 
         if ($user->wasRecentlyCreated || $user->settings === null) {
             $user->settings()->create([
-                'theme' => 'light',
+                'theme' => 'dark',
             ]);
+
+            Mail::to($user)->queue(new WelcomeEmail($user->email));
         }
 
         try {
