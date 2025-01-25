@@ -5,21 +5,37 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
-final class StopDiscordBotCommand extends Command
+#[AsCommand(name: 'neon:stop')]
+final class StopNeonCommand extends Command
 {
-    protected $signature = 'bot:stop';
-    protected $description = 'Stop the Discord bot process';
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'neon:stop';
 
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Stop the Neon process';
+
+    /**
+     * Execute the console command.
+     */
     public function handle()
     {
-        $this->info('Stopping Discord bot...');
+        $this->components->info('Stopping Neon...');
 
         // Locate the PID file
-        $pidFile = storage_path('app/discord-bot.pid');
+        $pidFile = storage_path('app/neon.pid');
 
         if (! file_exists($pidFile)) {
-            $this->error('No PID file found. Is the bot running?');
+            $this->components->error('No PID file found. Is Neon running?');
 
             return 1;
         }
@@ -41,17 +57,17 @@ final class StopDiscordBotCommand extends Command
             if (function_exists('posix_kill')) {
                 $resultCode = posix_kill((int) $pid, SIGTERM) ? 0 : 1;
             } else {
-                $this->error('posix_kill is not available on this system.');
+                $this->components->error('posix_kill is not available on this system.');
 
                 return 1;
             }
         }
 
         if ($resultCode === 0) {
-            $this->info("Bot process with PID {$pid} has been stopped.");
+            $this->components->info('Broadcasting Neon stop signal.');
             unlink($pidFile); // Remove the PID file
         } else {
-            $this->error("Failed to stop the bot process with PID {$pid}. Check permissions or ensure the process is running.");
+            $this->components->error("Failed to stop the Neon process with PID {$pid}. Check permissions or ensure Neon is running.");
 
             return 1;
         }

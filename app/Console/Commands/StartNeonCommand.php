@@ -11,22 +11,24 @@ use Illuminate\Console\Command;
 use Monolog\Handler\StreamHandler;
 use Monolog\Level;
 use Monolog\Logger;
+use Symfony\Component\Console\Attribute\AsCommand;
 
-final class DiscordBotCommand extends Command
+#[AsCommand(name: 'neon:start')]
+final class StartNeonCommand extends Command
 {
-    protected $signature = 'bot:run';
-    protected $description = 'Run the Discord bot';
+    protected $signature = 'neon:start';
+    protected $description = 'Run Neon';
 
     public function handle()
     {
-        $this->info('Starting Discord bot...');
+        $this->components->info('Starting Neon...');
 
         // Save the current process ID (PID) to a file
-        $pidFile = storage_path('app/discord-bot.pid');
+        $pidFile = storage_path('app/neon.pid');
         file_put_contents($pidFile, getmypid());
 
         $log = new Logger('DiscordPHP');
-        $log->pushHandler(new StreamHandler(storage_path('logs/discord.log'), Level::Info));
+        $log->pushHandler(new StreamHandler(storage_path('logs/neon.log'), Level::Info));
 
         $discord = new Discord([
             'token' => config('discord.token'),
@@ -34,19 +36,21 @@ final class DiscordBotCommand extends Command
             'logger' => $log,
         ]);
 
-        $discord->on('ready', function ($discord) {
-            $this->info('Bot is ready!');
+        $discord->on('init', function ($discord) {
+            $this->components->info('Neon is running!');
 
             $discord->on(Event::MESSAGE_CREATE, function ($message) {
                 if ($message->content === '!ping') {
+                    $this->components->info('Received ping!');
                     $message->channel->sendMessage('Pong!');
+                    $this->components->info('Sent pong!');
                 }
             });
         });
 
         $discord->run();
 
-        // Clean up PID file when the bot stops
+        // Clean up PID file when the neon stops
         if (file_exists($pidFile)) {
             unlink($pidFile);
         }
