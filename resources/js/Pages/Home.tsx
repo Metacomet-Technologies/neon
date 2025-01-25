@@ -17,7 +17,7 @@ export default function Home() {
                 <div className="mx-auto max-w-7xl">
                     <div className="px-6 pt-6 lg:max-w-2xl lg:pr-0 lg:pl-8">
                         <nav aria-label="Global" className="flex items-center justify-between">
-                            <a href="#" className="-m-1.5 p-1.5">
+                            <Link href={route('home')} className="-m-1.5 p-1.5">
                                 <span className="sr-only">Neon</span>
                                 <img
                                     alt="Neon"
@@ -29,7 +29,7 @@ export default function Home() {
                                     src="https://cdn.metacomet.tech/neon/logo/cyan-300/PNG/neon@4x.png"
                                     className="block dark:hidden w-auto h-24"
                                 />
-                            </a>
+                            </Link>
                             <ThemeToggleButton />
                         </nav>
                     </div>

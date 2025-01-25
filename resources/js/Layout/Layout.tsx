@@ -39,22 +39,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
             navbar={
                 <Navbar>
                     <NavbarSection className="max-lg:hidden">
-                        <img
-                            alt="Neon"
-                            src="https://cdn.metacomet.tech/neon/logo/pink-600/PNG/neon@4x.png"
-                            className="hidden dark:block size-8"
-                        />
-                        <img
-                            alt="Neon"
-                            src="https://cdn.metacomet.tech/neon/logo/cyan-300/PNG/neon@4x.png"
-                            className="block dark:hidden size-8"
-                        />
+                        <NavbarItem href={route('home')}>
+                            <img
+                                alt="Neon"
+                                src="https://cdn.metacomet.tech/neon/logo/pink-600/PNG/neon@4x.png"
+                                className="hidden dark:block size-8"
+                            />
+                            <img
+                                alt="Neon"
+                                src="https://cdn.metacomet.tech/neon/logo/cyan-300/PNG/neon@4x.png"
+                                className="block dark:hidden size-8"
+                            />
+                        </NavbarItem>
                     </NavbarSection>
                     <NavbarDivider className="max-lg:hidden" />
                     <NavbarSection className="max-lg:hidden">
-                        <NavbarItem href={route('home')} current={component === 'Home'}>
-                            Home
-                        </NavbarItem>
                         <NavbarItem href={route('profile')} current={component === 'Profile'}>
                             Profile
                         </NavbarItem>
@@ -84,25 +83,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
             sidebar={
                 <Sidebar>
                     <SidebarHeader>
-                        <div className="flex items-center space-x-2">
-                            <img
-                                alt="Neon"
-                                src="https://cdn.metacomet.tech/neon/logo/pink-600/PNG/neon@4x.png"
-                                className="hidden dark:block size-8"
-                            />
-                            <img
-                                alt="Neon"
-                                src="https://cdn.metacomet.tech/neon/logo/cyan-300/PNG/neon@4x.png"
-                                className="block dark:hidden size-8"
-                            />
-                            <SidebarLabel>Discord Bot</SidebarLabel>
-                        </div>
+                        <SidebarSection>
+                            <SidebarItem href={route('home')}>
+                                <img
+                                    alt="Neon"
+                                    src="https://cdn.metacomet.tech/neon/logo/pink-600/PNG/neon@4x.png"
+                                    className="hidden dark:block size-8"
+                                />
+                                <img
+                                    alt="Neon"
+                                    src="https://cdn.metacomet.tech/neon/logo/cyan-300/PNG/neon@4x.png"
+                                    className="block dark:hidden size-8"
+                                />
+                                <SidebarLabel>Discord Bot</SidebarLabel>
+                            </SidebarItem>
+                        </SidebarSection>
                     </SidebarHeader>
                     <SidebarBody>
                         <SidebarSection>
-                            <SidebarItem href={route('home')} current={component === 'Home'}>
-                                Home
-                            </SidebarItem>
                             <SidebarItem href={route('profile')} current={component === 'Profile'}>
                                 Profile
                             </SidebarItem>
