@@ -1,5 +1,6 @@
 import { Avatar } from '@/Components/avatar';
 import { Heading } from '@/Components/heading';
+import { Link } from '@/Components/link';
 import { Strong, Text } from '@/Components/text';
 import { Layout } from '@/Layout/Layout';
 import { PageProps } from '@/types';
@@ -20,6 +21,12 @@ export default function Profile() {
                     </div>
                 </div>
             </div>
+            <Link
+                className="mt-6 text-blue-600 dark:text-blue-400 hover:underline"
+                href={route('join-server')}
+            >
+                Request Bot Join Server
+            </Link>
         </>
     );
 }
