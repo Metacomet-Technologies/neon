@@ -213,6 +213,7 @@ final class StartNeonCommand extends Command
         $parts = explode(' ', $message->content);
         if (count($parts) < 3) {
             $message->channel->sendMessage($this->setMessageOutput($usage));
+
             return;
         }
 
@@ -223,6 +224,7 @@ final class StartNeonCommand extends Command
         // Validate the user mention
         if (! str_starts_with($userMention, '<@') || ! str_ends_with($userMention, '>')) {
             $message->channel->sendMessage($this->setMessageOutput('Invalid user mention format.'));
+
             return;
         }
 
@@ -234,6 +236,7 @@ final class StartNeonCommand extends Command
 
         if (! $guild) {
             $message->channel->sendMessage($this->setMessageOutput('Server not found.'));
+
             return;
         }
 
@@ -244,6 +247,7 @@ final class StartNeonCommand extends Command
 
         if (! $role) {
             $message->channel->sendMessage($this->setMessageOutput("Role '{$roleName}' not found."));
+
             return;
         }
 
@@ -252,6 +256,7 @@ final class StartNeonCommand extends Command
 
         if (! $member) {
             $message->channel->sendMessage($this->setMessageOutput('User not found in the server.'));
+
             return;
         }
 
@@ -266,7 +271,6 @@ final class StartNeonCommand extends Command
                 $this->components->error("Failed to assign role '{$roleName}': {$e->getMessage()}");
             });
     }
-
 
     private function handlePing(mixed $message): void
     {
