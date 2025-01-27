@@ -2,14 +2,13 @@ import { Button } from '@/Components/button';
 import { Link } from '@/Components/link';
 import { useTheme } from '@/Layout/ThemeContext';
 import ThemeToggleButton from '@/Layout/ThemeToggleButton';
+import { PageProps } from '@/types';
 import { ArrowRightIcon } from '@heroicons/react/16/solid';
+import { usePage } from '@inertiajs/react';
 
 export default function Home() {
+    const { auth } = usePage<PageProps>().props;
     const { theme } = useTheme();
-
-    function handleLogin() {
-        window.location.href = route('login');
-    }
 
     return (
         <div className="bg-white lg:bg-zinc-100 dark:bg-zinc-900 dark:lg:bg-zinc-950">
@@ -30,7 +29,13 @@ export default function Home() {
                                     className="block dark:hidden w-auto h-24"
                                 />
                             </Link>
-                            <ThemeToggleButton />
+                            <div className="flex flex-row items-center gap-x-4">
+                                <Button plain href={route('profile')}>
+                                    {auth.user ? 'Dashboard' : 'Login'}
+                                </Button>
+
+                                <ThemeToggleButton />
+                            </div>
                         </nav>
                     </div>
                 </div>
@@ -73,7 +78,7 @@ export default function Home() {
                                     your community effortless. Elevate your server today!
                                 </p>
                                 <div className="mt-10 flex items-center gap-x-6">
-                                    <Button color={theme === 'light' ? 'cyan' : 'pink'} onClick={handleLogin}>
+                                    <Button color={theme === 'light' ? 'cyan' : 'pink'} href={route('profile')}>
                                         Get started
                                     </Button>
                                     <Button plain href={route('profile')}>
