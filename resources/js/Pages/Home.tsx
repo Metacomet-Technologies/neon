@@ -59,6 +59,7 @@ export default function Home() {
                                 <div className="mb-10 flex">
                                     <div className="relative rounded-full px-3 py-1 text-sm/6 text-zinc-500 dark:text-zinc-400 ring-1 ring-zinc-900/10 dark:ring-zinc-700 hover:ring-zinc-900/20 dark:hover:ring-zinc-600">
                                         Coming Soon...{' '}
+                                        {/* TODO: add a route to register the user and provide them a thanks for signing up screen. */}
                                         <Link
                                             href="#"
                                             className="font-semibold whitespace-nowrap text-pink-600 dark:text-cyan-300"
