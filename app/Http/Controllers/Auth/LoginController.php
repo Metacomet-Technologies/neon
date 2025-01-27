@@ -22,6 +22,8 @@ final class LoginController
         }
 
         // Handle the request normally
-        return Socialite::driver('discord')->redirect();
+        return Socialite::driver('discord')
+            ->scopes(['email', 'guilds','guilds.members.read'])
+            ->redirect();
     }
 }

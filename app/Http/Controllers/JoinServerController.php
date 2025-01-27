@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
@@ -12,7 +12,7 @@ final class JoinServerController
     /**
      * Handle the incoming request.
      */
-    public function __invoke(Request $request): \Symfony\Component\HttpFoundation\Response  | \Symfony\Component\HttpFoundation\RedirectResponse
+    public function __invoke(Request $request): \Symfony\Component\HttpFoundation\Response|\Symfony\Component\HttpFoundation\RedirectResponse
     {
         $url = config('services.discord.join_server_url');
 

@@ -14,6 +14,7 @@ import { StackedLayout } from '@/Components/stacked-layout';
 import { PageProps } from '@/types';
 import { usePage } from '@inertiajs/react';
 
+import Flash from './Flash';
 import ThemeToggleButton from './ThemeToggleButton';
 
 /**
@@ -25,7 +26,7 @@ import ThemeToggleButton from './ThemeToggleButton';
  */
 export function Layout({ children }: { children: React.ReactNode }) {
     const { component, props } = usePage<PageProps>();
-    const { auth } = props;
+    const { auth, flash } = props;
 
     /**
      * Redirects the user to the login page.
@@ -56,6 +57,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     <NavbarSection className="max-lg:hidden">
                         <NavbarItem href={route('profile')} current={component === 'Profile'}>
                             Profile
+                        </NavbarItem>
+                        <NavbarItem href={route('commands.index')} current={component.startsWith('Commands')}>
+                            Commands
                         </NavbarItem>
                     </NavbarSection>
                     <NavbarSpacer />
@@ -104,6 +108,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                             <SidebarItem href={route('profile')} current={component === 'Profile'}>
                                 Profile
                             </SidebarItem>
+                            <SidebarItem href={route('commands.index')} current={component.startsWith('Commands')}>
+                                Commands
+                            </SidebarItem>
                         </SidebarSection>
                     </SidebarBody>
                     <SidebarFooter>
@@ -120,6 +127,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </Sidebar>
             }
         >
+            <Flash flash={flash} />
             {children}
         </StackedLayout>
     );

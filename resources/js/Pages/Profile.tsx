@@ -21,10 +21,7 @@ export default function Profile() {
                     </div>
                 </div>
             </div>
-            <Link
-                className="mt-6 text-blue-600 dark:text-blue-400 hover:underline"
-                href={route('join-server')}
-            >
+            <Link className="mt-6 text-blue-600 dark:text-blue-400 hover:underline" href={route('join-server')}>
                 Request Bot Join Server
             </Link>
         </>

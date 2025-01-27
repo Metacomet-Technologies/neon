@@ -276,6 +276,6 @@ final class StartNeonCommand extends Command
     {
         $this->components->info('Received ping!');
         $message->channel->sendMessage($this->setMessageOutput('pong!'));
-        $this->components->info('Sent pong!');
+        $this->components->info('Sent pong! on ' . $message->channel->id);
     }
 }

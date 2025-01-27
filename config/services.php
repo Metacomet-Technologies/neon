@@ -22,6 +22,7 @@ return [
         'allow_gif_avatars' => (bool) env('DISCORD_AVATAR_GIF', true),
         'avatar_default_extension' => env('DISCORD_EXTENSION_DEFAULT', 'png'), // only pick from jpg, png, webp
         'join_server_url' => env('DISCORD_BOT_JOIN_SERVER_URI'),
+        'rest_api_url' => env('DISCORD_REST_API_URL', 'https://discord.com/api/v10'),
     ],
     'postmark' => [
         'token' => env('POSTMARK_TOKEN'),

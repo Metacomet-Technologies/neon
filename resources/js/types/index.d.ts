@@ -15,6 +15,10 @@ export type PageProps<T extends Record<string, unknown> = Record<string, unknown
     auth: {
         user: User;
     };
+    flash?: {
+        type: FlashType;
+        message: string;
+    };
     ziggy: Config & { location: string };
     appName: string;
 };
@@ -40,3 +44,5 @@ export interface Pagination<T> {
     to: any;
     total: number;
 }
+
+export type FlashType = 'success' | 'error' | 'info' | 'warning';
