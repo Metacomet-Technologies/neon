@@ -3,8 +3,9 @@
 use App\Http\Controllers\Auth\LoginCallbackController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LogoutController;
+use App\Http\Controllers\CommandController;
 use App\Http\Controllers\JoinServerController;
-use App\Http\Controllers\NeonCommandController;
+use App\Http\Controllers\ServerController;
 use App\Http\Controllers\UnsubscribeController;
 use Illuminate\Support\Facades\Route;
 
@@ -18,10 +19,11 @@ Route::group(['middleware' => 'auth'], function () {
     Route::post('logout', LogoutController::class)->name('logout');
     Route::inertia('profile', 'Profile')->name('profile');
     Route::get('join-server', JoinServerController::class)->name('join-server');
-    //TODO: add a dashboard for the guild level and make a main guild chooser
-
-    //TODO: make this scoped to the guild
-    Route::resource('commands', NeonCommandController::class)->except(['show']);
+    Route::prefix('server')->name('server.')->group(function () {
+        Route::get('/', [ServerController::class, 'index'])->name('index');
+        Route::get('{serverId}', [ServerController::class, 'show'])->name('show');
+        Route::resource('{serverId}/command', CommandController::class)->except(['show']);
+    });
 });
 
 Route::get('unsubscribe/{email}', [UnsubscribeController::class, 'update'])->name('unsubscribe.update');

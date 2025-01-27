@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\DiscordPermissionEnum;
+use App\Helpers\Discord\GetGuilds;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -25,6 +27,8 @@ use Laravel\Sanctum\HasApiTokens;
  * @property \Illuminate\Support\Carbon|null $refresh_token_expires_at
  * @property bool $is_admin
  * @property bool $is_on_mailing_list
+ * @property string|null $current_server_id
+ * @property-read array $guilds
  * @property-read \App\Models\TFactory|null $use_factory
  * @property-read \Illuminate\Notifications\DatabaseNotificationCollection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
  * @property-read int|null $notifications_count
@@ -39,6 +43,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereAccessToken($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereAvatar($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereCurrentServerId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereDiscordId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereEmail($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereEmailVerifiedAt($value)
@@ -76,6 +81,7 @@ final class User extends Authenticatable
         'refresh_token_expires_at',
         'is_admin',
         'is_on_mailing_list',
+        'current_server_id',
     ];
 
     /**
@@ -90,6 +96,8 @@ final class User extends Authenticatable
         'refresh_token',
         'refresh_token_expires_at',
     ];
+
+    protected $appends = ['guilds'];
 
     /**
      * Get the attributes that should be cast.
@@ -123,5 +131,13 @@ final class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->is_admin;
+    }
+
+    public function getGuildsAttribute(): array
+    {
+        $permission = DiscordPermissionEnum::ADMINISTRATOR;
+        $guilds = (new GetGuilds($this))->getGuildsWhereUserHasPermission($permission);
+
+        return $guilds;
     }
 }

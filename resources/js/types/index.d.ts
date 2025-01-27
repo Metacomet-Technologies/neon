@@ -9,6 +9,8 @@ export interface User {
     id: number;
     name: string;
     updated_at: string;
+    current_server_id?: string | null;
+    guilds: Guild[];
 }
 
 export type PageProps<T extends Record<string, unknown> = Record<string, unknown>> = T & {
@@ -46,3 +48,13 @@ export interface Pagination<T> {
 }
 
 export type FlashType = 'success' | 'error' | 'info' | 'warning';
+
+export interface Guild {
+    id: string;
+    name: string;
+    icon: string;
+    banner?: string;
+    owner: boolean;
+    permissions: string;
+    features: string[];
+}

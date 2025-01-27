@@ -10,8 +10,7 @@ use Illuminate\Support\Facades\Log;
 
 final class DiscordRefreshToken
 {
-    public function __construct(private User $user)
-    {}
+    public function __construct(private User $user) {}
 
     public function refreshToken(): ?string
     {
@@ -31,6 +30,7 @@ final class DiscordRefreshToken
                 'user_id' => $this->user->id,
                 'response' => $response->body(),
             ]);
+
             return;
         }
 

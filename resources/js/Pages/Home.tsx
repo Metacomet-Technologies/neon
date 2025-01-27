@@ -30,7 +30,7 @@ export default function Home() {
                                 />
                             </Link>
                             <div className="flex flex-row items-center gap-x-4">
-                                <Button plain href={route('profile')}>
+                                <Button plain href={route('server.index')}>
                                     {auth.user ? 'Dashboard' : 'Login'}
                                 </Button>
 
@@ -79,10 +79,10 @@ export default function Home() {
                                     your community effortless. Elevate your server today!
                                 </p>
                                 <div className="mt-10 flex items-center gap-x-6">
-                                    <Button color={theme === 'light' ? 'cyan' : 'pink'} href={route('profile')}>
+                                    <Button color={theme === 'light' ? 'cyan' : 'pink'} href={route('server.index')}>
                                         Get started
                                     </Button>
-                                    <Button plain href={route('profile')}>
+                                    <Button plain href={route('server.index')}>
                                         Learn more <ArrowRightIcon />
                                     </Button>
                                 </div>
