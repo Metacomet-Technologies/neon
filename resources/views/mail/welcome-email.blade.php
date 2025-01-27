@@ -417,7 +417,7 @@
                                                                         <td class="pc-w620-spacing-0-0-40-0"
                                                                             align="center" valign="top"
                                                                             style="padding: 0px 0px 60px 0px;">
-                                                                            <img src="https://cdn.metacomet.tech/neon/logo/pink-600/PNG/neon@4x.png"
+                                                                            <img src="https://cdn.neon-bot.com/logo/pink-600/PNG/neon@4x.png"
                                                                                 width="125" height="125"
                                                                                 alt=""
                                                                                 style="display: block; outline: 0; line-height: 100%; -ms-interpolation-mode: bicubic; width: 125px; height: auto; max-width: 100%; border: 0;" />

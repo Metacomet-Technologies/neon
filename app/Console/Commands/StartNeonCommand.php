@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Helpers\DiscordChannelValidator;
+use App\Jobs\ProcessGuildCommandJob;
 use Discord\Discord;
 use Discord\Parts\Channel\Channel;
 use Discord\WebSockets\Event;
 use Discord\WebSockets\Intents;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Monolog\Handler\StreamHandler;
 use Monolog\Level;
 use Monolog\Logger;
@@ -76,12 +78,21 @@ final class StartNeonCommand extends Command
                     return;
                 }
 
-                if (str_starts_with($message->content, '!new-channel')) {
-                    $this->handleCreateChannel($message, $discord);
+                if (!str_starts_with($message->content, '!')) {
+                    return;
                 }
 
-                if ($message->content === '!ping') {
-                    $this->handlePing($message);
+                $guildId = $message->channel->guild_id;
+                $commands = Cache::get('guild-commands:' . $guildId, []);
+                $channelId = $message->channel->id;
+                foreach ($commands as $command) {
+                    if (str_starts_with($message->content, "!".$command['command'])) {
+                        ProcessGuildCommandJob::dispatch($guildId, $channelId, $command, $message->content);
+                    }
+                }
+
+                if (str_starts_with($message->content, '!new-channel')) {
+                    $this->handleCreateChannel($message, $discord);
                 }
 
                 if (str_starts_with($message->content, '!assign-role')) {
@@ -270,12 +281,5 @@ final class StartNeonCommand extends Command
                 $message->channel->sendMessage($this->setMessageOutput("Failed to assign role '{$roleName}': {$e->getMessage()}"));
                 $this->components->error("Failed to assign role '{$roleName}': {$e->getMessage()}");
             });
-    }
-
-    private function handlePing(mixed $message): void
-    {
-        $this->components->info('Received ping!');
-        $message->channel->sendMessage($this->setMessageOutput('pong!'));
-        $this->components->info('Sent pong! on ' . $message->channel->id);
     }
 }

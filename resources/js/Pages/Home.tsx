@@ -20,12 +20,12 @@ export default function Home() {
                                 <span className="sr-only">Neon</span>
                                 <img
                                     alt="Neon"
-                                    src="https://cdn.metacomet.tech/neon/logo/pink-600/PNG/neon@4x.png"
+                                    src="https://cdn.neon-bot.com/logo/pink-600/PNG/neon@4x.png"
                                     className="hidden dark:block w-auto h-24"
                                 />
                                 <img
                                     alt="Neon"
-                                    src="https://cdn.metacomet.tech/neon/logo/cyan-300/PNG/neon@4x.png"
+                                    src="https://cdn.neon-bot.com/logo/cyan-300/PNG/neon@4x.png"
                                     className="block dark:hidden w-auto h-24"
                                 />
                             </Link>
@@ -93,7 +93,7 @@ export default function Home() {
                 <div className="bg-zinc-50 dark:bg-zinc-900 lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2">
                     <img
                         alt=""
-                        src="https://cdn.metacomet.tech/neon/home-bg.png"
+                        src="https://cdn.neon-bot.com/home-bg.png"
                         className="aspect-3/2 object-cover lg:aspect-auto lg:size-full"
                     />
                 </div>

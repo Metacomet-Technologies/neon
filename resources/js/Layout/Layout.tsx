@@ -48,12 +48,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         <NavbarItem href={route('home')}>
                             <img
                                 alt="Neon"
-                                src="https://cdn.metacomet.tech/neon/logo/pink-600/PNG/neon@4x.png"
+                                src="https://cdn.neon-bot.com/logo/pink-600/PNG/neon@4x.png"
                                 className="hidden dark:block size-8"
                             />
                             <img
                                 alt="Neon"
-                                src="https://cdn.metacomet.tech/neon/logo/cyan-300/PNG/neon@4x.png"
+                                src="https://cdn.neon-bot.com/logo/cyan-300/PNG/neon@4x.png"
                                 className="block dark:hidden size-8"
                             />
                         </NavbarItem>
@@ -108,12 +108,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
                             <SidebarItem href={route('home')}>
                                 <img
                                     alt="Neon"
-                                    src="https://cdn.metacomet.tech/neon/logo/pink-600/PNG/neon@4x.png"
+                                    src="https://cdn.neon-bot.com/logo/pink-600/PNG/neon@4x.png"
                                     className="hidden dark:block size-8"
                                 />
                                 <img
                                     alt="Neon"
-                                    src="https://cdn.metacomet.tech/neon/logo/cyan-300/PNG/neon@4x.png"
+                                    src="https://cdn.neon-bot.com/logo/cyan-300/PNG/neon@4x.png"
                                     className="block dark:hidden size-8"
                                 />
                                 <SidebarLabel>Discord Bot</SidebarLabel>
