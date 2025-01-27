@@ -1,5 +1,0 @@
-{
-    "watch": ["app", "config", "routes", "resources"],
-    "ext": "php,env",
-    "exec": "php artisan neon:start"
-}

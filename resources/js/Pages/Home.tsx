@@ -2,14 +2,13 @@ import { Button } from '@/Components/button';
 import { Link } from '@/Components/link';
 import { useTheme } from '@/Layout/ThemeContext';
 import ThemeToggleButton from '@/Layout/ThemeToggleButton';
+import { PageProps } from '@/types';
 import { ArrowRightIcon } from '@heroicons/react/16/solid';
+import { usePage } from '@inertiajs/react';
 
 export default function Home() {
+    const { auth } = usePage<PageProps>().props;
     const { theme } = useTheme();
-
-    function handleLogin() {
-        window.location.href = route('login');
-    }
 
     return (
         <div className="bg-white lg:bg-zinc-100 dark:bg-zinc-900 dark:lg:bg-zinc-950">
@@ -21,16 +20,22 @@ export default function Home() {
                                 <span className="sr-only">Neon</span>
                                 <img
                                     alt="Neon"
-                                    src="https://cdn.metacomet.tech/neon/logo/pink-600/PNG/neon@4x.png"
+                                    src="https://cdn.neon-bot.com/logo/pink-600/PNG/neon@4x.png"
                                     className="hidden dark:block w-auto h-24"
                                 />
                                 <img
                                     alt="Neon"
-                                    src="https://cdn.metacomet.tech/neon/logo/cyan-300/PNG/neon@4x.png"
+                                    src="https://cdn.neon-bot.com/logo/cyan-300/PNG/neon@4x.png"
                                     className="block dark:hidden w-auto h-24"
                                 />
                             </Link>
-                            <ThemeToggleButton />
+                            <div className="flex flex-row items-center gap-x-4">
+                                <Button plain href={route('server.index')}>
+                                    {auth.user ? 'Dashboard' : 'Login'}
+                                </Button>
+
+                                <ThemeToggleButton />
+                            </div>
                         </nav>
                     </div>
                 </div>
@@ -54,6 +59,7 @@ export default function Home() {
                                 <div className="mb-10 flex">
                                     <div className="relative rounded-full px-3 py-1 text-sm/6 text-zinc-500 dark:text-zinc-400 ring-1 ring-zinc-900/10 dark:ring-zinc-700 hover:ring-zinc-900/20 dark:hover:ring-zinc-600">
                                         Coming Soon...{' '}
+                                        {/* TODO: add a route to register the user and provide them a thanks for signing up screen. */}
                                         <Link
                                             href="#"
                                             className="font-semibold whitespace-nowrap text-pink-600 dark:text-cyan-300"
@@ -73,10 +79,10 @@ export default function Home() {
                                     your community effortless. Elevate your server today!
                                 </p>
                                 <div className="mt-10 flex items-center gap-x-6">
-                                    <Button color={theme === 'light' ? 'cyan' : 'pink'} onClick={handleLogin}>
+                                    <Button color={theme === 'light' ? 'cyan' : 'pink'} href={route('server.index')}>
                                         Get started
                                     </Button>
-                                    <Button plain href={route('profile')}>
+                                    <Button plain href={route('server.index')}>
                                         Learn more <ArrowRightIcon />
                                     </Button>
                                 </div>
@@ -87,7 +93,7 @@ export default function Home() {
                 <div className="bg-zinc-50 dark:bg-zinc-900 lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2">
                     <img
                         alt=""
-                        src="https://cdn.metacomet.tech/neon/home-bg.png"
+                        src="https://cdn.neon-bot.com/home-bg.png"
                         className="aspect-3/2 object-cover lg:aspect-auto lg:size-full"
                     />
                 </div>

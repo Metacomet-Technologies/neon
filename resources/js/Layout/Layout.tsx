@@ -1,6 +1,6 @@
 import { Avatar } from '@/Components/avatar';
 import { Dropdown, DropdownButton, DropdownItem, DropdownLabel, DropdownMenu } from '@/Components/dropdown';
-import { Navbar, NavbarDivider, NavbarItem, NavbarSection, NavbarSpacer } from '@/Components/navbar';
+import { Navbar, NavbarDivider, NavbarItem, NavbarLabel, NavbarSection, NavbarSpacer } from '@/Components/navbar';
 import {
     Sidebar,
     SidebarBody,
@@ -11,9 +11,11 @@ import {
     SidebarSection,
 } from '@/Components/sidebar';
 import { StackedLayout } from '@/Components/stacked-layout';
-import { PageProps } from '@/types';
+import { Guild, PageProps } from '@/types';
+import { ChevronDownIcon } from '@heroicons/react/16/solid';
 import { usePage } from '@inertiajs/react';
 
+import Flash from './Flash';
 import ThemeToggleButton from './ThemeToggleButton';
 
 /**
@@ -25,7 +27,11 @@ import ThemeToggleButton from './ThemeToggleButton';
  */
 export function Layout({ children }: { children: React.ReactNode }) {
     const { component, props } = usePage<PageProps>();
-    const { auth } = props;
+    const { auth, flash } = props;
+
+    const currentServerId = auth?.user?.current_server_id || null;
+
+    const currentGuild = auth?.user?.guilds?.find((guild) => guild.id === currentServerId) || null;
 
     /**
      * Redirects the user to the login page.
@@ -42,21 +48,36 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         <NavbarItem href={route('home')}>
                             <img
                                 alt="Neon"
-                                src="https://cdn.metacomet.tech/neon/logo/pink-600/PNG/neon@4x.png"
+                                src="https://cdn.neon-bot.com/logo/pink-600/PNG/neon@4x.png"
                                 className="hidden dark:block size-8"
                             />
                             <img
                                 alt="Neon"
-                                src="https://cdn.metacomet.tech/neon/logo/cyan-300/PNG/neon@4x.png"
+                                src="https://cdn.neon-bot.com/logo/cyan-300/PNG/neon@4x.png"
                                 className="block dark:hidden size-8"
                             />
                         </NavbarItem>
+                        <Dropdown>
+                            <DropdownButton as={NavbarItem} className="max-lg:hidden">
+                                <NavbarLabel>{currentGuild?.name || 'Servers'}</NavbarLabel>
+                                <ChevronDownIcon />
+                            </DropdownButton>
+                            <ServerDropDownMenu guilds={auth.user?.guilds || []} />
+                        </Dropdown>
                     </NavbarSection>
                     <NavbarDivider className="max-lg:hidden" />
                     <NavbarSection className="max-lg:hidden">
-                        <NavbarItem href={route('profile')} current={component === 'Profile'}>
-                            Profile
+                        <NavbarItem href={route('server.index')} current={component.startsWith('Servers')}>
+                            Servers
                         </NavbarItem>
+                        {currentServerId && (
+                            <NavbarItem
+                                href={route('server.command.index', { serverId: currentServerId || '' })}
+                                current={component.startsWith('Commands')}
+                            >
+                                Commands
+                            </NavbarItem>
+                        )}
                     </NavbarSection>
                     <NavbarSpacer />
                     <NavbarSection>
@@ -87,23 +108,38 @@ export function Layout({ children }: { children: React.ReactNode }) {
                             <SidebarItem href={route('home')}>
                                 <img
                                     alt="Neon"
-                                    src="https://cdn.metacomet.tech/neon/logo/pink-600/PNG/neon@4x.png"
+                                    src="https://cdn.neon-bot.com/logo/pink-600/PNG/neon@4x.png"
                                     className="hidden dark:block size-8"
                                 />
                                 <img
                                     alt="Neon"
-                                    src="https://cdn.metacomet.tech/neon/logo/cyan-300/PNG/neon@4x.png"
+                                    src="https://cdn.neon-bot.com/logo/cyan-300/PNG/neon@4x.png"
                                     className="block dark:hidden size-8"
                                 />
                                 <SidebarLabel>Discord Bot</SidebarLabel>
                             </SidebarItem>
+                            <Dropdown>
+                                <DropdownButton as={SidebarItem}>
+                                    <NavbarLabel>{currentGuild?.name || 'Servers'}</NavbarLabel>
+                                    <ChevronDownIcon />
+                                </DropdownButton>
+                                <ServerDropDownMenu guilds={auth.user?.guilds || []} />
+                            </Dropdown>
                         </SidebarSection>
                     </SidebarHeader>
                     <SidebarBody>
                         <SidebarSection>
-                            <SidebarItem href={route('profile')} current={component === 'Profile'}>
-                                Profile
+                            <SidebarItem href={route('server.index')} current={component.startsWith('Servers')}>
+                                Servers
                             </SidebarItem>
+                            {currentServerId && (
+                                <SidebarItem
+                                    href={route('server.command.index', { serverId: currentServerId || '' })}
+                                    current={component.startsWith('Commands')}
+                                >
+                                    Commands
+                                </SidebarItem>
+                            )}
                         </SidebarSection>
                     </SidebarBody>
                     <SidebarFooter>
@@ -120,7 +156,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </Sidebar>
             }
         >
+            <Flash flash={flash} />
             {children}
         </StackedLayout>
+    );
+}
+
+function ServerDropDownMenu({ guilds }: { guilds: Guild[] }) {
+    return (
+        <DropdownMenu className="min-w-80 lg:min-w-64" anchor="bottom start">
+            {guilds.map((guild) => (
+                <DropdownItem key={guild.id} href={route('server.show', guild.id)}>
+                    <DropdownLabel>{guild.name}</DropdownLabel>
+                </DropdownItem>
+            ))}
+        </DropdownMenu>
     );
 }

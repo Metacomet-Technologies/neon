@@ -1,0 +1,6 @@
+{
+    "watch": ["app", "config", "routes"],
+    "ext": "php",
+    "ignore": ["node_modules", "storage", "vendor"],
+    "exec": "php artisan neon:start"
+}
