@@ -86,7 +86,8 @@ final class StartNeonCommand extends Command
                 $commands = Cache::get('guild-commands:' . $guildId, []);
                 $channelId = $message->channel->id;
                 foreach ($commands as $command) {
-                    if (str_starts_with($message->content, '!' . $command['command'])) {
+                    $parts = explode(' ', $message->content);
+                    if ($parts[0] == '!' . $command['command']) {
                         ProcessGuildCommandJob::dispatch($guildId, $channelId, $command, $message->content);
                     }
                 }
