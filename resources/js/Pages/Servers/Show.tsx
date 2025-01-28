@@ -2,7 +2,7 @@ import { Heading, Subheading } from '@/Components/heading';
 import { Text } from '@/Components/text';
 import { Layout } from '@/Layout/Layout';
 import { PageProps } from '@/types';
-import { usePage } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 
 export default function Show() {
     const { auth } = usePage<PageProps>().props;
@@ -11,6 +11,7 @@ export default function Show() {
 
     return (
         <>
+            <Head title="Server Information" />
             <Heading>{guild?.name}</Heading>
 
             <div>

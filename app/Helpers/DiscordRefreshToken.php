@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Http;
+namespace App\Helpers;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
@@ -31,7 +31,7 @@ final class DiscordRefreshToken
                 'response' => $response->body(),
             ]);
 
-            return;
+            return null;
         }
 
         $data = $response->json();

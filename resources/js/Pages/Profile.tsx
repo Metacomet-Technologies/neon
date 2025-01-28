@@ -4,13 +4,14 @@ import { Link } from '@/Components/link';
 import { Strong, Text } from '@/Components/text';
 import { Layout } from '@/Layout/Layout';
 import { PageProps } from '@/types';
-import { usePage } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 
 export default function Profile() {
     const { auth } = usePage<PageProps>().props;
 
     return (
         <>
+            <Head title="Profile" />
             <Heading level={1}>Profile</Heading>
             <div className="flex shrink-0">
                 <div className="flex gap-4 items-center p-4 bg-zinc-100 rounded-lg border border-zinc-200 shadow dark:bg-zinc-800 dark:border-zinc-700">

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Helpers\Discord;
 
 use App\Enums\DiscordPermissionEnum;
-use App\Http\DiscordRefreshToken;
+use App\Helpers\DiscordRefreshToken;
 use App\Models\User;
 use DateInterval;
 use Illuminate\Support\Facades\Cache;

@@ -1,16 +1,19 @@
 import { Button } from '@/Components/button';
 import { Heading } from '@/Components/heading';
+import { Link } from '@/Components/link';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/table';
 import { Layout } from '@/Layout/Layout';
+import PaginationRow from '@/Layout/PaginationRow';
 import { Pagination } from '@/types';
 import { booleanToIconForTables, formatDateTime } from '@/utils';
 import { TrashIcon } from '@heroicons/react/16/solid';
-import { Deferred } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { Command } from './types';
 
 export default function Index({ commands, serverId }: { commands: Pagination<Command>; serverId: string }) {
     return (
         <>
+            <Head title="Commands" />
             <div className="mb-4 flex justify-between items-center gap-4">
                 <Heading>Commands</Heading>
 
@@ -31,56 +34,56 @@ export default function Index({ commands, serverId }: { commands: Pagination<Com
                 </TableHead>
 
                 <TableBody>
-                    <Deferred data="commands" fallback={<LoadingState />}>
-                        <>
-                            {commands?.data.map((command: Command) => (
-                                <TableRow
-                                    href={route('server.command.edit', {
-                                        command: command.id,
-                                        serverId: serverId,
-                                    })}
-                                    key={command.id}
-                                >
-                                    <TableCell>{command.command}</TableCell>
-                                    <TableCell>{command.response}</TableCell>
-                                    <TableCell>{booleanToIconForTables(command.is_enabled)}</TableCell>
-                                    <TableCell>{booleanToIconForTables(command.is_public)}</TableCell>
-                                    <TableCell>{formatDateTime(command.updated_at)}</TableCell>
-                                    <TableCell>
-                                        <Button
-                                            href={route('server.command.destroy', {
-                                                command: command.id,
-                                                serverId: serverId,
-                                            })}
-                                            method="delete"
-                                            plain
-                                        >
-                                            <TrashIcon />
-                                            Delete
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </>
-                    </Deferred>
+                    <>
+                        {commands?.data.length === 0 ? (
+                            <EmptyState serverId={serverId} />
+                        ) : (
+                            <>
+                                {commands?.data.map((command: Command) => (
+                                    <TableRow
+                                        href={route('server.command.edit', {
+                                            command: command.id,
+                                            serverId: serverId,
+                                        })}
+                                        key={command.id}
+                                    >
+                                        <TableCell>!{command.command}</TableCell>
+                                        <TableCell>{command.response}</TableCell>
+                                        <TableCell>{booleanToIconForTables(command.is_enabled)}</TableCell>
+                                        <TableCell>{booleanToIconForTables(command.is_public)}</TableCell>
+                                        <TableCell>{formatDateTime(command.updated_at)}</TableCell>
+                                        <TableCell>
+                                            <Button
+                                                href={route('server.command.destroy', {
+                                                    command: command.id,
+                                                    serverId: serverId,
+                                                })}
+                                                method="delete"
+                                                plain
+                                            >
+                                                <TrashIcon />
+                                                Delete
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </>
+                        )}
+                    </>
                 </TableBody>
             </Table>
+            {commands?.links.length > 3 && <PaginationRow links={commands.links} className="mt-4" />}
         </>
     );
 }
 
-function LoadingState() {
+function EmptyState({ serverId }: { serverId: string }) {
     return (
         <TableRow>
-            <TableCell colSpan={9}>Loading...</TableCell>
-        </TableRow>
-    );
-}
-
-function EmptyState() {
-    return (
-        <TableRow>
-            <TableCell colSpan={9}>No commands found.</TableCell>
+            <TableCell colSpan={9}>
+                No commands yet...{' '}
+                <Link href={route('server.command.create', { serverId: serverId })}>Add one now!</Link>
+            </TableCell>
         </TableRow>
     );
 }

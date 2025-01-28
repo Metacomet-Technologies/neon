@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\Jobs;
 
 use Exception;
@@ -7,7 +10,7 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class ProcessGuildCommandJob implements ShouldQueue
+final class ProcessGuildCommandJob implements ShouldQueue
 {
     use Queueable;
 
@@ -34,8 +37,8 @@ class ProcessGuildCommandJob implements ShouldQueue
         $chatResponse = $this->command['response'];
         $apiResponse = Http::withToken(config('discord.token'), 'Bot')
             ->post($url, [
-            'content' => $this->setMessageOutput($chatResponse),
-        ]);
+                'content' => $this->setMessageOutput($chatResponse),
+            ]);
 
         if ($apiResponse->failed()) {
             Log::error('Failed to send message to Discord', [

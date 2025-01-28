@@ -13,12 +13,12 @@
     <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
     <!-- Favicon -->
-    <link rel="apple-touch-icon" sizes="180x180" href="image/apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="image/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="image/favicon-16x16.png">
-    <link rel="icon" type="image/png" sizes="192x192" href="image/android-chrome-192x192.png">
-    <link rel="icon" type="image/png" sizes="512x512" href="image/android-chrome-512x512.png">
-    <link rel="manifest" href="image/site.webmanifest">
+    <link rel="apple-touch-icon" sizes="180x180" href="/image/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/image/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/image/favicon-16x16.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/image/android-chrome-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/image/android-chrome-512x512.png">
+    <link rel="manifest" href="/image/site.webmanifest">
     <link rel="shortcut icon" href="/image/favicon.ico">
 
     <!-- Fonts -->

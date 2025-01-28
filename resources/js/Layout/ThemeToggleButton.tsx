@@ -5,5 +5,9 @@ import { MoonIcon, SunIcon } from '@heroicons/react/20/solid';
 export default function ThemeToggleButton() {
     const { theme, toggleTheme } = useTheme();
 
-    return <NavbarItem onClick={toggleTheme}>{theme === 'light' ? <SunIcon /> : <MoonIcon />}</NavbarItem>;
+    return (
+        <NavbarItem name="btn-theme" onClick={toggleTheme}>
+            {theme === 'light' ? <SunIcon /> : <MoonIcon />}
+        </NavbarItem>
+    );
 }

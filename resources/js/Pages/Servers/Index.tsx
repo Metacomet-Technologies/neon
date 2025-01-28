@@ -2,13 +2,14 @@ import { Heading } from '@/Components/heading';
 import { Text } from '@/Components/text';
 import { Layout } from '@/Layout/Layout';
 import { PageProps } from '@/types';
-import { Link, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 
 export default function Index() {
     const { auth } = usePage<PageProps>().props;
 
     return (
         <>
+            <Head title="Servers" />
             <Heading>Choose a Server to get Started</Heading>
             {/* TODO: style this with cards and use the image from the discord server */}
             {auth.user?.guilds.map((guild) => (

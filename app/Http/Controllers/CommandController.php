@@ -15,15 +15,15 @@ final class CommandController
      */
     public function index(string $serverId): \Inertia\Response
     {
-        return Inertia::render('Command/Index', [
-            'commands' => Inertia::defer(function () use ($serverId) {
-                return NeonCommand::query()
-                    ->with(['createdByUser', 'updatedByUser'])
-                    ->where('guild_id', $serverId)
-                    ->latest()
-                    ->paginate(10);
+        $page = request()->input('page', 1);
+        $perPage = request()->input('perPage', 10);
 
-            }, 'commands'),
+        return Inertia::render('Command/Index', [
+            'commands' => NeonCommand::query()
+                ->with(['createdByUser', 'updatedByUser'])
+                ->where('guild_id', $serverId)
+                ->latest()
+                ->paginate(page: $page, perPage: $perPage),
             'serverId' => $serverId,
         ]);
     }

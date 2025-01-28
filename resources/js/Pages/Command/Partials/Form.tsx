@@ -34,20 +34,23 @@ export default function Form({ serverId, existingCommand }: { serverId: string; 
             className="bg-zinc-100 dark:bg-zinc-800 p-4 rounded-lg border border-zinc-200 dark:border-zinc-700 shadow"
         >
             <Fieldset className="space-y-4">
-                <Field>
-                    <Label htmlFor="command">
-                        Command <span className="text-red-500">*</span>
-                    </Label>
-                    <Description>The ! prefix will automatically be appended.</Description>
-                    <Input
-                        type="text"
-                        name="command"
-                        invalid={!!errors.command}
-                        value={data.command}
-                        onChange={(e) => setData('command', e.target.value)}
-                    />
-                    {!!errors.command && <ErrorMessage>{errors.command}</ErrorMessage>}
-                </Field>
+                {!existingCommand && (
+                    <Field>
+                        <Label htmlFor="command">
+                            Command <span className="text-red-500">*</span>
+                        </Label>
+                        <Description>The ! prefix will automatically be appended.</Description>
+                        <Input
+                            type="text"
+                            disabled={!!existingCommand}
+                            name="command"
+                            invalid={!!errors.command}
+                            value={data.command}
+                            onChange={(e) => setData('command', e.target.value)}
+                        />
+                        {!!errors.command && <ErrorMessage>{errors.command}</ErrorMessage>}
+                    </Field>
+                )}
                 <Field>
                     <Label htmlFor="description">Description</Label>
                     <Description>What does this command do?</Description>

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use Illuminate\Database\Query\Builder;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 final class NeonCommandRequest extends FormRequest
 {
@@ -17,20 +19,29 @@ final class NeonCommandRequest extends FormRequest
     {
         $request = request();
 
+        $guildId = $request->route('serverId');
+
+        $method = $request->isMethod('POST') ? 'POST' : 'PUT';
+
         $rules = [
-            'command' => ['required', 'string', 'max:255'],
             'description' => ['string', 'max:2000', 'nullable'],
             'response' => ['required', 'string', 'max:2000'],
             'is_enabled' => ['required', 'boolean'],
             'is_public' => ['required', 'boolean'],
         ];
 
-        // If the request is a POST request, we need to add the unique rule for the command field
-        if ($request->isMethod('POST')) {
-            $rules['command'][] = 'unique:neon_commands,command';
+        if ($method === 'PUT') {
+            $rules['command'] = [
+                'string',
+                'max:50',
+                'required',
+                Rule::unique('neon_commands')->where(function (Builder $query) use ($guildId) {
+                    $query->where('command', request()->input('command'))
+                        ->where('guild_id', $guildId);
+                }),
+            ];
         }
 
         return $rules;
-
     }
 }
