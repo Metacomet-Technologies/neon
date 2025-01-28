@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Helpers\Discord\SendMessage;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 final class ProcessGuildCommandJob implements ShouldQueue
@@ -33,34 +33,20 @@ final class ProcessGuildCommandJob implements ShouldQueue
      */
     public function handle(): void
     {
-        $url = $this->baseUrl . '/channels/' . $this->channelId . '/messages';
-        $chatResponse = $this->command['response'];
-        $apiResponse = Http::withToken(config('discord.token'), 'Bot')
-            ->post($url, [
-                'content' => $this->setMessageOutput($chatResponse),
-            ]);
-
-        if ($apiResponse->failed()) {
+        $result = SendMessage::sendMessage($this->command['response'], $this->channelId);
+        if ($result === 'failed') {
             Log::error('Failed to send message to Discord', [
-                'guild_id' => $this->guildId,
                 'channel_id' => $this->channelId,
-                'command' => $this->command,
                 'message' => $this->message,
-                'response' => $chatResponse,
-                'api_response' => $apiResponse->json(),
             ]);
-            // throw an exception so this can be retried
             throw new Exception('Failed to send message to Discord');
         }
 
         Log::info('Sent message to Discord', [
-            'guild_id' => $this->guildId,
             'channel_id' => $this->channelId,
-            'command' => $this->command,
             'message' => $this->message,
-            'response' => $chatResponse,
-            'api_response' => $apiResponse->json(),
         ]);
+
     }
 
     /**

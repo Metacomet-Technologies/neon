@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Helpers\DiscordChannelValidator;
 use App\Jobs\ProcessGuildCommandJob;
+use App\Jobs\ProcessNewChannelJob;
 use Discord\Discord;
-use Discord\Parts\Channel\Channel;
 use Discord\WebSockets\Event;
 use Discord\WebSockets\Intents;
 use Illuminate\Console\Command;
@@ -87,13 +86,13 @@ final class StartNeonCommand extends Command
                 $channelId = $message->channel->id;
                 foreach ($commands as $command) {
                     $parts = explode(' ', $message->content);
-                    if ($parts[0] == '!' . $command['command']) {
+                    if ($parts[0] === '!' . $command['command']) {
                         ProcessGuildCommandJob::dispatch($guildId, $channelId, $command, $message->content);
                     }
                 }
 
                 if (str_starts_with($message->content, '!new-channel')) {
-                    $this->handleCreateChannel($message, $discord);
+                    ProcessNewChannelJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
                 }
 
                 if (str_starts_with($message->content, '!assign-role')) {
@@ -120,99 +119,6 @@ final class StartNeonCommand extends Command
         }
 
         return '[' . $this->environment . '] ' . $message;
-    }
-
-    private function handleCreateChannel(mixed $message, mixed $discord): void
-    {
-        $usage = 'Usage: !new-channel <channel-name> <channel-type>';
-
-        $example = 'Example: !new-channel test-channel text';
-
-        $this->components->info('Received create channel request!');
-
-        // Get the author ID from the message
-        $authorId = $message->author->id;
-
-        // check if the author has the permission to create channels
-        $member = $message->channel->guild->members->get('user_id', $authorId);
-        if (! $member) {
-            $message->channel->sendMessage($this->setMessageOutput('You are not allowed to create channels.'));
-            $this->components->error('User is not allowed to create channels.');
-
-            return;
-        }
-
-        // Check if the user has the permission to create channels
-        if (! $member->hasPermission('manage_channels')) {
-            $message->channel->sendMessage($this->setMessageOutput('You are not allowed to create channels.'));
-            $this->components->error('User is not allowed to create channels.');
-
-            return;
-        }
-
-        // Check if the message content contains 3 parts
-        $parts = explode(' ', $message->content);
-        if (count($parts) < 2) {
-            $message->channel->sendMessage($this->setMessageOutput($usage));
-            $message->channel->sendMessage($this->setMessageOutput($example));
-
-            return;
-        }
-
-        // Extract the channel name from the message content
-        $channelName = $parts[1];
-
-        // Validate the channel name is valid
-        $validationResult = DiscordChannelValidator::validateChannelName($channelName);
-        if (! $validationResult['is_valid']) {
-            $message->channel->sendMessage($this->setMessageOutput($validationResult['message']));
-
-            return;
-        }
-
-        // Extract the channel type from the message content if not provided
-        // Default to 'text' if not provided
-        $channelType = $parts[2] ?? 'text';
-
-        // If the channel type is not text or voice, send an error message
-        if (! in_array($channelType, ['text', 'voice'])) {
-            $message->channel->sendMessage($this->setMessageOutput('Invalid channel type. Please use "text" or "voice".'));
-
-            return;
-        }
-
-        // Get the guild ID from the message
-        $guildId = $message->channel->guild_id;
-
-        // Get the guild from the Discord client
-        /** @var \Discord\Parts\Guild\Guild $guild */
-        $guild = $discord->guilds->get('id', $guildId);
-
-        // If the guild is not found, send an error message
-        if (! $guild) {
-            $message->channel->sendMessage($this->setMessageOutput('Server not found.'));
-
-            return;
-        }
-
-        // Create the new channel object
-        $newChannel = new \Discord\Parts\Channel\Channel($discord, [
-            'name' => $channelName,
-            'type' => $channelType === 'text' ? Channel::TYPE_GUILD_TEXT : Channel::TYPE_GUILD_VOICE,
-        ]);
-
-        // Save the new channel to the guild
-        $guild->channels->save($newChannel)
-            ->then(function ($channel) use ($message) {
-                // Send a message to the channel confirming the channel was created
-                $message->channel->sendMessage($this->setMessageOutput('Channel created: ' . $channel->name));
-                $this->components->info('Channel created: ' . $channel->name);
-            })
-            ->catch(function ($e) use ($message) {
-                // Send a message to the channel confirming the channel failed to be created
-                $message->channel->sendMessage($this->setMessageOutput('Failed to create channel: ' . $e->getMessage()));
-                $this->components->error('Failed to create channel: ' . $e->getMessage());
-            });
     }
 
     private function handleAssignRole(mixed $message, mixed $discord): void
