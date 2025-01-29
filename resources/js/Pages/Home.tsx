@@ -30,7 +30,6 @@ export default function Home() {
                                 <Link href={route('home')} className="-m-1.5 p-1.5">
                                     <span className="sr-only">Neon</span>
                                     <img
-                                        alt="Neon"
                                         src="https://cdn.neon-bot.com/logo/pink-600/PNG/neon@4x.png"
                                         className="w-auto h-24"
                                     />
@@ -40,7 +39,7 @@ export default function Home() {
                                         {auth.user ? 'Dashboard' : 'Login'}
                                     </Button>
 
-                                    <ThemeToggleButton />
+                                    <ThemeToggleButton name="theme-toggle-button" />
                                 </div>
                             </nav>
                         </div>

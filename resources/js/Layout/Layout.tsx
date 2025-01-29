@@ -92,7 +92,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                 Login
                             </NavbarItem>
                         )}
-                        <ThemeToggleButton />
+                        <ThemeToggleButton name="theme-toggle-button" />
                     </NavbarSection>
                 </Navbar>
             }
