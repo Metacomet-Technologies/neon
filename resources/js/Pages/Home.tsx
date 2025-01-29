@@ -32,12 +32,7 @@ export default function Home() {
                                     <img
                                         alt="Neon"
                                         src="https://cdn.neon-bot.com/logo/pink-600/PNG/neon@4x.png"
-                                        className="hidden dark:block w-auto h-24"
-                                    />
-                                    <img
-                                        alt="Neon"
-                                        src="https://cdn.neon-bot.com/logo/cyan-300/PNG/neon@4x.png"
-                                        className="block dark:hidden w-auto h-24"
+                                        className="w-auto h-24"
                                     />
                                 </Link>
                                 <div className="flex flex-row items-center gap-x-4">

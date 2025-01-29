@@ -49,12 +49,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                             <img
                                 alt="Neon"
                                 src="https://cdn.neon-bot.com/logo/pink-600/PNG/neon@4x.png"
-                                className="hidden dark:block size-8"
-                            />
-                            <img
-                                alt="Neon"
-                                src="https://cdn.neon-bot.com/logo/cyan-300/PNG/neon@4x.png"
-                                className="block dark:hidden size-8"
+                                className="size-8"
                             />
                         </NavbarItem>
                         <Dropdown>
@@ -109,12 +104,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                 <img
                                     alt="Neon"
                                     src="https://cdn.neon-bot.com/logo/pink-600/PNG/neon@4x.png"
-                                    className="hidden dark:block size-8"
-                                />
-                                <img
-                                    alt="Neon"
-                                    src="https://cdn.neon-bot.com/logo/cyan-300/PNG/neon@4x.png"
-                                    className="block dark:hidden size-8"
+                                    className="size-8"
                                 />
                                 <SidebarLabel>Discord Bot</SidebarLabel>
                             </SidebarItem>
