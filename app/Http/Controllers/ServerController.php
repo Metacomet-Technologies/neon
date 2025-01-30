@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Enums\DiscordPermissionEnum;
-use App\Helpers\Discord\GetGuilds;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -16,12 +14,8 @@ final class ServerController
      */
     public function index(Request $request)
     {
-        $permission = DiscordPermissionEnum::ADMINISTRATOR;
-        $guilds = (new GetGuilds($request->user()))
-            ->getGuildsWhereUserHasPermission($permission);
-
         return Inertia::render('Servers/Index', [
-            'guilds' => $guilds,
+            'guilds' => $request->user()->guilds,
         ]);
     }
 
@@ -30,6 +24,12 @@ final class ServerController
      */
     public function show(Request $request, string $serverId)
     {
+        $guilds = $request->user()->guilds;
+
+        if (! in_array($serverId, array_column($guilds, 'id'))) {
+            abort(403);
+        }
+
         $request->user()->current_server_id = $serverId;
         $request->user()->save();
 

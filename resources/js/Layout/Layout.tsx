@@ -52,19 +52,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                 className="size-8"
                             />
                         </NavbarItem>
-                        <Dropdown>
-                            <DropdownButton as={NavbarItem} className="max-lg:hidden">
-                                <NavbarLabel>{currentGuild?.name || 'Servers'}</NavbarLabel>
-                                <ChevronDownIcon />
-                            </DropdownButton>
-                            <ServerDropDownMenu guilds={auth.user?.guilds || []} />
-                        </Dropdown>
+                        {auth.user && (
+                            <Dropdown>
+                                <DropdownButton as={NavbarItem} className="max-lg:hidden">
+                                    <NavbarLabel>{currentGuild?.name || 'Servers'}</NavbarLabel>
+                                    <ChevronDownIcon />
+                                </DropdownButton>
+                                <ServerDropDownMenu guilds={auth.user?.guilds || []} />
+                            </Dropdown>
+                        )}
                     </NavbarSection>
                     <NavbarDivider className="max-lg:hidden" />
                     <NavbarSection className="max-lg:hidden">
-                        <NavbarItem href={route('server.index')} current={component.startsWith('Servers')}>
-                            Servers
-                        </NavbarItem>
+                        {auth.user && (
+                            <NavbarItem href={route('server.index')} current={component.startsWith('Servers')}>
+                                Servers
+                            </NavbarItem>
+                        )}
                         {currentServerId && (
                             <NavbarItem
                                 href={route('server.command.index', { serverId: currentServerId || '' })}
@@ -108,20 +112,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                 />
                                 <SidebarLabel>Discord Bot</SidebarLabel>
                             </SidebarItem>
-                            <Dropdown>
-                                <DropdownButton as={SidebarItem}>
-                                    <NavbarLabel>{currentGuild?.name || 'Servers'}</NavbarLabel>
-                                    <ChevronDownIcon />
-                                </DropdownButton>
-                                <ServerDropDownMenu guilds={auth.user?.guilds || []} />
-                            </Dropdown>
+                            {auth.user && (
+                                <Dropdown>
+                                    <DropdownButton as={SidebarItem}>
+                                        <NavbarLabel>{currentGuild?.name || 'Servers'}</NavbarLabel>
+                                        <ChevronDownIcon />
+                                    </DropdownButton>
+                                    <ServerDropDownMenu guilds={auth.user?.guilds || []} />
+                                </Dropdown>
+                            )}
                         </SidebarSection>
                     </SidebarHeader>
                     <SidebarBody>
                         <SidebarSection>
-                            <SidebarItem href={route('server.index')} current={component.startsWith('Servers')}>
-                                Servers
-                            </SidebarItem>
+                            {auth.user && (
+                                <SidebarItem href={route('server.index')} current={component.startsWith('Servers')}>
+                                    Servers
+                                </SidebarItem>
+                            )}
                             {currentServerId && (
                                 <SidebarItem
                                     href={route('server.command.index', { serverId: currentServerId || '' })}
