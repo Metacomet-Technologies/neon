@@ -61,13 +61,15 @@ final class GetGuildsByDiscordUserId
             return 'failed';
         }
 
+        $adminPermission = DiscordPermissionEnum::ADMINISTRATOR;
+
         foreach ($roles as $role) {
             $rolePermission = self::getRoleFromGuild($guildId, $role);
             if (! $rolePermission) {
                 continue;
             }
 
-            if ($rolePermission & $permission->value) {
+            if ($rolePermission & $permission->value || $rolePermission & $adminPermission->value) {
                 return 'success';
             }
         }
