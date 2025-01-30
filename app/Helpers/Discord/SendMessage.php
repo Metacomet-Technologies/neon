@@ -12,33 +12,49 @@ final class SendMessage
     /**
      * Get all guilds for the user.
      */
-    public static function sendMessage(string $message, string $channelId): string
+    public static function sendEmbedMessage(string $channelId, string $title, string $description): string
     {
         $baseUrl = config('services.discord.rest_api_url');
         $url = $baseUrl . '/channels/' . $channelId . '/messages';
+
+        // Define the embed structure
+        $embed = [
+            "title" => $title,
+            "description" => $description,
+            "color" => 16711935,
+            "footer" => [
+                "text" => "Sent from Neon",
+            ]
+        ];
+
+        // Send the embedded message
         $apiResponse = Http::withToken(config('discord.token'), 'Bot')
             ->post($url, [
-                'content' => self::setMessageOutput($message),
+                'embeds' => [$embed], // Discord requires embeds to be an array
             ]);
 
+        // Log result and return status
         if ($apiResponse->failed()) {
-            Log::error('Failed to send message to Discord', [
+            Log::error('Failed to send embedded message', [
                 'channel_id' => $channelId,
-                'message' => $message,
+                'title' => $title,
+                'description' => $description,
                 'api_response' => $apiResponse->json(),
             ]);
-
             return 'failed';
         }
 
-        Log::info('Sent message to Discord', [
+        Log::info('Sent embedded message', [
             'channel_id' => $channelId,
-            'message' => $message,
+            'title' => $title,
+            'description' => $description,
             'api_response' => $apiResponse->json(),
         ]);
 
         return 'sent';
     }
+
+
 
     /**
      * Set the message output based on the environment.
