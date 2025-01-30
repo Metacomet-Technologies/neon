@@ -67,7 +67,7 @@ final class GetGuildsByDiscordUserId
                 continue;
             }
 
-            if ($rolePermission < $permission->value) {
+            if ($rolePermission & $permission->value) {
                 return 'success';
             }
         }
