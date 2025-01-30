@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
@@ -14,9 +14,9 @@ final class PrivacyPolicyController
      */
     public function __invoke()
     {
-        $path = 'legal/privacy-policy.md';
+        $path = 'neon/legal/privacy-policy.md';
 
-        if (!Storage::disk('s3')->exists($path)) {
+        if (! Storage::disk('s3')->exists($path)) {
             abort(404, 'Markdown file not found');
         }
 
