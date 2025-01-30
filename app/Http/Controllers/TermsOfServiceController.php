@@ -22,7 +22,7 @@ final class TermsOfServiceController
 
         $markdownContent = Storage::disk('s3')->get($path);
 
-        Inertia::render('Markdown', [
+        return Inertia::render('Markdown', [
             'content' => $markdownContent,
         ]);
     }
