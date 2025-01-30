@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\NeonCommandRequest;
 use App\Models\NeonCommand;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 final class CommandController
@@ -13,8 +14,16 @@ final class CommandController
     /**
      * Display a listing of the resource.
      */
-    public function index(string $serverId): \Inertia\Response
+    public function index(Request $request, string $serverId): \Inertia\Response
     {
+        /** @var array $guilds */
+        $guilds = $request->user()->guilds;
+        $guildIds = array_column($guilds, 'id');
+
+        if (! in_array($serverId, $guildIds)) {
+            abort(403, 'You are not authorized to view this page.');
+        }
+
         $page = request()->input('page', 1);
         $perPage = request()->input('perPage', 10);
 
@@ -31,8 +40,16 @@ final class CommandController
     /**
      * Show the form for creating a new resource.
      */
-    public function create(string $serverId): \Inertia\Response
+    public function create(Request $request, string $serverId): \Inertia\Response
     {
+        /** @var array $guilds */
+        $guilds = $request->user()->guilds;
+        $guildIds = array_column($guilds, 'id');
+
+        if (! in_array($serverId, $guildIds)) {
+            abort(403, 'You are not authorized to view this page.');
+        }
+
         return Inertia::render('Command/Create', [
             'serverId' => $serverId,
         ]);
@@ -44,6 +61,15 @@ final class CommandController
     public function store(NeonCommandRequest $request, string $serverId): \Illuminate\Http\RedirectResponse
     {
         $user = $request->user();
+
+        /** @var array $guilds */
+        $guilds = $user->guilds;
+        $guildIds = array_column($guilds, 'id');
+
+        if (! in_array($serverId, $guildIds)) {
+            abort(403, 'You are not authorized to view this page.');
+        }
+
         $now = now();
 
         $newCommand = new NeonCommand;
@@ -67,8 +93,16 @@ final class CommandController
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $serverId, NeonCommand $command): \Inertia\Response
+    public function edit(Request $request, string $serverId, NeonCommand $command): \Inertia\Response
     {
+        /** @var array $guilds */
+        $guilds = $request->user()->guilds;
+        $guildIds = array_column($guilds, 'id');
+
+        if (! in_array($serverId, $guildIds)) {
+            abort(403, 'You are not authorized to view this page.');
+        }
+
         return Inertia::render('Command/Edit', [
             'serverId' => $serverId,
             'command' => $command,
@@ -81,6 +115,16 @@ final class CommandController
     public function update(NeonCommandRequest $request, string $serverId, NeonCommand $command): \Illuminate\Http\RedirectResponse
     {
         $user = $request->user();
+
+        /** @var array $guilds */
+        $guilds = $user->guilds;
+        $guildIds = array_column($guilds, 'id');
+
+        if (! in_array($serverId, $guildIds)) {
+            abort(403, 'You are not authorized to view this page.');
+        }
+
+        $now = now();
         $now = now();
         $command->command = $request->input('command');
         $command->description = $request->input('description', null);
@@ -99,8 +143,16 @@ final class CommandController
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $serverId, NeonCommand $command): \Illuminate\Http\RedirectResponse
+    public function destroy(Request $request, string $serverId, NeonCommand $command): \Illuminate\Http\RedirectResponse
     {
+        /** @var array $guilds */
+        $guilds = $request->user()->guilds;
+        $guildIds = array_column($guilds, 'id');
+
+        if (! in_array($serverId, $guildIds)) {
+            abort(403, 'You are not authorized to view this page.');
+        }
+
         $command->delete();
 
         return redirect()

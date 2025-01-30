@@ -9,6 +9,7 @@ use App\Helpers\Discord\GetGuilds;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Cache;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
@@ -67,7 +68,7 @@ use Laravel\Sanctum\HasApiTokens;
 final class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasApiTokens ,HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -130,8 +131,10 @@ final class User extends Authenticatable
 
     public function getGuildsAttribute(): array
     {
-        $permission = DiscordPermissionEnum::ADMINISTRATOR;
-        $guilds = (new GetGuilds($this))->getGuildsWhereUserHasPermission($permission);
+        $guilds = Cache::remember('user-guilds-' . $this->id, now()->addMinutes(5), function () {
+            return (new GetGuilds($this))
+                ->getGuildsWhereUserHasPermission(DiscordPermissionEnum::ADMINISTRATOR);
+        });
 
         return $guilds;
     }
