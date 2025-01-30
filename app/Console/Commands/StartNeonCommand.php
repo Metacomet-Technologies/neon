@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Jobs\ProcessGuildCommandJob;
 use App\Jobs\ProcessNewChannelJob;
+use App\Models\NeonCommand;
 use Discord\Discord;
 use Discord\WebSockets\Event;
 use Discord\WebSockets\Intents;
@@ -82,7 +83,7 @@ final class StartNeonCommand extends Command
                 }
 
                 $guildId = $message->channel->guild_id;
-                $commands = Cache::get('guild-commands:' . $guildId, []);
+                $commands = $this->getCommandsForGuild($guildId);
                 $channelId = $message->channel->id;
                 foreach ($commands as $command) {
                     $parts = explode(' ', $message->content);
@@ -107,6 +108,22 @@ final class StartNeonCommand extends Command
         if (file_exists($pidFile)) {
             unlink($pidFile);
         }
+    }
+
+    public function getCommandsForGuild(string $guildId): array
+    {
+        return Cache::rememberForever('guild-commands:' . $guildId, function () use ($guildId) {
+            return NeonCommand::query()
+                ->select([
+                    'id',
+                    'command',
+                    'response',
+                ])
+                ->whereGuildId($guildId)
+                ->whereIsEnabled(true)
+                ->get()
+                ->toArray();
+        });
     }
 
     /**
