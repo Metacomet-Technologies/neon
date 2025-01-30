@@ -1,3 +1,5 @@
+import '../css/app.css';
+
 import { createInertiaApp } from '@inertiajs/react';
 import createServer from '@inertiajs/react/server';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
@@ -31,6 +33,7 @@ createServer((page) =>
         title: (title) => (title ? `${title} &middot; ${appName}` : appName),
         resolve: (name) => resolvePageComponent(`./Pages/${name}.tsx`, import.meta.glob('./Pages/**/*.tsx')),
         setup: ({ App, props }) => {
+            const theme = props.initialPage.props.theme || 'dark';
             /* eslint-disable */
             // @ts-expect-error
             global.route<RouteName> = (name, params, absolute) =>
@@ -42,8 +45,10 @@ createServer((page) =>
 
             return (
                 <StrictMode>
-                    <ThemeProvider>
-                        <App {...props} />
+                    <ThemeProvider initialTheme={theme}>
+                        <div style={{ visibility: 'hidden' }} id="root-wrapper">
+                            <App {...props} />
+                        </div>
                     </ThemeProvider>
                 </StrictMode>
             );

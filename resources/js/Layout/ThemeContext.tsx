@@ -8,32 +8,29 @@ type ThemeContextType = {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 type ThemeProviderProps = {
+    initialTheme?: 'light' | 'dark';
     children: ReactNode;
 };
 
-export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
+export const ThemeProvider: React.FC<ThemeProviderProps> = ({ initialTheme, children }) => {
     const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-        // Check if SSR and return light theme
-        if (typeof window === 'undefined') return 'light';
+        if (typeof window === 'undefined') {
+            return initialTheme || 'dark'; // SSR-safe default
+        }
 
-        // Load theme from localStorage or system preference
-        const storedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
+        const storedTheme = document.cookie
+            .split('; ')
+            .find((row) => row.startsWith('theme='))
+            ?.split('=')[1] as 'light' | 'dark' | undefined;
+
         if (storedTheme) return storedTheme;
 
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        return prefersDark ? 'dark' : 'light';
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     });
 
     useEffect(() => {
-        // Apply the theme to the HTML element
-        if (theme === 'light') {
-            document.documentElement.classList.remove('dark');
-        } else {
-            document.documentElement.classList.add('dark');
-        }
-
-        // Save theme to localStorage
-        localStorage.setItem('theme', theme);
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+        document.cookie = `theme=${theme}; path=/; max-age=31536000`;
     }, [theme]);
 
     const toggleTheme = () => {
