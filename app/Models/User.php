@@ -32,7 +32,6 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read \App\Models\TFactory|null $use_factory
  * @property-read \Illuminate\Notifications\DatabaseNotificationCollection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
  * @property-read int|null $notifications_count
- * @property-read \App\Models\UserSetting|null $settings
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \Laravel\Sanctum\PersonalAccessToken> $tokens
  * @property-read int|null $tokens_count
  *
@@ -113,16 +112,6 @@ final class User extends Authenticatable
             'is_admin' => 'boolean',
             'is_on_mailing_list' => 'boolean',
         ];
-    }
-
-    /**
-     * Get the user setting associated with the user.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasOne<App\Models\UserSetting>
-     */
-    public function settings(): \Illuminate\Database\Eloquent\Relations\HasOne
-    {
-        return $this->hasOne(UserSetting::class);
     }
 
     /**

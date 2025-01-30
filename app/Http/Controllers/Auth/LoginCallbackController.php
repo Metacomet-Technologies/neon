@@ -38,15 +38,10 @@ final class LoginCallbackController
             'access_token' => $socialiteUser->token,
             'refresh_token' => $socialiteUser->refreshToken,
             'refresh_token_expires_at' => $now->addSeconds($socialiteUser->expiresIn),
-            'is_admin' => false,
             'is_on_mailing_list' => true,
         ]);
 
-        if ($user->wasRecentlyCreated || $user->settings === null) {
-            $user->settings()->create([
-                'theme' => 'dark',
-            ]);
-
+        if ($user->wasRecentlyCreated) {
             Mail::to($user)->queue(new WelcomeEmail);
         }
 
