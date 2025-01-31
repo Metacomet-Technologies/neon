@@ -40,27 +40,28 @@ final class ProcessNewEventJob implements ShouldQueue
      */
     public function handle(): void
     {
-
         // 1️⃣ Check if user is an admin
         $adminCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
         if ($adminCheck === 'failed') {
-
-            SendMessage::sendMessage('You are not allowed to create events.', $this->channelId);
-
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ You are not allowed to create events.',
+            ]);
             return;
         }
 
         // 2️⃣ Parse command input
         $parts = explode('|', $this->message);
         if (count($parts) < 6) {
-
-            SendMessage::sendMessage('Invalid event format. Use: !create-event "Title" | Date | Time | Frequency | Location | Description', $this->channelId);
-
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '⚠️ Invalid event format. Use: !create-event "Title" | Date | Time | Frequency | Location | Description',
+            ]);
             return;
         }
 
         $eventTopic = trim(str_replace('!create-event', '', $parts[0]));
-        $eventTopic = trim($eventTopic, '"'); // Remove any extra quotes
+        $eventTopic = trim($eventTopic, '"'); // Remove extra quotes
         $startDate = trim($parts[1]);
         $startTime = trim($parts[2]);
         $eventFrequency = trim($parts[3]);
@@ -117,12 +118,19 @@ final class ProcessNewEventJob implements ShouldQueue
 
         // 🔟 Check for API errors
         if ($apiResponse->failed()) {
-
-            SendMessage::sendMessage('Failed to create event.', $this->channelId);
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ Failed to create event.',
+            ]);
             throw new Exception('Failed to create event. ' . json_encode($apiResponse->json()));
         }
 
-        // ✅ Event successfully created
-        SendMessage::sendMessage("✅ Event **{$eventTopic}** created successfully in " . ($isVoiceChannel ? 'Voice Channel' : 'External/Text Channel') . '!', $this->channelId);
+        // ✅ Send an Embedded Confirmation Message
+        SendMessage::sendMessage($this->channelId, [
+            'is_embed' => true,
+            'embed_title' => '🎉 Event Created!',
+            'embed_description' => "**Event:** {$eventTopic}\n**Start:** {$startDate} at {$startTime} UTC\n**Location:** " . ($isVoiceChannel ? '🔊 Voice Channel' : '🌍 External/Text Channel'),
+            'embed_color' => 5763719, // Green embed
+        ]);
     }
 }
