@@ -44,15 +44,17 @@ final class ProcessEditChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You are not allowed to edit channels.',
             ]);
+
             return;
         }
 
         // 2️⃣ Parse command using regex for labeled parameters
         preg_match('/^!edit-channel\s+(\d+)(?:\s+name:([^\s]+))?(?:\s+topic:"([^"]+)")?(?:\s+slowmode:(\d+))?(?:\s+nsfw:(true|false))?(?:\s+autohide:(\d+))?$/i', $this->message, $matches);
 
-        if (!isset($matches[1])) {
+        if (! isset($matches[1])) {
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->exampleMessage]);
+
             return;
         }
 
@@ -69,16 +71,18 @@ final class ProcessEditChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Invalid slow mode delay. Must be between 0 and 21600 seconds.',
             ]);
+
             return;
         }
 
         // 4️⃣ Validate auto-hide (valid options: 60, 1440, 4320, 10080 minutes)
         $validAutoHideValues = [60, 1440, 4320, 10080];
-        if ($autoHide !== null && !in_array($autoHide, $validAutoHideValues)) {
+        if ($autoHide !== null && ! in_array($autoHide, $validAutoHideValues)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ Invalid auto-hide duration. Use 60, 1440, 4320, or 10080 minutes.',
             ]);
+
             return;
         }
 
@@ -110,6 +114,7 @@ final class ProcessEditChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ No changes specified. Please provide at least one field to edit.',
             ]);
+
             return;
         }
 
@@ -130,6 +135,7 @@ final class ProcessEditChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => "❌ Failed to edit channel (ID: `{$channelId}`).",
             ]);
+
             return;
         }
 
@@ -138,11 +144,11 @@ final class ProcessEditChannelJob implements ShouldQueue
             'is_embed' => true,
             'embed_title' => '✅ Channel Edited!',
             'embed_description' => "**Channel ID:** `{$channelId}`\n"
-                . ($newName ? "**New Name:** #{$newName}\n" : "")
-                . ($newTopic ? "**New Topic:** 📝 `{$newTopic}`\n" : "")
-                . ($slowmode !== null ? "**Slowmode:** ⏳ `{$slowmode} sec`\n" : "")
-                . ($nsfw !== null ? "**NSFW:** 🔞 `" . ($nsfw ? 'Enabled' : 'Disabled') . "`\n" : "")
-                . ($autoHide !== null ? "**Auto-hide:** ⏲️ `{$autoHide} minutes`\n" : ""),
+                . ($newName ? "**New Name:** #{$newName}\n" : '')
+                . ($newTopic ? "**New Topic:** 📝 `{$newTopic}`\n" : '')
+                . ($slowmode !== null ? "**Slowmode:** ⏳ `{$slowmode} sec`\n" : '')
+                . ($nsfw !== null ? '**NSFW:** 🔞 `' . ($nsfw ? 'Enabled' : 'Disabled') . "`\n" : '')
+                . ($autoHide !== null ? "**Auto-hide:** ⏲️ `{$autoHide} minutes`\n" : ''),
             'embed_color' => 3447003, // Blue embed
         ]);
     }

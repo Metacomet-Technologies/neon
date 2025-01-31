@@ -31,7 +31,8 @@ final class ProcessEditChannelTopicJob implements ShouldQueue
 
         if ($apiResponse->failed()) {
             Log::error("Failed to update channel topic (ID: `{$this->channelId}`).");
-            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => "❌ Failed to update channel topic."]);
+            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => '❌ Failed to update channel topic.']);
+
             return;
         }
 

@@ -14,7 +14,6 @@ use App\Jobs\ProcessEditChannelNameJob;
 use App\Jobs\ProcessEditChannelNSFWJob;
 use App\Jobs\ProcessEditChannelSlowmodeJob;
 use App\Jobs\ProcessEditChannelTopicJob;
-use App\Jobs\ProcessGuildCommandJob;
 use App\Jobs\ProcessNewCategoryJob;
 use App\Jobs\ProcessNewChannelJob;
 use App\Jobs\ProcessNewEventJob;
@@ -131,14 +130,13 @@ final class StartNeonCommand extends Command
                 }
 
                 if (str_starts_with($message->content, '!edit-channel-slowmode ') && $targetChannelId && is_numeric($arguments)) {
-                    ProcessEditChannelSlowmodeJob::dispatch($channelId, $targetChannelId, $guildId, (int)$arguments);
+                    ProcessEditChannelSlowmodeJob::dispatch($channelId, $targetChannelId, $guildId, (int) $arguments);
                 }
 
                 if (str_starts_with($message->content, '!edit-channel-nsfw ') && $targetChannelId && in_array(strtolower($arguments), ['true', 'false'], true)) {
                     $nsfw = strtolower($arguments) === 'true' ? true : false;
                     ProcessEditChannelNSFWJob::dispatch($channelId, $targetChannelId, $guildId, $nsfw);
                 }
-
 
                 if (str_starts_with($message->content, '!new-category ')) {
                     ProcessNewCategoryJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
@@ -168,7 +166,6 @@ final class StartNeonCommand extends Command
                     ProcessNewEventJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
                 }
             });
-
 
         });
 

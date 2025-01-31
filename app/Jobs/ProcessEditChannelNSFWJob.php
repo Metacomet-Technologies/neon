@@ -34,8 +34,9 @@ final class ProcessEditChannelNSFWJob implements ShouldQueue
             Log::error("Failed to update NSFW setting (ID: `{$this->targetChannelId}`).");
             SendMessage::sendMessage($this->commandChannelId, [
                 'is_embed' => false,
-                'response' => "❌ Failed to update NSFW setting.",
+                'response' => '❌ Failed to update NSFW setting.',
             ]);
+
             return;
         }
 
@@ -43,7 +44,7 @@ final class ProcessEditChannelNSFWJob implements ShouldQueue
         SendMessage::sendMessage($this->commandChannelId, [
             'is_embed' => true,
             'embed_title' => '✅ NSFW Setting Updated!',
-            'embed_description' => "**NSFW:** 🔞 `" . ($this->nsfw ? 'Enabled' : 'Disabled') . "`",
+            'embed_description' => '**NSFW:** 🔞 `' . ($this->nsfw ? 'Enabled' : 'Disabled') . '`',
             'embed_color' => 3447003,
         ]);
     }

@@ -31,7 +31,8 @@ final class ProcessEditChannelNameJob implements ShouldQueue
 
         if ($apiResponse->failed()) {
             Log::error("Failed to rename channel (ID: `{$this->channelId}`).");
-            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => "❌ Failed to rename channel."]);
+            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => '❌ Failed to rename channel.']);
+
             return;
         }
 

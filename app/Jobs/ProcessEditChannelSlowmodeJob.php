@@ -23,7 +23,8 @@ final class ProcessEditChannelSlowmodeJob implements ShouldQueue
     public function handle(): void
     {
         if ($this->slowmodeSeconds < 0 || $this->slowmodeSeconds > 21600) {
-            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => "❌ Invalid slow mode value. Must be between 0 and 21600 seconds."]);
+            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => '❌ Invalid slow mode value. Must be between 0 and 21600 seconds.']);
+
             return;
         }
 
@@ -36,7 +37,8 @@ final class ProcessEditChannelSlowmodeJob implements ShouldQueue
 
         if ($apiResponse->failed()) {
             Log::error("Failed to update slowmode (ID: `{$this->channelId}`).");
-            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => "❌ Failed to update slow mode."]);
+            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => '❌ Failed to update slow mode.']);
+
             return;
         }
 
