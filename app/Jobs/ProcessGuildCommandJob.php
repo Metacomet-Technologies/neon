@@ -33,7 +33,8 @@ final class ProcessGuildCommandJob implements ShouldQueue
      */
     public function handle(): void
     {
-        $result = SendMessage::sendMessage($this->command['response'], $this->channelId);
+        $result = SendMessage::sendMessage($this->channelId, $this->command);
+
         if ($result === 'failed') {
             Log::error('Failed to send message to Discord', [
                 'channel_id' => $this->channelId,

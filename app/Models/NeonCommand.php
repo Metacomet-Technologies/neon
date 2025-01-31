@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Observers\NeonCommandObserver;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -13,9 +14,13 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $command
  * @property string|null $description
  * @property string|null $response
- * @property string|null $guild_id
+ * @property string $guild_id
  * @property bool $is_enabled
  * @property bool $is_public
+ * @property bool $is_embed
+ * @property string|null $embed_title
+ * @property string|null $embed_description
+ * @property int|null $embed_color
  * @property int $created_by
  * @property int $updated_by
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -23,40 +28,37 @@ use Illuminate\Database\Eloquent\Model;
  * @property-read \App\Models\User $createdByUser
  * @property-read \App\Models\User $updatedByUser
  *
- * @method static \Illuminate\Database\Eloquent\Builder<static>|NeonCommand newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|NeonCommand newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|NeonCommand query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|NeonCommand whereCommand($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|NeonCommand whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|NeonCommand whereCreatedBy($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|NeonCommand whereDescription($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|NeonCommand whereGuildId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|NeonCommand whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|NeonCommand whereIsEnabled($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|NeonCommand whereIsPublic($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|NeonCommand whereResponse($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|NeonCommand whereUpdatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|NeonCommand whereUpdatedBy($value)
+ * @method static Builder<static>|NeonCommand aciveGuildCommands(string $guildId)
+ * @method static Builder<static>|NeonCommand newModelQuery()
+ * @method static Builder<static>|NeonCommand newQuery()
+ * @method static Builder<static>|NeonCommand query()
+ * @method static Builder<static>|NeonCommand whereCommand($value)
+ * @method static Builder<static>|NeonCommand whereCreatedAt($value)
+ * @method static Builder<static>|NeonCommand whereCreatedBy($value)
+ * @method static Builder<static>|NeonCommand whereDescription($value)
+ * @method static Builder<static>|NeonCommand whereEmbedColor($value)
+ * @method static Builder<static>|NeonCommand whereEmbedDescription($value)
+ * @method static Builder<static>|NeonCommand whereEmbedTitle($value)
+ * @method static Builder<static>|NeonCommand whereGuildId($value)
+ * @method static Builder<static>|NeonCommand whereId($value)
+ * @method static Builder<static>|NeonCommand whereIsEmbed($value)
+ * @method static Builder<static>|NeonCommand whereIsEnabled($value)
+ * @method static Builder<static>|NeonCommand whereIsPublic($value)
+ * @method static Builder<static>|NeonCommand whereResponse($value)
+ * @method static Builder<static>|NeonCommand whereUpdatedAt($value)
+ * @method static Builder<static>|NeonCommand whereUpdatedBy($value)
  *
  * @mixin \Eloquent
  */
 #[ObservedBy(NeonCommandObserver::class)]
 final class NeonCommand extends Model
 {
-    protected $fillable = [
-        'command',
-        'description',
-        'response',
-        'guild_id',
-        'is_enabled',
-        'is_public',
-        'created_by',
-        'updated_by',
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'is_enabled' => 'boolean',
         'is_public' => 'boolean',
+        'is_embed' => 'boolean',
     ];
 
     public function createdByUser(): \Illuminate\Database\Eloquent\Relations\BelongsTo
@@ -67,5 +69,20 @@ final class NeonCommand extends Model
     public function updatedByUser(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function scopeAciveGuildCommands(Builder $query, string $guildId): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query->whereGuildId($guildId)
+            ->whereIsEnabled(true)
+            ->select([
+                'id',
+                'command',
+                'response',
+                'is_embed',
+                'embed_title',
+                'embed_description',
+                'embed_color',
+            ]);
     }
 }

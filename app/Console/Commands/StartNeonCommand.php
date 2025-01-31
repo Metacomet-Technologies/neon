@@ -116,15 +116,11 @@ final class StartNeonCommand extends Command
 
     public function getCommandsForGuild(string $guildId): array
     {
-        return Cache::rememberForever('guild-commands:' . $guildId, function () use ($guildId) {
+        $key = 'guild-commands:' . $guildId;
+
+        return Cache::rememberForever($key, function () use ($guildId) {
             return NeonCommand::query()
-                ->select([
-                    'id',
-                    'command',
-                    'response',
-                ])
-                ->whereGuildId($guildId)
-                ->whereIsEnabled(true)
+                ->aciveGuildCommands($guildId)
                 ->get()
                 ->toArray();
         });

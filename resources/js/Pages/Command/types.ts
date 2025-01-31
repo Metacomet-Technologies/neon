@@ -8,6 +8,10 @@ export interface Command {
     guild_id: string | null;
     is_enabled: boolean;
     is_public: boolean;
+    is_embed: boolean;
+    embed_color?: number | null;
+    embed_title?: string | null;
+    embed_description?: string | null;
     created_by: number | null;
     updated_by: number | null;
     created_by_user?: User | null;
@@ -23,5 +27,9 @@ export interface CommandStore {
     response: string;
     is_enabled: boolean;
     is_public: boolean;
+    is_embed: boolean;
+    embed_color?: number | null;
+    embed_title?: string | null;
+    embed_description?: string | null;
     [key: string]: any;
 }
