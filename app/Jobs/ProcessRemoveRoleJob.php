@@ -39,6 +39,7 @@ final class ProcessRemoveRoleJob implements ShouldQueue
 
         if (count($parts) < 3) {
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
+
             return;
         }
 
@@ -54,6 +55,7 @@ final class ProcessRemoveRoleJob implements ShouldQueue
                     'is_embed' => false,
                     'response' => "❌ Invalid user mention format: {$mention}",
                 ]);
+
                 return;
             }
             $userIds[] = $matches[1]; // Extract user ID from mention
@@ -68,15 +70,17 @@ final class ProcessRemoveRoleJob implements ShouldQueue
         if ($rolesResponse->failed()) {
             Log::error("Failed to fetch roles for guild {$this->guildId}", ['response' => $rolesResponse->json()]);
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => '❌ Failed to retrieve roles from the server.']);
+
             return;
         }
 
         // 4️⃣ Find the role by name
         $roles = collect($rolesResponse->json());
-        $role = $roles->first(fn($r) => strtolower($r['name']) === strtolower($roleName));
+        $role = $roles->first(fn ($r) => strtolower($r['name']) === strtolower($roleName));
 
         if (! $role) {
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => "❌ Role '{$roleName}' not found."]);
+
             return;
         }
 
