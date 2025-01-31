@@ -11,6 +11,7 @@ use App\Jobs\ProcessNewCategoryJob;
 use App\Jobs\ProcessNewChannelJob;
 use App\Jobs\ProcessNewEventJob;
 use App\Jobs\ProcessNewRoleJob;
+use App\Jobs\ProcessRemoveRoleJob;
 use App\Models\NeonCommand;
 use Discord\Discord;
 use Discord\WebSockets\Event;
@@ -116,6 +117,9 @@ final class StartNeonCommand extends Command
                 }
                 if (str_starts_with($message->content, '!delete-role')) {
                     ProcessDeleteRoleJob::dispatch($message->channel->id, $message->channel->guild_id, $message->content);
+                }
+                if (str_starts_with($message->content, '!remove-role')) {
+                    ProcessRemoveRoleJob::dispatch($message->channel->id, $message->channel->guild_id, $message->content);
                 }
                 if (str_starts_with($message->content, '!create-event')) {
                     ProcessNewEventJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
