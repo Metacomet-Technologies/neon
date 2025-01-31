@@ -12,6 +12,7 @@ use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 final class ProcessNewChannelJob implements ShouldQueue
 {
@@ -19,8 +20,9 @@ final class ProcessNewChannelJob implements ShouldQueue
 
     public string $baseUrl;
 
-    public string $usageMessage = 'Usage: !new-channel <channel-name> <channel-type>';
-    public string $exampleMessage = 'Example: !new-channel test-channel text';
+    public string $usageMessage = 'Usage: !new-channel <channel-name> <channel-type> [category-id]';
+    public string $exampleMessage = 'Example: !new-channel test-channel text 123456789012345678';
+
     /**
      * The types of channels that can be created.
      *
@@ -52,18 +54,15 @@ final class ProcessNewChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You are not allowed to create channels.',
             ]);
-
             return;
         }
 
         // 2️⃣ Parse the command
         $parts = explode(' ', $this->message);
 
-        // If not enough parameters, send usage message
         if (count($parts) < 2) {
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->exampleMessage]);
-
             return;
         }
 
@@ -75,7 +74,6 @@ final class ProcessNewChannelJob implements ShouldQueue
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => '❌ Invalid channel name. Please use a different name.']);
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->exampleMessage]);
-
             return;
         }
 
@@ -83,49 +81,65 @@ final class ProcessNewChannelJob implements ShouldQueue
         $validationResult = DiscordChannelValidator::validateChannelName($channelName);
         if (! $validationResult['is_valid']) {
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $validationResult['message']]);
-
             return;
         }
 
         // 5️⃣ Extract the channel type (default: text)
         $channelType = $parts[2] ?? 'text';
 
-        // If the channel type is invalid, send an error message
         if (! in_array($channelType, $this->channelTypes)) {
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => '❌ Invalid channel type. Please use "text" or "voice".']);
-
             return;
         }
 
-        // 6️⃣ Create the channel
-        $url = $this->baseUrl . '/guilds/' . $this->guildId . '/channels';
-        $payloadJson = json_encode([
-            'name' => $channelName,
-            'type' => $channelType === 'text' ? Channel::TYPE_GUILD_TEXT : Channel::TYPE_GUILD_VOICE,
-        ]);
+        // 6️⃣ Extract category ID (optional)
+        $categoryId = $parts[3] ?? null;
 
-        if ($payloadJson === false) {
+        if ($categoryId && !is_numeric($categoryId)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => '❌ Failed to encode channel data.',
+                'response' => '❌ Invalid category ID. Please provide a valid numeric ID.',
             ]);
-            throw new Exception('Failed to encode channel data.');
+            return;
         }
 
-        $apiResponse = Http::withToken(config('discord.token'), 'Bot')
-            ->withBody($payloadJson, 'application/json')
-            ->post($url);
+        // 7️⃣ Construct the API request payload
+        $payload = [
+            'name' => $channelName,
+            'type' => $channelType === 'text' ? Channel::TYPE_GUILD_TEXT : Channel::TYPE_GUILD_VOICE,
+        ];
+
+        if ($categoryId) {
+            $payload['parent_id'] = $categoryId;
+        }
+
+        $url = $this->baseUrl . "/guilds/{$this->guildId}/channels";
+
+        // 8️⃣ Send request to create the channel
+        $apiResponse = retry(3, function () use ($url, $payload) {
+            return Http::withToken(config('discord.token'), 'Bot')
+                ->post($url, $payload);
+        }, 200);
 
         if ($apiResponse->failed()) {
-            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => '❌ Failed to create channel.']);
-            throw new Exception('Failed to create channel.');
+            Log::error("Failed to create channel '{$channelName}' in guild {$this->guildId}", [
+                'response' => $apiResponse->json(),
+            ]);
+
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => "❌ Failed to create channel '{$channelName}'.",
+            ]);
+            return;
         }
 
-        // ✅ Send Embedded Confirmation Message
+        // ✅ Success! Send confirmation message
+        $categoryMessage = $categoryId ? "**Category:** 📂 `<#{$categoryId}>`" : "**No category assigned**";
+
         SendMessage::sendMessage($this->channelId, [
             'is_embed' => true,
             'embed_title' => '✅ Channel Created!',
-            'embed_description' => "**Channel Name:** #{$channelName}\n**Type:** " . ($channelType === 'text' ? '💬 Text' : '🔊 Voice'),
+            'embed_description' => "**Channel Name:** #{$channelName}\n**Type:** " . ($channelType === 'text' ? '💬 Text' : '🔊 Voice') . "\n{$categoryMessage}",
             'embed_color' => 3447003, // Blue embed
         ]);
     }
