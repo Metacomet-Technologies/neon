@@ -6,11 +6,25 @@ import { Description, ErrorMessage, Field, Fieldset, Label } from '@/Components/
 import { Input } from '@/Components/input';
 import { Textarea } from '@/Components/textarea';
 import { useForm } from '@inertiajs/react';
-import { useCallback, useState } from 'react';
-import { ChromePicker } from 'react-color';
+import React, { useCallback, useState } from 'react';
+import { ChromePicker, ColorResult } from 'react-color';
 import { Command, CommandStore } from '../types';
 
-export default function Form({ serverId, existingCommand }: { serverId: string; existingCommand?: Command | null }) {
+/**
+ * Form component for creating or updating a command.
+ *
+ * @param {Object} props - The component props.
+ * @param {string} props.serverId - The ID of the server.
+ * @param {Command|null} [props.existingCommand] - The existing command to edit, if any.
+ * @returns {JSX.Element} The form component.
+ */
+export default function Form({
+    serverId,
+    existingCommand,
+}: {
+    serverId: string;
+    existingCommand?: Command | null;
+}): React.JSX.Element {
     const { data, setData, post, put, errors } = useForm<CommandStore>({
         command: existingCommand?.command || '',
         description: existingCommand?.description || '',
@@ -27,21 +41,40 @@ export default function Form({ serverId, existingCommand }: { serverId: string; 
         (e: React.FormEvent) => {
             e.preventDefault();
             if (existingCommand) {
-                put(route('server.command.update', { serverId: serverId, command: existingCommand.id }));
+                put(route('server.command.update', { serverId, command: existingCommand.id }));
             } else {
-                post(route('server.command.store', { serverId: serverId }));
+                post(route('server.command.store', { serverId }));
             }
         },
         [post, put]
     );
 
-    const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
+    const handleTextChange = useCallback(
+        (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+            setData(e.target.name, e.target.value);
+        },
+        [setData]
+    );
 
-    const handleColorPickerOpen = () => setIsColorPickerOpen(true);
-    const handleColorPickerClose = () => setIsColorPickerOpen(false);
+    const handleCheckboxChange = useCallback(
+        (name: string, checked: boolean) => {
+            setData(name, checked);
+        },
+        [setData]
+    );
 
-    const connvertColorHexToInteger = useCallback((color: string) => parseInt(color.replace('#', ''), 16), []);
-    const convertColorIntegerToHex = useCallback((color: number) => `#${color.toString(16).padStart(6, '0')}`, []);
+    const handleIsEnabledChange = useCallback(
+        (checked: boolean) => handleCheckboxChange('is_enabled', checked),
+        [handleCheckboxChange]
+    );
+    const handleIsPublicChange = useCallback(
+        (checked: boolean) => handleCheckboxChange('is_public', checked),
+        [handleCheckboxChange]
+    );
+    const handleIsEmbedChange = useCallback(
+        (checked: boolean) => handleCheckboxChange('is_embed', checked),
+        [handleCheckboxChange]
+    );
 
     return (
         <form
@@ -50,153 +83,60 @@ export default function Form({ serverId, existingCommand }: { serverId: string; 
         >
             <Fieldset className="space-y-4">
                 {!existingCommand && (
-                    <Field>
-                        <Label htmlFor="command">
-                            Command <span className="text-red-500">*</span>
-                        </Label>
-                        <Description>The ! prefix will automatically be appended.</Description>
-                        <Input
-                            type="text"
-                            disabled={!!existingCommand}
-                            name="command"
-                            invalid={!!errors.command}
-                            value={data.command}
-                            onChange={(e) => setData('command', e.target.value)}
-                        />
-                        {!!errors.command && <ErrorMessage>{errors.command}</ErrorMessage>}
-                    </Field>
+                    <TextField
+                        label="Command"
+                        description="The ! prefix will automatically be appended."
+                        disabled={Boolean(existingCommand)}
+                        name="command"
+                        value={data.command}
+                        onChange={handleTextChange}
+                        error={errors.command}
+                        required
+                    />
                 )}
-
-                <Field>
-                    <Label htmlFor="response">
-                        Response{' '}
-                        {data.is_embed ? '(Plain text will be ignored)' : <span className="text-red-500">*</span>}
-                    </Label>
-                    <Description>What should Neon say when this command is triggered?</Description>
-                    <Textarea
-                        name="response"
-                        invalid={!!errors.response}
-                        disabled={data.is_embed}
-                        rows={1}
-                        value={data.response}
-                        onChange={(e) => setData('response', e.target.value)}
-                    />
-                    {!!errors.response && <ErrorMessage>{errors.response}</ErrorMessage>}
-                </Field>
-                <Field>
-                    <Label htmlFor="description">Description</Label>
-                    <Description>What does this command do?</Description>
-                    <Textarea
-                        name="description"
-                        value={data.description}
-                        rows={3}
-                        invalid={!!errors.description}
-                        onChange={(e) => setData('description', e.target.value)}
-                    />
-                    {!!errors.description && <ErrorMessage>{errors.description}</ErrorMessage>}
-                </Field>
-                <CheckboxField>
-                    <Checkbox
-                        name="is_enabled"
-                        checked={data.is_enabled}
-                        onChange={(checked: boolean) => setData('is_enabled', checked)}
-                    />
-                    <Label htmlFor="is_enabled">
-                        Enabled <span className="text-red-500">*</span>
-                    </Label>
-                    <Description>If disabled, Neon will ignore this command.</Description>
-                    {!!errors.is_enabled && <ErrorMessage>{errors.is_enabled}</ErrorMessage>}
-                </CheckboxField>
-                <CheckboxField>
-                    <Checkbox
-                        name="is_public"
-                        checked={data.is_public}
-                        onChange={(checked: boolean) => setData('is_public', checked)}
-                    />
-                    <Label htmlFor="is_public">
-                        Public <span className="text-red-500">*</span>
-                    </Label>
-                    <Description>If disabled, this command will only work for admins.</Description>
-                    {!!errors.is_public && <ErrorMessage>{errors.is_public}</ErrorMessage>}
-                </CheckboxField>
-                <CheckboxField>
-                    <Checkbox
-                        name="is_embed"
-                        checked={data.is_embed}
-                        onChange={(checked: boolean) => setData('is_embed', checked)}
-                    />
-                    <Label htmlFor="is_embed">
-                        Use Embedded Message <span className="text-red-500">*</span>
-                    </Label>
-                    <Description>
-                        Plain text responses are boring. Enable this to use a fancy embedded message.
-                    </Description>
-                    {!!errors.is_embed && <ErrorMessage>{errors.is_embed}</ErrorMessage>}
-                </CheckboxField>
-                {data.is_embed && (
-                    <>
-                        <Divider />
-                        <Field>
-                            <Label htmlFor="embed_color">
-                                Embed Color {data.is_embed && <span className="text-red-500">*</span>}
-                            </Label>
-                            <Description>Choose a color for the embedded message.</Description>
-
-                            <button
-                                type="button"
-                                onClick={handleColorPickerOpen}
-                                className="size-10 rounded-full mt-2 cursor-pointer border border-zinc-200 dark:border-zinc-700"
-                                style={{ backgroundColor: convertColorIntegerToHex(data.embed_color || 65535) }}
-                            />
-
-                            <Dialog open={isColorPickerOpen} onClose={handleColorPickerClose}>
-                                <DialogTitle>Pick a Color</DialogTitle>
-                                <DialogBody className="flex justify-center">
-                                    <ChromePicker
-                                        disableAlpha
-                                        className="mx-auto"
-                                        color={convertColorIntegerToHex(data.embed_color || 0x000000)}
-                                        onChange={(color) =>
-                                            setData('embed_color', connvertColorHexToInteger(color.hex))
-                                        }
-                                    />
-                                </DialogBody>
-                                <DialogActions>
-                                    <Button color="pink" onClick={handleColorPickerClose}>
-                                        Accept
-                                    </Button>
-                                </DialogActions>
-                            </Dialog>
-                            {!!errors.embed_color && <ErrorMessage>{errors.embed_color}</ErrorMessage>}
-                        </Field>
-                        <Field>
-                            <Label htmlFor="embed_title">
-                                Embed Title {data.is_embed && <span className="text-red-500">*</span>}
-                            </Label>
-                            <Description>What should the title of the embedded message be?</Description>
-                            <Input
-                                type="text"
-                                name="embed_title"
-                                value={data.embed_title || ''}
-                                onChange={(e) => setData('embed_title', e.target.value)}
-                            />
-                            {!!errors.embed_title && <ErrorMessage>{errors.embed_title}</ErrorMessage>}
-                        </Field>
-                        <Field>
-                            <Label htmlFor="embed_description">
-                                Embed Description {data.is_embed && <span className="text-red-500">*</span>}
-                            </Label>
-                            <Description>What should the embedded message say?</Description>
-                            <Textarea
-                                name="embed_description"
-                                value={data.embed_description || ''}
-                                rows={3}
-                                onChange={(e) => setData('embed_description', e.target.value)}
-                            />
-                            {!!errors.embed_description && <ErrorMessage>{errors.embed_description}</ErrorMessage>}
-                        </Field>
-                    </>
-                )}
+                <TextField
+                    label="Response"
+                    description="What should Neon say when this command is triggered?"
+                    name="response"
+                    value={data.response}
+                    onChange={handleTextChange}
+                    error={errors.response}
+                    required={!data.is_embed}
+                    disabled={data.is_embed}
+                />
+                <TextAreaField
+                    label="Description"
+                    description="What does this command do?"
+                    name="description"
+                    value={data.description}
+                    onChange={handleTextChange}
+                    error={errors.description}
+                />
+                <CheckboxFieldWrapper
+                    label="Enabled"
+                    description="If disabled, Neon will ignore this command."
+                    name="is_enabled"
+                    checked={data.is_enabled}
+                    onChange={handleIsEnabledChange}
+                    error={errors.is_enabled}
+                />
+                <CheckboxFieldWrapper
+                    label="Public"
+                    description="If disabled, this command will only work for admins."
+                    name="is_public"
+                    checked={data.is_public}
+                    onChange={handleIsPublicChange}
+                    error={errors.is_public}
+                />
+                <CheckboxFieldWrapper
+                    label="Embed"
+                    description="Use an embedded message for this command."
+                    name="is_embed"
+                    checked={data.is_embed}
+                    onChange={handleIsEmbedChange}
+                    error={errors.is_embed}
+                />
+                {data.is_embed && <EmbedFields data={data} setData={setData} errors={errors} />}
             </Fieldset>
             <div className="flex flex-row-reverse items-center mt-4">
                 <Button type="submit" color="teal">
@@ -206,3 +146,182 @@ export default function Form({ serverId, existingCommand }: { serverId: string; 
         </form>
     );
 }
+
+interface ColorPickerDialogProps {
+    isOpen: boolean;
+    onClose: () => void;
+    color: string;
+    onChange: (color: ColorResult) => void;
+}
+
+const ColorPickerDialog: React.FC<ColorPickerDialogProps> = ({ isOpen, onClose, color, onChange }) => {
+    return (
+        <Dialog open={isOpen} onClose={onClose}>
+            <DialogTitle>Pick a Color</DialogTitle>
+            <DialogBody className="flex justify-center">
+                <ChromePicker disableAlpha className="mx-auto" color={color} onChange={onChange} />
+            </DialogBody>
+            <DialogActions>
+                <Button color="pink" onClick={onClose}>
+                    Accept
+                </Button>
+            </DialogActions>
+        </Dialog>
+    );
+};
+
+function EmbedFields({
+    data,
+    setData,
+    errors,
+}: {
+    data: CommandStore;
+    setData: Function;
+    errors: Partial<Record<keyof CommandStore, string>>;
+}) {
+    const [isColorPickerOpen, setIsColorPickerOpen] = useState<boolean>(false);
+
+    /**
+     * Opens the color picker dialog.
+     */
+    const handleColorPickerOpen = useCallback(() => setIsColorPickerOpen(true), []);
+
+    /**
+     * Closes the color picker dialog.
+     */
+    const handleColorPickerClose = useCallback(() => setIsColorPickerOpen(false), []);
+
+    const connvertColorHexToInteger = useCallback((color: string) => parseInt(color.replace('#', ''), 16), []);
+    const convertColorIntegerToHex = useCallback((color: number) => `#${color.toString(16).padStart(6, '0')}`, []);
+
+    const handleTextChange = useCallback(
+        (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+            setData(e.target.name, e.target.value);
+        },
+        [setData]
+    );
+
+    const handleColorChange = useCallback(
+        (color: ColorResult) => {
+            setData('embed_color', connvertColorHexToInteger(color.hex));
+        },
+        [setData]
+    );
+
+    return (
+        <>
+            <Divider />
+            <Field>
+                <Label htmlFor="embed_color">
+                    Embed Color {data.is_embed && <span className="text-red-500">*</span>}
+                </Label>
+                <Description>Choose a color for the embedded message.</Description>
+
+                <button
+                    type="button"
+                    onClick={handleColorPickerOpen}
+                    className="size-10 rounded-full mt-2 cursor-pointer border border-zinc-200 dark:border-zinc-700"
+                    style={{ backgroundColor: convertColorIntegerToHex(data.embed_color || 65535) }}
+                />
+
+                <ColorPickerDialog
+                    isOpen={isColorPickerOpen}
+                    onClose={handleColorPickerClose}
+                    color={convertColorIntegerToHex(data.embed_color || 65535)}
+                    onChange={handleColorChange}
+                />
+                {Boolean(errors.embed_color) && <ErrorMessage>{errors.embed_color}</ErrorMessage>}
+            </Field>
+            <TextField
+                label="Embed Title"
+                description="What should the title of the embedded message be?"
+                name="embed_title"
+                value={data.embed_title || ''}
+                onChange={handleTextChange}
+                error={errors.embed_title}
+                required={data.is_embed}
+            />
+            <TextAreaField
+                label="Embed Description"
+                description="What should the embedded message say?"
+                name="embed_description"
+                value={data.embed_description || ''}
+                onChange={handleTextChange}
+                error={errors.embed_description}
+                required
+            />
+        </>
+    );
+}
+
+interface TextFieldProps {
+    label: string;
+    description: string;
+    name: string;
+    value: string;
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    error?: string;
+    required?: boolean;
+    disabled?: boolean;
+}
+
+const TextField = ({
+    label,
+    description,
+    name,
+    value,
+    onChange,
+    error,
+    required = false,
+    disabled,
+}: TextFieldProps) => (
+    <Field>
+        <Label htmlFor={name}>
+            {label} {required && <span className="text-red-500">*</span>}
+        </Label>
+        <Description>{description}</Description>
+        <Input type="text" name={name} value={value} onChange={onChange} invalid={Boolean(error)} disabled={disabled} />
+        {Boolean(error) && <ErrorMessage>{error}</ErrorMessage>}
+    </Field>
+);
+
+interface TextAreaFieldProps {
+    label: string;
+    description: string;
+    name: string;
+    value: string;
+    onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+    error?: string;
+    required?: boolean;
+}
+
+const TextAreaField = ({ label, description, name, value, onChange, error, required }: TextAreaFieldProps) => (
+    <Field>
+        <Label htmlFor={name}>
+            {label} {required && <span className="text-red-500">*</span>}
+        </Label>
+        <Description>{description}</Description>
+        <Textarea name={name} value={value} rows={3} onChange={onChange} invalid={Boolean(error)} />
+        {Boolean(error) && <ErrorMessage>{error}</ErrorMessage>}
+    </Field>
+);
+
+interface CheckboxFieldWrapperProps {
+    label: string;
+    description: string;
+    name: string;
+    checked: boolean;
+    onChange: (checked: boolean) => void;
+    error?: string;
+}
+
+const CheckboxFieldWrapper = ({ label, description, name, checked, onChange, error }: CheckboxFieldWrapperProps) => (
+    <CheckboxField>
+        <Checkbox name={name} checked={checked} onChange={onChange} />
+        <Label htmlFor={name}>
+            {label} <span className="text-red-500">*</span>
+        </Label>
+        <Description>{description}</Description>
+        {Boolean(error) && <ErrorMessage>{error}</ErrorMessage>}
+    </CheckboxField>
+);
