@@ -8,18 +8,13 @@ use App\Jobs\ProcessAssignChannelJob;
 use App\Jobs\ProcessAssignRoleJob;
 use App\Jobs\ProcessDeleteCategoryJob;
 use App\Jobs\ProcessDeleteChannelJob;
-use App\Jobs\ProcessDeleteRoleJob;
 use App\Jobs\ProcessEditChannelJob;
 use App\Jobs\ProcessEditChannelNameJob;
-use App\Jobs\ProcessEditChannelNSFWJob;
-use App\Jobs\ProcessEditChannelSlowmodeJob;
 use App\Jobs\ProcessEditChannelTopicJob;
+use App\Jobs\ProcessGuildCommandJob;
 use App\Jobs\ProcessNewCategoryJob;
 use App\Jobs\ProcessNewChannelJob;
 use App\Jobs\ProcessNewEventJob;
-use App\Jobs\ProcessNewRoleJob;
-use App\Jobs\ProcessRemoveRoleJob;
-use App\Jobs\ProcessGuildCommandJob;
 use App\Models\NeonCommand;
 use Discord\Discord;
 use Discord\WebSockets\Event;
@@ -34,9 +29,9 @@ use Symfony\Component\Console\Attribute\AsCommand;
 #[AsCommand(name: 'neon:start')]
 final class StartNeonCommand extends Command
 {
+    public string $environment;
     protected $signature = 'neon:start';
     protected $description = 'Run Neon';
-    public string $environment;
 
     public function __construct()
     {
@@ -83,6 +78,7 @@ final class StartNeonCommand extends Command
                     $parts = explode(' ', $message->content);
                     if ($parts[0] === '!' . $command['command']) {
                         ProcessGuildCommandJob::dispatch($guildId, $channelId, $command, $message->content);
+
                         return;
                     }
                 }
