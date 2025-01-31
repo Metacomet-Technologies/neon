@@ -19,7 +19,6 @@ final class ProcessNewCategoryJob implements ShouldQueue
     public string $baseUrl;
 
     public string $usageMessage = 'Usage: !new-category <category-name>';
-
     public string $exampleMessage = 'Example: !new-category test-category';
 
     /**
@@ -39,32 +38,31 @@ final class ProcessNewCategoryJob implements ShouldQueue
      */
     public function handle(): void
     {
-
-        // Let's make sure you are an admin on the server
+        // 1️⃣ Ensure the user has permission to create categories
         $adminCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
         if ($adminCheck === 'failed') {
-            SendMessage::sendMessage('You are not allowed to create categories.', $this->channelId);
-
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ You are not allowed to create categories.',
+            ]);
             return;
         }
 
-        // Split the message content into parts
+        // 2️⃣ Parse the command
         $parts = explode(' ', $this->message, 2);
 
-        // does the contain enough parameters
-        // if not send the usage message and example message
+        // If not enough parameters, send usage message
         if (count($parts) < 2) {
-            SendMessage::sendMessage($this->usageMessage, $this->channelId);
-            SendMessage::sendMessage($this->exampleMessage, $this->channelId);
-
+            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
+            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->exampleMessage]);
             return;
         }
 
-        // Extract the category name from the message content
-        $categoryName = $parts[1];
+        // 3️⃣ Extract the category name
+        $categoryName = trim($parts[1]);
 
-        // Let's create the category
-        $url = $this->baseUrl . '/guilds/' . $this->guildId . '/channels';
+        // 4️⃣ Create the category via Discord API
+        $url = "{$this->baseUrl}/guilds/{$this->guildId}/channels";
         $apiResponse = Http::withToken(config('discord.token'), 'Bot')
             ->withBody(json_encode([
                 'name' => $categoryName,
@@ -73,10 +71,19 @@ final class ProcessNewCategoryJob implements ShouldQueue
             ->post($url);
 
         if ($apiResponse->failed()) {
-            SendMessage::sendMessage('Failed to create category.', $this->channelId);
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ Failed to create category.',
+            ]);
             throw new Exception('Failed to create category.');
         }
 
-        SendMessage::sendMessage('Category created successfully.', $this->channelId);
+        // ✅ Send Embedded Confirmation Message
+        SendMessage::sendMessage($this->channelId, [
+            'is_embed' => true,
+            'embed_title' => '✅ Category Created!',
+            'embed_description' => "**Category Name:** 📂 {$categoryName}",
+            'embed_color' => 3447003, // Blue embed
+        ]);
     }
 }
