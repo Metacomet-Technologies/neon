@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Helpers\Discord\SendMessage;
+use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
@@ -37,6 +38,7 @@ final class ProcessDeleteRoleJob implements ShouldQueue
             // If not enough parameters, send usage message
             if (count($parts) < 2) {
                 SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
+
                 return;
             }
 
@@ -54,18 +56,20 @@ final class ProcessDeleteRoleJob implements ShouldQueue
                     'is_embed' => false,
                     'response' => '❌ Failed to retrieve roles from the server.',
                 ]);
+
                 return;
             }
 
             // 4️⃣ Find the role by name
             $roles = $rolesResponse->json();
-            $role = collect($roles)->first(fn($r) => strcasecmp($r['name'], $roleName) === 0);
+            $role = collect($roles)->first(fn ($r) => strcasecmp($r['name'], $roleName) === 0);
 
             if (! $role) {
                 SendMessage::sendMessage($this->channelId, [
                     'is_embed' => false,
                     'response' => "❌ Role '{$roleName}' not found.",
                 ]);
+
                 return;
             }
 
@@ -84,6 +88,7 @@ final class ProcessDeleteRoleJob implements ShouldQueue
                     'is_embed' => false,
                     'response' => "❌ Failed to delete role '{$roleName}'.",
                 ]);
+
                 return;
             }
 
@@ -95,7 +100,7 @@ final class ProcessDeleteRoleJob implements ShouldQueue
                 'embed_color' => 15158332, // Red embed
             ]);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('ProcessDeleteRoleJob Error: ' . $e->getMessage());
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
