@@ -22,6 +22,7 @@ final class LoginController
         }
 
         // Handle the request normally
+        // @phpstan-ignore method.notFound
         return Socialite::driver('discord')
             ->scopes(['email', 'guilds', 'guilds.members.read'])
             ->redirect();

@@ -12,32 +12,15 @@ final class SendMessage
     /**
      * Get all guilds for the user.
      *
-     * @param array{
-     *     is_embed: bool,
-     *     embed_title?: string,
-     *     embed_description?: string,
-     *     embed_color?: int,
-     *     response?: string,
-     * } $command
+     * @param  array<string, mixed>  $command
      */
     public static function sendMessage(string $channelId, array $command): string
     {
         $baseUrl = config('services.discord.rest_api_url');
         $url = $baseUrl . '/channels/' . $channelId . '/messages';
 
-        if (! isset($command['is_embed'])) {
-            Log::error('Embed indicator is required for messages', [
-                'channel_id' => $channelId,
-                'command' => $command,
-            ]);
-
-            return 'failed';
-        }
-
-        $isEmbed = $command['is_embed'] ?? false;
-
         $body = [];
-        if ($isEmbed) {
+        if ($command['is_embed']) {
             $title = $command['embed_title'] ?? 'Title';
             $description = $command['embed_description'] ?? 'Description';
             $color = $command['embed_color'] ?? 57358;

@@ -12,7 +12,7 @@ final class TermsOfServiceController
     /**
      * Handle the incoming request.
      */
-    public function __invoke()
+    public function __invoke(): \Inertia\Response
     {
         $path = 'neon/legal/terms-of-service.md';
 

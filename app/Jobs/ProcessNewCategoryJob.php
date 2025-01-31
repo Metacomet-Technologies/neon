@@ -65,11 +65,21 @@ final class ProcessNewCategoryJob implements ShouldQueue
 
         // 4️⃣ Create the category via Discord API
         $url = "{$this->baseUrl}/guilds/{$this->guildId}/channels";
+        $jsonPayload = json_encode([
+            'name' => $categoryName,
+            'type' => Channel::TYPE_GUILD_CATEGORY,
+        ]);
+
+        if ($jsonPayload === false) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ Failed to create category.',
+            ]);
+            throw new Exception('Failed to create category.');
+        }
+
         $apiResponse = Http::withToken(config('discord.token'), 'Bot')
-            ->withBody(json_encode([
-                'name' => $categoryName,
-                'type' => Channel::TYPE_GUILD_CATEGORY,
-            ]), 'application/json')
+            ->withBody($jsonPayload, 'application/json')
             ->post($url);
 
         if ($apiResponse->failed()) {

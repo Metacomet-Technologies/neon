@@ -8,6 +8,8 @@ final class DiscordChannelValidator
 {
     /**
      * Validate if a Discord channel name is valid.
+     *
+     * @return array{is_valid: bool, message: string}
      */
     public static function validateChannelName(string $channelName): array
     {

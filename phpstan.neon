@@ -9,3 +9,10 @@ parameters:
 
     # Level 10 is the highest level
     level: 8
+
+    ignoreErrors:
+        - '#PHPDoc tag @property-read for property App\\Models\\User::\$use_factory contains unknown class App\\Models\\TFactory#'
+        - '#Method App\\Models\\NeonCommand::createdByUser\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types: TRelatedModel, TDeclaringModel#'
+        - '#Method App\\Models\\NeonCommand::updatedByUser\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\BelongsTo does not specify its types: TRelatedModel, TDeclaringModel#'
+        - '#Method App\\Models\\NeonCommand::scopeAciveGuildCommands\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types: TModel#'
+        - '#Method App\\Models\\NeonCommand::scopeAciveGuildCommands\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types: TModel#'

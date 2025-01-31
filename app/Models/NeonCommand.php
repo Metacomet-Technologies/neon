@@ -53,24 +53,43 @@ use Illuminate\Database\Eloquent\Model;
 #[ObservedBy(NeonCommandObserver::class)]
 final class NeonCommand extends Model
 {
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<string>
+     */
     protected $guarded = [];
 
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
     protected $casts = [
         'is_enabled' => 'boolean',
         'is_public' => 'boolean',
         'is_embed' => 'boolean',
     ];
 
+    /**
+     * Get the user that created the command.
+     */
     public function createdByUser(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /**
+     * Get the user that updated the command.
+     */
     public function updatedByUser(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /**
+     * Scope a query to only include active guild commands.
+     */
     public function scopeAciveGuildCommands(Builder $query, string $guildId): \Illuminate\Database\Eloquent\Builder
     {
         return $query->whereGuildId($guildId)
