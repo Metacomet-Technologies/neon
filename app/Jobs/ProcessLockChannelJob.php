@@ -42,6 +42,7 @@ final class ProcessLockChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => $this->usageMessage,
             ]);
+
             return;
         }
 
@@ -57,6 +58,7 @@ final class ProcessLockChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to retrieve roles from the server.',
             ]);
+
             return;
         }
 
@@ -83,11 +85,11 @@ final class ProcessLockChannelJob implements ShouldQueue
         }
 
         // 3️⃣ Send Response Message
-        if (!empty($failedRoles)) {
+        if (! empty($failedRoles)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => true,
                 'embed_title' => '🔒 Lock Channel Failed',
-                'embed_description' => "❌ Failed to lock for roles: " . implode(', ', $failedRoles),
+                'embed_description' => '❌ Failed to lock for roles: ' . implode(', ', $failedRoles),
                 'embed_color' => 15158332, // Red
             ]);
         } else {

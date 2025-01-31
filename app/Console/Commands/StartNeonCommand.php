@@ -12,12 +12,10 @@ use App\Jobs\ProcessEditChannelJob;
 use App\Jobs\ProcessEditChannelNameJob;
 use App\Jobs\ProcessEditChannelTopicJob;
 use App\Jobs\ProcessGuildCommandJob;
+use App\Jobs\ProcessLockChannelJob;
 use App\Jobs\ProcessNewCategoryJob;
 use App\Jobs\ProcessNewChannelJob;
 use App\Jobs\ProcessNewEventJob;
-use App\Jobs\ProcessNewRoleJob;
-use App\Jobs\ProcessRemoveRoleJob;
-use App\Jobs\ProcessLockChannelJob;
 use App\Models\NeonCommand;
 use Discord\Discord;
 use Discord\WebSockets\Event;
@@ -33,6 +31,7 @@ use Symfony\Component\Console\Attribute\AsCommand;
 final class StartNeonCommand extends Command
 {
     public string $environment;
+
     protected $signature = 'neon:start';
     protected $description = 'Run Neon';
 
@@ -115,8 +114,9 @@ final class StartNeonCommand extends Command
                     $args = explode(' ', $message->content);
                     $channelId = $args[1] ?? null;
 
-                    if (!$channelId) {
+                    if (! $channelId) {
                         $message->reply('Please provide a valid channel ID.');
+
                         return;
                     }
 
