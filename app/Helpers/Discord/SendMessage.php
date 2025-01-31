@@ -11,6 +11,14 @@ final class SendMessage
 {
     /**
      * Get all guilds for the user.
+     *
+     * @param array{
+     *     is_embed: bool,
+     *     embed_title?: string,
+     *     embed_description?: string,
+     *     embed_color?: int,
+     *     response?: string,
+     * } $command
      */
     public static function sendMessage(string $channelId, array $command): string
     {
