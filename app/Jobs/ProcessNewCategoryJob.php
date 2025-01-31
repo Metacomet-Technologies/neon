@@ -45,6 +45,7 @@ final class ProcessNewCategoryJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You are not allowed to create categories.',
             ]);
+
             return;
         }
 
@@ -55,6 +56,7 @@ final class ProcessNewCategoryJob implements ShouldQueue
         if (count($parts) < 2) {
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->exampleMessage]);
+
             return;
         }
 
