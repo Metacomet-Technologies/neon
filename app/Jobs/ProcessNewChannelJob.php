@@ -53,15 +53,17 @@ final class ProcessNewChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You are not allowed to create channels.',
             ]);
+
             return;
         }
 
         // 2️⃣ Parse the command properly
         preg_match('/^!new-channel\s+(\S+)\s+(\S+)(?:\s+(\d+))?(?:\s+(.+))?$/', $this->message, $matches);
 
-        if (!isset($matches[1], $matches[2])) {
+        if (! isset($matches[1], $matches[2])) {
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->exampleMessage]);
+
             return;
         }
 
@@ -76,24 +78,27 @@ final class ProcessNewChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Invalid channel name. Please use a different name.',
             ]);
+
             return;
         }
 
         $validationResult = DiscordChannelValidator::validateChannelName($channelName);
-        if (!$validationResult['is_valid']) {
+        if (! $validationResult['is_valid']) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => $validationResult['message'],
             ]);
+
             return;
         }
 
         // 4️⃣ Validate the channel type
-        if (!in_array($channelType, $this->channelTypes)) {
+        if (! in_array($channelType, $this->channelTypes)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ Invalid channel type. Please use "text" or "voice".',
             ]);
+
             return;
         }
 
@@ -128,6 +133,7 @@ final class ProcessNewChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => "❌ Failed to create channel '{$channelName}'.",
             ]);
+
             return;
         }
 
