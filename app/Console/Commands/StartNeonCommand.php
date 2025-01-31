@@ -127,6 +127,11 @@ final class StartNeonCommand extends Command
         }
     }
 
+    /**
+     * Get the commands for a guild.
+     *
+     * @return array<string, mixed>
+     */
     public function getCommandsForGuild(string $guildId): array
     {
         $key = 'guild-commands:' . $guildId;

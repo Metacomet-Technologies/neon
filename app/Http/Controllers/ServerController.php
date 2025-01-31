@@ -12,26 +12,42 @@ final class ServerController
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request)
+    public function index(Request $request): \Inertia\Response
     {
+        $user = $request->user();
+
+        if (! $user) {
+            abort(403, 'You are not authorized to view this page.');
+        }
+
+        /** @var list<array<string, mixed>> $guilds */
+        $guilds = $user->guilds;
+
         return Inertia::render('Servers/Index', [
-            'guilds' => $request->user()->guilds,
+            'guilds' => $guilds,
         ]);
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Request $request, string $serverId)
+    public function show(Request $request, string $serverId): \Inertia\Response
     {
-        $guilds = $request->user()->guilds;
+        $user = $request->user();
+
+        if (! $user) {
+            abort(403, 'You are not authorized to view this page.');
+        }
+
+        /** @var list<array<string, mixed>> $guilds */
+        $guilds = $user->guilds;
 
         if (! in_array($serverId, array_column($guilds, 'id'))) {
             abort(403);
         }
 
-        $request->user()->current_server_id = $serverId;
-        $request->user()->save();
+        $user->current_server_id = $serverId;
+        $user->save();
 
         return Inertia::render('Servers/Show');
     }

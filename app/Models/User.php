@@ -29,7 +29,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property bool $is_admin
  * @property bool $is_on_mailing_list
  * @property string|null $current_server_id
- * @property-read array $guilds
+ * @property-read array<string, mixed> $guilds
  * @property-read \App\Models\TFactory|null $use_factory
  * @property-read \Illuminate\Notifications\DatabaseNotificationCollection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
  * @property-read int|null $notifications_count
@@ -97,6 +97,11 @@ final class User extends Authenticatable
         'refresh_token_expires_at',
     ];
 
+    /**
+     * The attributes that should be appended to the model.
+     *
+     * @var list<string>
+     */
     protected $appends = ['guilds'];
 
     /**
@@ -123,6 +128,11 @@ final class User extends Authenticatable
         return $this->is_admin;
     }
 
+    /**
+     * Get the guilds where the user has the given permission.
+     *
+     * @return array<string, mixed>
+     */
     public function getGuildsAttribute(): array
     {
         $guilds = Cache::remember('user-guilds-' . $this->id, now()->addMinutes(5), function () {

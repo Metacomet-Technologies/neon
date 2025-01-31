@@ -16,8 +16,14 @@ final class CommandController
      */
     public function index(Request $request, string $serverId): \Inertia\Response
     {
-        /** @var array $guilds */
-        $guilds = $request->user()->guilds;
+        $user = $request->user();
+
+        if (! $user) {
+            abort(403, 'You are not authorized to view this page.');
+        }
+
+        /** @var list<array<string, mixed>> $guilds */
+        $guilds = $user->guilds;
         $guildIds = array_column($guilds, 'id');
 
         if (! in_array($serverId, $guildIds)) {
@@ -42,8 +48,14 @@ final class CommandController
      */
     public function create(Request $request, string $serverId): \Inertia\Response
     {
-        /** @var array $guilds */
-        $guilds = $request->user()->guilds;
+        $user = $request->user();
+
+        if (! $user) {
+            abort(403, 'You are not authorized to view this page.');
+        }
+
+        /** @var list<array<string, mixed>> $guilds */
+        $guilds = $user->guilds;
         $guildIds = array_column($guilds, 'id');
 
         if (! in_array($serverId, $guildIds)) {
@@ -62,7 +74,11 @@ final class CommandController
     {
         $user = $request->user();
 
-        /** @var array $guilds */
+        if (! $user) {
+            abort(403, 'You are not authorized to view this page.');
+        }
+
+        /** @var list<array<string, mixed>> $guilds */
         $guilds = $user->guilds;
         $guildIds = array_column($guilds, 'id');
 
@@ -99,8 +115,14 @@ final class CommandController
      */
     public function edit(Request $request, string $serverId, NeonCommand $command): \Inertia\Response
     {
-        /** @var array $guilds */
-        $guilds = $request->user()->guilds;
+        $user = $request->user();
+
+        if (! $user) {
+            abort(403, 'You are not authorized to view this page.');
+        }
+
+        /** @var list<array<string, mixed>> $guilds */
+        $guilds = $user->guilds;
         $guildIds = array_column($guilds, 'id');
 
         if (! in_array($serverId, $guildIds)) {
@@ -120,7 +142,11 @@ final class CommandController
     {
         $user = $request->user();
 
-        /** @var array $guilds */
+        if (! $user) {
+            abort(403, 'You are not authorized to view this page.');
+        }
+
+        /** @var list<array<string, mixed>> $guilds */
         $guilds = $user->guilds;
         $guildIds = array_column($guilds, 'id');
 
@@ -153,8 +179,14 @@ final class CommandController
      */
     public function destroy(Request $request, string $serverId, NeonCommand $command): \Illuminate\Http\RedirectResponse
     {
-        /** @var array $guilds */
-        $guilds = $request->user()->guilds;
+        $user = $request->user();
+
+        if (! $user) {
+            abort(403, 'You are not authorized to view this page.');
+        }
+
+        /** @var list<array<string, mixed>> $guilds */
+        $guilds = $user->guilds;
         $guildIds = array_column($guilds, 'id');
 
         if (! in_array($serverId, $guildIds)) {

@@ -18,6 +18,9 @@ final class ProcessGuildCommandJob implements ShouldQueue
 
     /**
      * Create a new job instance.
+     *
+     * @param  array<string, mixed>  $command
+     * @return void
      */
     public function __construct(
         public string $guildId,
@@ -48,18 +51,5 @@ final class ProcessGuildCommandJob implements ShouldQueue
             'message' => $this->message,
         ]);
 
-    }
-
-    /**
-     * Set the message output based on the environment.
-     */
-    private function setMessageOutput(string $message): string
-    {
-        $environment = config('app.env');
-        if ($environment === 'production') {
-            return $message;
-        }
-
-        return '[' . $environment . '] ' . $message;
     }
 }

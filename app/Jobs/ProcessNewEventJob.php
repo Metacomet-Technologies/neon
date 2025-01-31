@@ -114,8 +114,18 @@ final class ProcessNewEventJob implements ShouldQueue
 
         // 9️⃣ Send API request to create the event
         $url = config('services.discord.rest_api_url') . "/guilds/{$this->guildId}/scheduled-events";
+        $eventDataJson = json_encode($eventData);
+
+        if ($eventDataJson === false) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ Failed to encode event data.',
+            ]);
+            throw new Exception('Failed to encode event data.');
+        }
+
         $apiResponse = Http::withToken(config('discord.token'), 'Bot')
-            ->withBody(json_encode($eventData), 'application/json')
+            ->withBody($eventDataJson, 'application/json')
             ->post($url);
 
         // 🔟 Check for API errors
@@ -132,7 +142,6 @@ final class ProcessNewEventJob implements ShouldQueue
             'is_embed' => true,
             'embed_title' => '🎉 Event Created!',
             'embed_description' => "**Event:** {$eventTopic}\n**Start:** {$startDate} at {$startTime} UTC\n**Location:** " . ($isVoiceChannel ? '🔊 Voice Channel' : '🌍 External/Text Channel'),
-            'embed_color' => 5763719, // Green embed
         ]);
     }
 }
