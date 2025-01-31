@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Jobs\ProcessAssignRoleJob;
+use App\Jobs\ProcessDeleteRoleJob;
 use App\Jobs\ProcessGuildCommandJob;
 use App\Jobs\ProcessNewCategoryJob;
 use App\Jobs\ProcessNewChannelJob;
@@ -112,6 +113,9 @@ final class StartNeonCommand extends Command
                         $message->channel->guild_id,
                         $message->content
                     );
+                }
+                if (str_starts_with($message->content, '!delete-role')) {
+                    ProcessDeleteRoleJob::dispatch($message->channel->id, $message->channel->guild_id, $message->content);
                 }
                 if (str_starts_with($message->content, '!create-event')) {
                     ProcessNewEventJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
