@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Jobs\ProcessGuildCommandJob;
 use App\Jobs\ProcessNewCategoryJob;
 use App\Jobs\ProcessNewChannelJob;
+use App\Jobs\ProcessNewEventJob;
 use App\Models\NeonCommand;
 use Discord\Discord;
 use Discord\WebSockets\Event;
@@ -99,9 +100,11 @@ final class StartNeonCommand extends Command
                 if (str_starts_with($message->content, '!new-category')) {
                     ProcessNewCategoryJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
                 }
-
                 if (str_starts_with($message->content, '!assign-role')) {
                     $this->handleAssignRole($message, $discord);
+                }
+                if (str_starts_with($message->content, '!create-event')) {
+                    ProcessNewEventJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
                 }
             });
         });
