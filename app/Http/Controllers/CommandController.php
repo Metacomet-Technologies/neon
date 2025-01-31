@@ -74,11 +74,15 @@ final class CommandController
 
         $newCommand = new NeonCommand;
         $newCommand->command = $request->input('command');
-        $newCommand->description = $request->input('description', null);
         $newCommand->response = $request->input('response');
+        $newCommand->description = $request->input('description', null);
+        $newCommand->guild_id = $serverId;
         $newCommand->is_enabled = $request->input('is_enabled');
         $newCommand->is_public = $request->input('is_public');
-        $newCommand->guild_id = $serverId;
+        $newCommand->is_embed = $request->input('is_embed');
+        $newCommand->embed_title = $request->input('embed_title', null);
+        $newCommand->embed_description = $request->input('embed_description', null);
+        $newCommand->embed_color = $request->input('embed_color', null);
         $newCommand->created_by = $user->id;
         $newCommand->updated_by = $user->id;
         $newCommand->created_at = $now;
@@ -127,10 +131,14 @@ final class CommandController
         $now = now();
         $now = now();
         $command->command = $request->input('command');
-        $command->description = $request->input('description', null);
         $command->response = $request->input('response');
+        $command->description = $request->input('description', null);
         $command->is_enabled = $request->input('is_enabled');
         $command->is_public = $request->input('is_public');
+        $command->is_embed = $request->input('is_embed');
+        $command->embed_title = $request->input('embed_title', null);
+        $command->embed_description = $request->input('embed_description', null);
+        $command->embed_color = $request->input('embed_color', null);
         $command->updated_by = $user->id;
         $command->updated_at = $now;
         $command->save();

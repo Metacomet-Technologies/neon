@@ -23,17 +23,13 @@ final class CacheGuildCommandsJob implements ShouldQueue
      */
     public function handle(): void
     {
+        $key = 'guild-commands:' . $this->guildId;
+
         $commands = NeonCommand::query()
-            ->select([
-                'id',
-                'command',
-                'response',
-            ])
-            ->whereGuildId($this->guildId)
-            ->whereIsEnabled(true)
+            ->aciveGuildCommands($this->guildId)
             ->get()
             ->toArray();
 
-        Cache::forever('guild-commands:' . $this->guildId, $commands);
+        Cache::forever($key, $commands);
     }
 }
