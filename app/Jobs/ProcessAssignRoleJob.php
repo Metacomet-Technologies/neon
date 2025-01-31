@@ -39,6 +39,7 @@ final class ProcessAssignRoleJob implements ShouldQueue
         // Validate input
         if (count($parts) < 3) {
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
+
             return;
         }
 
@@ -54,6 +55,7 @@ final class ProcessAssignRoleJob implements ShouldQueue
                     'is_embed' => false,
                     'response' => "❌ Invalid user mention format: {$mention}",
                 ]);
+
                 return;
             }
             $userIds[] = $matches[1]; // Extract user ID from mention
@@ -74,6 +76,7 @@ final class ProcessAssignRoleJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to retrieve roles from the server.',
             ]);
+
             return;
         }
 
@@ -86,6 +89,7 @@ final class ProcessAssignRoleJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => "❌ Role '{$roleName}' not found.",
             ]);
+
             return;
         }
 
@@ -116,6 +120,7 @@ final class ProcessAssignRoleJob implements ShouldQueue
             if ($batchIndex < count($chunks) - 1) {
                 retry(1, function () {
                     sleep($this->retryDelay / 1000); // Convert ms to seconds
+
                     return true;
                 }, $this->retryDelay);
             }

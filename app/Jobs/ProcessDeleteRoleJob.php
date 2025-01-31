@@ -38,6 +38,7 @@ final class ProcessDeleteRoleJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => $this->usageMessage,
             ]);
+
             return;
         }
 
@@ -57,6 +58,7 @@ final class ProcessDeleteRoleJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to retrieve roles from the server.',
             ]);
+
             return;
         }
 
@@ -69,6 +71,7 @@ final class ProcessDeleteRoleJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => "❌ Role '{$roleName}' not found.",
             ]);
+
             return;
         }
 
@@ -90,6 +93,7 @@ final class ProcessDeleteRoleJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => "❌ Failed to delete role '{$roleName}'.",
             ]);
+
             return;
         }
 
