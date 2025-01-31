@@ -59,12 +59,13 @@ final class ProcessNewEventJob implements ShouldQueue
             return;
         }
 
-        $eventTopic = trim($parts[0]);
+        $eventTopic = trim(str_replace('!create-event', '', $parts[0]));
+        $eventTopic = trim($eventTopic, '"'); // Remove any extra quotes
         $startDate = trim($parts[1]);
         $startTime = trim($parts[2]);
         $eventFrequency = trim($parts[3]);
         $location = trim($parts[4]);
-        $description = trim($parts[5]);
+        $description = trim($parts[5], ' "');
         $coverImage = $parts[6] ?? null;
 
         // 3️⃣ Fetch all channels in the guild to check if location is a voice channel
