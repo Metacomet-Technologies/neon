@@ -48,6 +48,7 @@ final class ProcessAssignChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => $this->exampleMessage,
             ]);
+
             return;
         }
 
@@ -67,6 +68,7 @@ final class ProcessAssignChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to retrieve channels from the server.',
             ]);
+
             return;
         }
 
@@ -76,7 +78,7 @@ final class ProcessAssignChannelJob implements ShouldQueue
         $channel = $channels->first(fn ($c) => $c['id'] === $channelInput);
 
         // If no ID match, try to match by name
-        if (!$channel) {
+        if (! $channel) {
             $matchingChannels = $channels->filter(fn ($c) => strcasecmp($c['name'], $channelInput) === 0);
 
             if ($matchingChannels->count() > 1) {
@@ -86,17 +88,19 @@ final class ProcessAssignChannelJob implements ShouldQueue
                     'is_embed' => false,
                     'response' => "❌ Multiple channels named '{$channelInput}' found. Please use an ID instead:\n{$matchesList}",
                 ]);
+
                 return;
             }
 
             $channel = $matchingChannels->first();
         }
 
-        if (!$channel) {
+        if (! $channel) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => "❌ Channel '{$channelInput}' not found.",
             ]);
+
             return;
         }
 
@@ -106,7 +110,7 @@ final class ProcessAssignChannelJob implements ShouldQueue
         $category = $channels->first(fn ($c) => $c['id'] === $categoryInput && $c['type'] === 4); // Type 4 = Category
 
         // If no ID match, try to match by name
-        if (!$category) {
+        if (! $category) {
             $matchingCategories = $channels->filter(fn ($c) => strcasecmp($c['name'], $categoryInput) === 0 && $c['type'] === 4);
 
             if ($matchingCategories->count() > 1) {
@@ -116,17 +120,19 @@ final class ProcessAssignChannelJob implements ShouldQueue
                     'is_embed' => false,
                     'response' => "❌ Multiple categories named '{$categoryInput}' found. Please use an ID instead:\n{$matchesList}",
                 ]);
+
                 return;
             }
 
             $category = $matchingCategories->first();
         }
 
-        if (!$category) {
+        if (! $category) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => "❌ Category '{$categoryInput}' not found.",
             ]);
+
             return;
         }
 
@@ -149,6 +155,7 @@ final class ProcessAssignChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => "❌ Failed to move channel '{$channelInput}' to category '{$categoryInput}'.",
             ]);
+
             return;
         }
 
