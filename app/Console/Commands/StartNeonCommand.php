@@ -20,6 +20,7 @@ use App\Jobs\ProcessNewEventJob;
 use App\Jobs\ProcessNewRoleJob;
 use App\Jobs\ProcessRemoveRoleJob;
 use App\Jobs\ProcessGuildCommandJob;
+use App\Jobs\ProcessLockChannelJob;
 use App\Models\NeonCommand;
 use Discord\Discord;
 use Discord\WebSockets\Event;
@@ -110,6 +111,18 @@ final class StartNeonCommand extends Command
 
                 if (str_starts_with($message->content, '!edit-channel-topic ')) {
                     ProcessEditChannelTopicJob::dispatch($channelId, $message->content);
+                }
+
+                if (str_starts_with($message->content, '!lock-channel ')) {
+                    $args = explode(' ', $message->content);
+                    $channelId = $args[1] ?? null;
+
+                    if (!$channelId) {
+                        $message->reply('Please provide a valid channel ID.');
+                        return;
+                    }
+
+                    ProcessLockChannelJob::dispatch($message->author->id, $channelId, $message->guild_id, $message->content);
                 }
 
                 if (str_starts_with($message->content, '!new-category ')) {
