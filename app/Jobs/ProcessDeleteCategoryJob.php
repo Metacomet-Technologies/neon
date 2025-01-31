@@ -42,17 +42,19 @@ final class ProcessDeleteCategoryJob implements ShouldQueue
         if (count($parts) < 2) {
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->exampleMessage]);
+
             return;
         }
 
         $categoryId = $parts[1];
 
         // Ensure the provided category ID is numeric
-        if (!is_numeric($categoryId)) {
+        if (! is_numeric($categoryId)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ Invalid category ID. Please provide a valid numeric ID.',
             ]);
+
             return;
         }
 
@@ -63,6 +65,7 @@ final class ProcessDeleteCategoryJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You are not allowed to delete categories.',
             ]);
+
             return;
         }
 
@@ -79,6 +82,7 @@ final class ProcessDeleteCategoryJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to retrieve channels from the server.',
             ]);
+
             return;
         }
 
@@ -87,11 +91,12 @@ final class ProcessDeleteCategoryJob implements ShouldQueue
         // 4️⃣ Find the category by ID and confirm it is a category (Type 4)
         $category = $channels->first(fn ($c) => $c['id'] === $categoryId && $c['type'] === 4);
 
-        if (!$category) {
+        if (! $category) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => "❌ No category found with ID `{$categoryId}`.",
             ]);
+
             return;
         }
 
@@ -105,6 +110,7 @@ final class ProcessDeleteCategoryJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => "❌ Category ID `{$categoryId}` contains channels:\n{$channelList}\nPlease delete or move them first.",
             ]);
+
             return;
         }
 
@@ -125,6 +131,7 @@ final class ProcessDeleteCategoryJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => "❌ Failed to delete category (ID: `{$categoryId}`).",
             ]);
+
             return;
         }
 
