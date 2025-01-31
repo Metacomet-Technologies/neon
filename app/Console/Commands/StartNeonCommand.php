@@ -9,6 +9,11 @@ use App\Jobs\ProcessAssignRoleJob;
 use App\Jobs\ProcessDeleteCategoryJob;
 use App\Jobs\ProcessDeleteChannelJob;
 use App\Jobs\ProcessDeleteRoleJob;
+use App\Jobs\ProcessEditChannelJob;
+use App\Jobs\ProcessEditChannelNameJob;
+use App\Jobs\ProcessEditChannelNSFWJob;
+use App\Jobs\ProcessEditChannelSlowmodeJob;
+use App\Jobs\ProcessEditChannelTopicJob;
 use App\Jobs\ProcessGuildCommandJob;
 use App\Jobs\ProcessNewCategoryJob;
 use App\Jobs\ProcessNewChannelJob;
@@ -92,51 +97,79 @@ final class StartNeonCommand extends Command
                 }
 
                 $guildId = $message->channel->guild_id;
-                $commands = $this->getCommandsForGuild($guildId);
                 $channelId = $message->channel->id;
-                foreach ($commands as $command) {
-                    $parts = explode(' ', $message->content);
-                    if ($parts[0] === '!' . $command['command']) {
-                        ProcessGuildCommandJob::dispatch($guildId, $channelId, $command, $message->content);
-                    }
-                }
 
-                if (str_starts_with($message->content, '!new-channel')) {
+                // Extract command & arguments properly
+                $parts = explode(' ', $message->content, 3); // Limit to 3 to avoid splitting multi-word topics
+                $command = $parts[0]; // Get the command (e.g., !edit-channel-name)
+                $targetChannelId = $parts[1] ?? null; // Extract the channel ID
+                $arguments = $parts[2] ?? ''; // Remaining arguments (if any)
+
+                // 🔹 Ensure commands match exactly & avoid overlap
+                if (str_starts_with($message->content, '!new-channel ')) {
                     ProcessNewChannelJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
                 }
-                if (str_starts_with($message->content, '!assign-channel')) {
+
+                if (str_starts_with($message->content, '!assign-channel ')) {
                     ProcessAssignChannelJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
                 }
-                if (str_starts_with($message->content, '!delete-channel')) {
+
+                if (str_starts_with($message->content, '!delete-channel ')) {
                     ProcessDeleteChannelJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
                 }
-                if (str_starts_with($message->content, '!new-category')) {
+
+                if (str_starts_with($message->content, '!edit-channel ')) {
+                    ProcessEditChannelJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
+                }
+
+                if (str_starts_with($message->content, '!edit-channel-name ') && $targetChannelId && $arguments !== '') {
+                    ProcessEditChannelNameJob::dispatch($channelId, $targetChannelId, $guildId, $arguments);
+                }
+
+                if (str_starts_with($message->content, '!edit-channel-topic ') && $targetChannelId && $arguments !== '') {
+                    ProcessEditChannelTopicJob::dispatch($channelId, $targetChannelId, $guildId, $arguments);
+                }
+
+                if (str_starts_with($message->content, '!edit-channel-slowmode ') && $targetChannelId && is_numeric($arguments)) {
+                    ProcessEditChannelSlowmodeJob::dispatch($channelId, $targetChannelId, $guildId, (int)$arguments);
+                }
+
+                if (str_starts_with($message->content, '!edit-channel-nsfw ') && $targetChannelId && in_array(strtolower($arguments), ['true', 'false'], true)) {
+                    $nsfw = strtolower($arguments) === 'true' ? true : false;
+                    ProcessEditChannelNSFWJob::dispatch($channelId, $targetChannelId, $guildId, $nsfw);
+                }
+
+
+                if (str_starts_with($message->content, '!new-category ')) {
                     ProcessNewCategoryJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
                 }
-                if (str_starts_with($message->content, '!delete-category')) {
+
+                if (str_starts_with($message->content, '!delete-category ')) {
                     ProcessDeleteCategoryJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
                 }
-                if (str_starts_with($message->content, '!assign-role')) {
-                    ProcessAssignRoleJob::dispatch($message->channel->id, $message->channel->guild_id, $message->content);
+
+                if (str_starts_with($message->content, '!assign-role ')) {
+                    ProcessAssignRoleJob::dispatch($message->channel->id, $guildId, $message->content);
                 }
-                if (str_starts_with($message->content, '!add-role')) {
-                    ProcessNewRoleJob::dispatch(
-                        $message->author->id,   // ✅ Add the Discord user ID
-                        $message->channel->id,
-                        $message->channel->guild_id,
-                        $message->content
-                    );
+
+                if (str_starts_with($message->content, '!add-role ')) {
+                    ProcessNewRoleJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
                 }
-                if (str_starts_with($message->content, '!delete-role')) {
-                    ProcessDeleteRoleJob::dispatch($message->channel->id, $message->channel->guild_id, $message->content);
+
+                if (str_starts_with($message->content, '!delete-role ')) {
+                    ProcessDeleteRoleJob::dispatch($channelId, $guildId, $message->content);
                 }
-                if (str_starts_with($message->content, '!remove-role')) {
-                    ProcessRemoveRoleJob::dispatch($message->channel->id, $message->channel->guild_id, $message->content);
+
+                if (str_starts_with($message->content, '!remove-role ')) {
+                    ProcessRemoveRoleJob::dispatch($channelId, $guildId, $message->content);
                 }
-                if (str_starts_with($message->content, '!create-event')) {
+
+                if (str_starts_with($message->content, '!create-event ')) {
                     ProcessNewEventJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
                 }
             });
+
+
         });
 
         $discord->run();
