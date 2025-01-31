@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Jobs\ProcessAssignChannelJob;
 use App\Jobs\ProcessAssignRoleJob;
+use App\Jobs\ProcessDeleteChannelJob;
 use App\Jobs\ProcessDeleteRoleJob;
 use App\Jobs\ProcessGuildCommandJob;
 use App\Jobs\ProcessNewCategoryJob;
@@ -104,6 +105,9 @@ final class StartNeonCommand extends Command
                 }
                 if (str_starts_with($message->content, '!assign-channel')) {
                     ProcessAssignChannelJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
+                }
+                if (str_starts_with($message->content, '!delete-channel')) {
+                    ProcessDeleteChannelJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
                 }
                 if (str_starts_with($message->content, '!new-category')) {
                     ProcessNewCategoryJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
