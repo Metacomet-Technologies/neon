@@ -42,17 +42,19 @@ final class ProcessDeleteChannelJob implements ShouldQueue
         if (count($parts) < 2) {
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->exampleMessage]);
+
             return;
         }
 
         $targetChannelId = $parts[1];
 
         // Ensure the provided channel ID is numeric
-        if (!is_numeric($targetChannelId)) {
+        if (! is_numeric($targetChannelId)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ Invalid channel ID. Please provide a valid numeric ID.',
             ]);
+
             return;
         }
 
@@ -63,6 +65,7 @@ final class ProcessDeleteChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You are not allowed to delete channels.',
             ]);
+
             return;
         }
 
@@ -83,6 +86,7 @@ final class ProcessDeleteChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => "❌ Failed to delete channel (ID: `{$targetChannelId}`).",
             ]);
+
             return;
         }
 
