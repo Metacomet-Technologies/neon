@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Jobs\ProcessAssignRoleJob;
 use App\Jobs\ProcessGuildCommandJob;
 use App\Jobs\ProcessNewCategoryJob;
-use App\Jobs\ProcessAssignRoleJob;
-use App\Jobs\ProcessNewRoleJob;
 use App\Jobs\ProcessNewChannelJob;
 use App\Jobs\ProcessNewEventJob;
+use App\Jobs\ProcessNewRoleJob;
 use App\Models\NeonCommand;
 use Discord\Discord;
 use Discord\WebSockets\Event;

@@ -46,6 +46,7 @@ final class ProcessNewRoleJob implements ShouldQueue
         if (count($parts) < 2) {
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->exampleMessage]);
+
             return;
         }
 
@@ -74,6 +75,7 @@ final class ProcessNewRoleJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to retrieve roles from the server.',
             ]);
+
             return;
         }
 
@@ -86,6 +88,7 @@ final class ProcessNewRoleJob implements ShouldQueue
                     'is_embed' => false,
                     'response' => "❌ Role '{$roleName}' already exists.",
                 ]);
+
                 return;
             }
         }
@@ -109,6 +112,7 @@ final class ProcessNewRoleJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => "❌ Failed to create role '{$roleName}'.",
             ]);
+
             return;
         }
 
