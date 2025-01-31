@@ -11,6 +11,8 @@ final class GetGuildsByDiscordUserId
 {
     /**
      * Get all guilds for the user.
+     *
+     * @return array<string>
      */
     public static function getGuildRoles(string $guildId, string $userId): array
     {
@@ -69,7 +71,10 @@ final class GetGuildsByDiscordUserId
                 continue;
             }
 
-            if ($rolePermission & $permission->value || $rolePermission & $adminPermission->value) {
+            // Ensure $rolePermission is an integer before performing the bitwise operation
+            $rolePermission = (int) $rolePermission;
+
+            if (($rolePermission & $permission->value) || ($rolePermission & $adminPermission->value)) {
                 return 'success';
             }
         }

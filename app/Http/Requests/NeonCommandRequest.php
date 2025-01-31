@@ -5,16 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use App\Models\NeonCommand;
-use Illuminate\Database\Query\Builder;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 final class NeonCommandRequest extends FormRequest
 {
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, array<int, string>>
      */
     public function rules(): array
     {
@@ -33,7 +31,7 @@ final class NeonCommandRequest extends FormRequest
         /** @var string $tableName */
         $tableName = $model->getTable();
 
-        /** @var array<string, array<string, string>> $rules */
+        /** @var array<string, array<int, string>> $rules */
         $rules = [
             'command' => [
                 'required',
@@ -47,15 +45,7 @@ final class NeonCommandRequest extends FormRequest
             'is_embed' => ['required', 'boolean'],
             'embed_title' => ['nullable', 'string', 'max:255', 'required_if:is_embed,true'],
             'embed_description' => ['nullable', 'string', 'required_if:is_embed,true'],
-            'embed_color' => ['nullable', 'required_if:is_embed,true', 'integer'],
         ];
-
-        if ($method === 'POST') {
-            $rules['command'][] = Rule::unique($tableName)->where(function (Builder $query) use ($guildId) {
-                $query->where('command', request()->input('command'))
-                    ->where('guild_id', $guildId);
-            });
-        }
 
         return $rules;
     }

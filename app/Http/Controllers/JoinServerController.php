@@ -12,7 +12,7 @@ final class JoinServerController
     /**
      * Handle the incoming request.
      */
-    public function __invoke(Request $request): \Symfony\Component\HttpFoundation\Response|\Symfony\Component\HttpFoundation\RedirectResponse
+    public function __invoke(Request $request): \Illuminate\Http\RedirectResponse|\Illuminate\Routing\Redirector|\Symfony\Component\HttpFoundation\Response
     {
         $url = config('services.discord.join_server_url');
 

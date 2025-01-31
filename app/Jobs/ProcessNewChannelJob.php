@@ -21,6 +21,11 @@ final class ProcessNewChannelJob implements ShouldQueue
 
     public string $usageMessage = 'Usage: !new-channel <channel-name> <channel-type>';
     public string $exampleMessage = 'Example: !new-channel test-channel text';
+    /**
+     * The types of channels that can be created.
+     *
+     * @var array<string>
+     */
     public array $channelTypes = ['text', 'voice'];
 
     /**
@@ -94,11 +99,21 @@ final class ProcessNewChannelJob implements ShouldQueue
 
         // 6️⃣ Create the channel
         $url = $this->baseUrl . '/guilds/' . $this->guildId . '/channels';
+        $payloadJson = json_encode([
+            'name' => $channelName,
+            'type' => $channelType === 'text' ? Channel::TYPE_GUILD_TEXT : Channel::TYPE_GUILD_VOICE,
+        ]);
+
+        if ($payloadJson === false) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ Failed to encode channel data.',
+            ]);
+            throw new Exception('Failed to encode channel data.');
+        }
+
         $apiResponse = Http::withToken(config('discord.token'), 'Bot')
-            ->withBody(json_encode([
-                'name' => $channelName,
-                'type' => $channelType === 'text' ? Channel::TYPE_GUILD_TEXT : Channel::TYPE_GUILD_VOICE,
-            ]), 'application/json')
+            ->withBody($payloadJson, 'application/json')
             ->post($url);
 
         if ($apiResponse->failed()) {
