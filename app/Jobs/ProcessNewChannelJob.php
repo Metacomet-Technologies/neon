@@ -47,6 +47,7 @@ final class ProcessNewChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You are not allowed to create channels.',
             ]);
+
             return;
         }
 
@@ -57,6 +58,7 @@ final class ProcessNewChannelJob implements ShouldQueue
         if (count($parts) < 2) {
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->exampleMessage]);
+
             return;
         }
 
@@ -68,6 +70,7 @@ final class ProcessNewChannelJob implements ShouldQueue
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => '❌ Invalid channel name. Please use a different name.']);
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->exampleMessage]);
+
             return;
         }
 
@@ -75,6 +78,7 @@ final class ProcessNewChannelJob implements ShouldQueue
         $validationResult = DiscordChannelValidator::validateChannelName($channelName);
         if (! $validationResult['is_valid']) {
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $validationResult['message']]);
+
             return;
         }
 
@@ -84,6 +88,7 @@ final class ProcessNewChannelJob implements ShouldQueue
         // If the channel type is invalid, send an error message
         if (! in_array($channelType, $this->channelTypes)) {
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => '❌ Invalid channel type. Please use "text" or "voice".']);
+
             return;
         }
 
