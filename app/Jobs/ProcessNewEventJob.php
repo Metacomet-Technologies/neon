@@ -47,6 +47,7 @@ final class ProcessNewEventJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You are not allowed to create events.',
             ]);
+
             return;
         }
 
@@ -57,6 +58,7 @@ final class ProcessNewEventJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '⚠️ Invalid event format. Use: !create-event "Title" | Date | Time | Frequency | Location | Description',
             ]);
+
             return;
         }
 
