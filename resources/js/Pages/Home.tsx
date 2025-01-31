@@ -6,6 +6,10 @@ import { PageProps } from '@/types';
 import { ArrowRightIcon } from '@heroicons/react/16/solid';
 import { Head, usePage } from '@inertiajs/react';
 
+/**
+ * Home component renders the main page of the application.
+ * It includes the header, main content, and footer sections.
+ */
 export default function Home() {
     const { auth } = usePage<PageProps>().props;
     const { theme } = useTheme();
@@ -30,6 +34,7 @@ export default function Home() {
                                 <Link href={route('home')} className="-m-1.5 p-1.5">
                                     <span className="sr-only">Neon</span>
                                     <img
+                                        alt=""
                                         src="https://cdn.neon-bot.com/logo/pink-600/PNG/neon@4x.png"
                                         className="w-auto h-24"
                                     />
@@ -44,7 +49,7 @@ export default function Home() {
                             </nav>
                         </div>
                     </div>
-                    <div className="absolute inset-x-0 top-0 z-50 flex justify-end p-4"></div>
+                    <div className="absolute inset-x-0 top-0 z-50 flex justify-end p-4" />
                 </header>
 
                 <div className="relative">
