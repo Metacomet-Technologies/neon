@@ -8,7 +8,6 @@ use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use App\Helpers\DiscordChannelValidator;
 use Discord\Parts\Channel\Channel;
-use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
@@ -54,6 +53,7 @@ final class ProcessNewChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You are not allowed to create channels.',
             ]);
+
             return;
         }
 
@@ -63,6 +63,7 @@ final class ProcessNewChannelJob implements ShouldQueue
         if (count($parts) < 2) {
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->exampleMessage]);
+
             return;
         }
 
@@ -74,6 +75,7 @@ final class ProcessNewChannelJob implements ShouldQueue
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => '❌ Invalid channel name. Please use a different name.']);
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->exampleMessage]);
+
             return;
         }
 
@@ -81,6 +83,7 @@ final class ProcessNewChannelJob implements ShouldQueue
         $validationResult = DiscordChannelValidator::validateChannelName($channelName);
         if (! $validationResult['is_valid']) {
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $validationResult['message']]);
+
             return;
         }
 
@@ -89,17 +92,19 @@ final class ProcessNewChannelJob implements ShouldQueue
 
         if (! in_array($channelType, $this->channelTypes)) {
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => '❌ Invalid channel type. Please use "text" or "voice".']);
+
             return;
         }
 
         // 6️⃣ Extract category ID (optional)
         $categoryId = $parts[3] ?? null;
 
-        if ($categoryId && !is_numeric($categoryId)) {
+        if ($categoryId && ! is_numeric($categoryId)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ Invalid category ID. Please provide a valid numeric ID.',
             ]);
+
             return;
         }
 
@@ -130,11 +135,12 @@ final class ProcessNewChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => "❌ Failed to create channel '{$channelName}'.",
             ]);
+
             return;
         }
 
         // ✅ Success! Send confirmation message
-        $categoryMessage = $categoryId ? "**Category:** 📂 `<#{$categoryId}>`" : "**No category assigned**";
+        $categoryMessage = $categoryId ? "**Category:** 📂 `<#{$categoryId}>`" : '**No category assigned**';
 
         SendMessage::sendMessage($this->channelId, [
             'is_embed' => true,
