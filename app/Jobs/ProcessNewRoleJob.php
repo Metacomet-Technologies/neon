@@ -1,0 +1,124 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Jobs;
+
+use App\Helpers\Discord\SendMessage;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+
+final class ProcessNewRoleJob implements ShouldQueue
+{
+    use Queueable;
+
+    public string $baseUrl;
+    public string $usageMessage = 'Usage: !add-role <role-name> [color] [hoist]';
+    public string $exampleMessage = 'Example: !add-role VIP #3498db yes';
+    public array $defaultRoleSettings = [
+        'color' => 0xFFFFFF, // Default: White
+        'hoist' => false,    // Default: Not separate from members
+    ];
+
+    /**
+     * Create a new job instance.
+     */
+    public function __construct(
+        public string $discordUserId,
+        public string $channelId,
+        public string $guildId,
+        public string $messageContent, // ✅ Renamed from message to messageContent
+    ) {
+        $this->baseUrl = config('services.discord.rest_api_url');
+    }
+
+    /**
+     * Execute the job.
+     */
+    public function handle(): void
+    {
+        // 1️⃣ Parse command arguments
+        $parts = explode(' ', $this->messageContent);
+
+        // If not enough parameters, send usage message
+        if (count($parts) < 2) {
+            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
+            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->exampleMessage]);
+            return;
+        }
+
+        // 2️⃣ Extract role details
+        $roleName = $parts[1];
+        $roleColor = $this->defaultRoleSettings['color'];
+        $roleHoist = $this->defaultRoleSettings['hoist'];
+
+        // 3️⃣ Handle optional color argument
+        if (isset($parts[2]) && preg_match('/^#?([0-9a-fA-F]{6})$/', $parts[2], $matches)) {
+            $roleColor = hexdec($matches[1]);
+        }
+
+        // 4️⃣ Handle optional hoist argument
+        if (isset($parts[3]) && strtolower($parts[3]) === 'yes') {
+            $roleHoist = true;
+        }
+
+        // 5️⃣ Fetch existing roles
+        $rolesResponse = Http::withToken(config('discord.token'), 'Bot')
+            ->get("{$this->baseUrl}/guilds/{$this->guildId}/roles");
+
+        if ($rolesResponse->failed()) {
+            Log::error("Failed to fetch roles for guild {$this->guildId}");
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ Failed to retrieve roles from the server.',
+            ]);
+            return;
+        }
+
+        $existingRoles = $rolesResponse->json();
+
+        // 6️⃣ Check if the role exists
+        foreach ($existingRoles as $role) {
+            if (strcasecmp($role['name'], $roleName) === 0) { // ✅ Case-insensitive comparison
+                SendMessage::sendMessage($this->channelId, [
+                    'is_embed' => false,
+                    'response' => "❌ Role '{$roleName}' already exists.",
+                ]);
+                return;
+            }
+        }
+
+        // 7️⃣ Create the role via Discord API
+        $url = "{$this->baseUrl}/guilds/{$this->guildId}/roles";
+        $apiResponse = Http::withToken(config('discord.token'), 'Bot')
+            ->post($url, [
+                'name' => $roleName,
+                'color' => $roleColor,
+                'hoist' => $roleHoist,
+                'mentionable' => false,
+            ]);
+
+        // 8️⃣ Handle API Response
+        if ($apiResponse->failed()) {
+            Log::error("Failed to create role '{$roleName}' in guild {$this->guildId}", [
+                'response' => $apiResponse->json(),
+            ]);
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => "❌ Failed to create role '{$roleName}'.",
+            ]);
+            return;
+        }
+
+        // ✅ Success! Send confirmation message
+        $createdRole = $apiResponse->json();
+        SendMessage::sendMessage($this->channelId, [
+            'is_embed' => true,
+            'embed_title' => '✅ Role Created!',
+            'embed_description' => "**Role Name:** {$createdRole['name']}\n**Color:** #" . strtoupper(str_pad(dechex($createdRole['color']), 6, '0', STR_PAD_LEFT)) . "\n**Displayed Separately:** " . ($createdRole['hoist'] ? '✅ Yes' : '❌ No'),
+            'embed_color' => $createdRole['color'],
+        ]);
+    }
+}

@@ -6,6 +6,8 @@ namespace App\Console\Commands;
 
 use App\Jobs\ProcessGuildCommandJob;
 use App\Jobs\ProcessNewCategoryJob;
+use App\Jobs\ProcessAssignRoleJob;
+use App\Jobs\ProcessNewRoleJob;
 use App\Jobs\ProcessNewChannelJob;
 use App\Jobs\ProcessNewEventJob;
 use App\Models\NeonCommand;
@@ -101,7 +103,15 @@ final class StartNeonCommand extends Command
                     ProcessNewCategoryJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
                 }
                 if (str_starts_with($message->content, '!assign-role')) {
-                    $this->handleAssignRole($message, $discord);
+                    ProcessAssignRoleJob::dispatch($message->channel->id, $message->channel->guild_id, $message->content);
+                }
+                if (str_starts_with($message->content, '!add-role')) {
+                    ProcessNewRoleJob::dispatch(
+                        $message->author->id,   // ✅ Add the Discord user ID
+                        $message->channel->id,
+                        $message->channel->guild_id,
+                        $message->content
+                    );
                 }
                 if (str_starts_with($message->content, '!create-event')) {
                     ProcessNewEventJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
@@ -139,74 +149,5 @@ final class StartNeonCommand extends Command
         }
 
         return '[' . $this->environment . '] ' . $message;
-    }
-
-    private function handleAssignRole(mixed $message, mixed $discord): void
-    {
-        $usage = 'Usage: !assign-role <role-name> <user-mention>';
-
-        $this->components->info('Received assign role request!');
-
-        // Check if the message content contains 3 parts
-        $parts = explode(' ', $message->content);
-        if (count($parts) < 3) {
-            $message->channel->sendMessage($this->setMessageOutput($usage));
-
-            return;
-        }
-
-        // Extract the role name and user mention
-        $roleName = $parts[1];
-        $userMention = $parts[2];
-
-        // Validate the user mention
-        if (! str_starts_with($userMention, '<@') || ! str_ends_with($userMention, '>')) {
-            $message->channel->sendMessage($this->setMessageOutput('Invalid user mention format.'));
-
-            return;
-        }
-
-        // Extract the user ID from the mention
-        $userId = trim($userMention, '<@!>');
-
-        // Get the guild from the message
-        $guild = $message->channel->guild;
-
-        if (! $guild) {
-            $message->channel->sendMessage($this->setMessageOutput('Server not found.'));
-
-            return;
-        }
-
-        // Find the role in the guild
-        $role = $guild->roles->find(function ($role) use ($roleName) {
-            return strtolower($role->name) === strtolower($roleName);
-        });
-
-        if (! $role) {
-            $message->channel->sendMessage($this->setMessageOutput("Role '{$roleName}' not found."));
-
-            return;
-        }
-
-        // Find the member in the guild
-        $member = $guild->members->get('id', $userId);
-
-        if (! $member) {
-            $message->channel->sendMessage($this->setMessageOutput('User not found in the server.'));
-
-            return;
-        }
-
-        // Assign the role to the member
-        $member->addRole($role->id)
-            ->then(function () use ($message, $roleName, $member) {
-                $message->channel->sendMessage($this->setMessageOutput("Successfully assigned role '{$roleName}' to {$member->username}."));
-                $this->components->info("Assigned role '{$roleName}' to {$member->username}.");
-            })
-            ->catch(function ($e) use ($message, $roleName) {
-                $message->channel->sendMessage($this->setMessageOutput("Failed to assign role '{$roleName}': {$e->getMessage()}"));
-                $this->components->error("Failed to assign role '{$roleName}': {$e->getMessage()}");
-            });
     }
 }
