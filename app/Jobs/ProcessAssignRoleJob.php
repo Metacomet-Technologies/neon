@@ -61,9 +61,6 @@ final class ProcessAssignRoleJob implements ShouldQueue
             $userIds[] = $matches[1]; // Extract user ID from mention
         }
 
-        // 3️⃣ Allow Discord to update roles before fetching
-        sleep(2);
-
         // Fetch all roles in the guild with Laravel's retry
         $rolesUrl = config('services.discord.rest_api_url') . "/guilds/{$this->guildId}/roles";
         $rolesResponse = retry($this->maxRetries, function () use ($rolesUrl) {
