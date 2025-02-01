@@ -1,5 +1,12 @@
 import { Avatar } from '@/Components/avatar';
-import { Dropdown, DropdownButton, DropdownItem, DropdownLabel, DropdownMenu } from '@/Components/dropdown';
+import {
+    Dropdown,
+    DropdownButton,
+    DropdownDivider,
+    DropdownItem,
+    DropdownLabel,
+    DropdownMenu,
+} from '@/Components/dropdown';
 import { Navbar, NavbarDivider, NavbarItem, NavbarLabel, NavbarSection, NavbarSpacer } from '@/Components/navbar';
 import {
     Sidebar,
@@ -12,9 +19,16 @@ import {
 } from '@/Components/sidebar';
 import { StackedLayout } from '@/Components/stacked-layout';
 import { Guild, PageProps } from '@/types';
-import { ChevronDownIcon } from '@heroicons/react/16/solid';
+import {
+    ArrowRightStartOnRectangleIcon,
+    ChevronDownIcon,
+    ChevronUpIcon,
+    ShieldCheckIcon,
+    WindowIcon,
+} from '@heroicons/react/16/solid';
 import { usePage } from '@inertiajs/react';
 
+import { useCallback } from 'react';
 import Flash from './Flash';
 import ThemeToggleButton from './ThemeToggleButton';
 
@@ -36,9 +50,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
     /**
      * Redirects the user to the login page.
      */
-    const handleLogin = () => {
+    const handleLogin = useCallback(() => {
         window.location.href = route('login');
-    };
+    }, []);
 
     return (
         <StackedLayout
@@ -80,22 +94,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     </NavbarSection>
                     <NavbarSpacer />
                     <NavbarSection>
-                        {auth.user ? (
-                            <Dropdown>
-                                <DropdownButton as={NavbarItem}>
-                                    <Avatar src={auth.user.avatar} alt={auth.user.name} />
-                                </DropdownButton>
-                                <DropdownMenu>
-                                    <DropdownItem href={route('logout')} method="post">
-                                        <DropdownLabel>Logout</DropdownLabel>
-                                    </DropdownItem>
-                                </DropdownMenu>
-                            </Dropdown>
-                        ) : (
-                            <NavbarItem onClick={handleLogin} current={component === 'Login'}>
-                                Login
-                            </NavbarItem>
-                        )}
+                        <Dropdown>
+                            <DropdownButton as={NavbarItem}>
+                                <Avatar src={auth.user.avatar} alt={auth.user.name} />
+                            </DropdownButton>
+                            <DropdownMenu>
+                                <DropdownItem href={route('privacy-policy')}>
+                                    <ShieldCheckIcon />
+                                    <DropdownLabel>Privacy policy</DropdownLabel>
+                                </DropdownItem>
+                                <DropdownItem href={route('terms-of-service')}>
+                                    <WindowIcon />
+                                    <DropdownLabel>Terms of Service</DropdownLabel>
+                                </DropdownItem>
+                                <DropdownDivider />
+                                <DropdownItem href={route('logout')} method="post">
+                                    <ArrowRightStartOnRectangleIcon />
+                                    <DropdownLabel>Sign out</DropdownLabel>
+                                </DropdownItem>
+                            </DropdownMenu>
+                        </Dropdown>
+
                         <ThemeToggleButton name="theme-toggle-button" />
                     </NavbarSection>
                 </Navbar>
@@ -141,15 +160,37 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         </SidebarSection>
                     </SidebarBody>
                     <SidebarFooter>
-                        <SidebarSection>
-                            {auth.user ? (
-                                <SidebarItem href={route('logout')} method="post">
-                                    Logout
-                                </SidebarItem>
-                            ) : (
-                                <SidebarItem onClick={handleLogin}>Login</SidebarItem>
-                            )}
-                        </SidebarSection>
+                        <Dropdown>
+                            <DropdownButton as={SidebarItem}>
+                                <span className="flex min-w-0 items-center gap-3">
+                                    <Avatar src={auth?.user.avatar} className="size-10" square alt={auth?.user.name} />
+                                    <span className="min-w-0">
+                                        <span className="block truncate text-sm/5 font-medium text-zinc-950 dark:text-white">
+                                            {auth.user?.name}
+                                        </span>
+                                        <span className="block truncate text-xs/5 font-normal text-zinc-500 dark:text-zinc-400">
+                                            {auth.user?.email}
+                                        </span>
+                                    </span>
+                                </span>
+                                <ChevronUpIcon />
+                            </DropdownButton>
+                            <DropdownMenu className="min-w-64" anchor="top start">
+                                <DropdownItem href={route('privacy-policy')}>
+                                    <ShieldCheckIcon />
+                                    <DropdownLabel>Privacy policy</DropdownLabel>
+                                </DropdownItem>
+                                <DropdownItem href={route('terms-of-service')}>
+                                    <WindowIcon />
+                                    <DropdownLabel>Terms of Service</DropdownLabel>
+                                </DropdownItem>
+                                <DropdownDivider />
+                                <DropdownItem href={route('logout')} method="post">
+                                    <ArrowRightStartOnRectangleIcon />
+                                    <DropdownLabel>Sign out</DropdownLabel>
+                                </DropdownItem>
+                            </DropdownMenu>
+                        </Dropdown>
                     </SidebarFooter>
                 </Sidebar>
             }
@@ -160,6 +201,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
     );
 }
 
+/**
+ * ServerDropDownMenu component that renders a dropdown menu with a list of guilds.
+ *
+ * @param {Object} props - The component props.
+ * @param {Guild[]} props.guilds - The list of guilds to be displayed in the dropdown menu.
+ */
 function ServerDropDownMenu({ guilds }: { guilds: Guild[] }) {
     return (
         <DropdownMenu className="min-w-80 lg:min-w-64" anchor="bottom start">

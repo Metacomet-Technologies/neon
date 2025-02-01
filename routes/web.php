@@ -5,12 +5,12 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\CommandController;
 use App\Http\Controllers\JoinServerController;
+use App\Http\Controllers\NativeCommandController;
 use App\Http\Controllers\PrivacyPolicyController;
 use App\Http\Controllers\ServerController;
 use App\Http\Controllers\TermsOfServiceController;
 use App\Http\Controllers\UnsubscribeController;
 use Illuminate\Support\Facades\Route;
-use OpenAI\Laravel\Facades\OpenAI;
 
 Route::inertia('/', 'Home')->name('home');
 
@@ -26,6 +26,11 @@ Route::group(['middleware' => 'auth'], function () {
         Route::get('/', [ServerController::class, 'index'])->name('index');
         Route::get('{serverId}', [ServerController::class, 'show'])->name('show');
         Route::resource('{serverId}/command', CommandController::class)->except(['show']);
+    });
+
+    Route::prefix('admin')->name('admin.')->middleware('can:viewAdminPanel')->group(function () {
+        Route::inertia('/', 'Admin/Index')->name('index');
+        Route::resource('native-command', NativeCommandController::class);
     });
 });
 
@@ -46,5 +51,5 @@ Route::get('privacy-policy', PrivacyPolicyController::class)->name('privacy-poli
 // });
 
 Route::fallback(function () {
-    return response()->json(['message' => 'Not Found'], 404);
+    return abort(404, 'Page not found');
 });
