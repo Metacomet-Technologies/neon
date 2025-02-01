@@ -57,7 +57,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     </SidebarHeader>
                     <SidebarBody>
                         <SidebarSection>
-                            <SidebarItem href={route('admin.native-command.index')} current={component.startsWith('Admin/NativeCommand')}>
+                            <SidebarItem
+                                href={route('admin.native-command.index')}
+                                current={component.startsWith('Admin/NativeCommand')}
+                            >
                                 <CircleStackIcon />
                                 <SidebarLabel>Native Commands</SidebarLabel>
                             </SidebarItem>
