@@ -24,7 +24,7 @@ final class ProcessLockChannelJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        public string $userId,
+        public string $discordUserId,
         public string $channelId,
         public string $guildId,
         public string $messageContent,

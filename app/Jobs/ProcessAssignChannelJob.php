@@ -26,7 +26,7 @@ final class ProcessAssignChannelJob implements ShouldQueue
         public string $discordUserId,
         public string $channelId,
         public string $guildId,
-        public string $message,
+        public string $messageContent,
     ) {
         $this->baseUrl = config('services.discord.rest_api_url');
     }
@@ -37,7 +37,7 @@ final class ProcessAssignChannelJob implements ShouldQueue
     public function handle(): void
     {
         // 1️⃣ Parse the command
-        $parts = explode(' ', $this->message, 3);
+        $parts = explode(' ', $this->messageContent, 3);
 
         if (count($parts) < 3) {
             SendMessage::sendMessage($this->channelId, [

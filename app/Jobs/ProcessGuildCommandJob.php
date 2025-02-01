@@ -23,10 +23,11 @@ final class ProcessGuildCommandJob implements ShouldQueue
      * @return void
      */
     public function __construct(
-        public string $guildId,
+        public string $discordUserId,
         public string $channelId,
+        public string $guildId,
+        public string $messageContent,
         public array $command,
-        public string $message,
     ) {
         $this->baseUrl = config('services.discord.rest_api_url');
     }
@@ -41,14 +42,14 @@ final class ProcessGuildCommandJob implements ShouldQueue
         if ($result === 'failed') {
             Log::error('Failed to send message to Discord', [
                 'channel_id' => $this->channelId,
-                'message' => $this->message,
+                'message' => $this->messageContent,
             ]);
             throw new Exception('Failed to send message to Discord');
         }
 
         Log::info('Sent message to Discord', [
             'channel_id' => $this->channelId,
-            'message' => $this->message,
+            'message' => $this->messageContent,
         ]);
 
     }

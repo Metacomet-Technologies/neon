@@ -27,7 +27,7 @@ final class ProcessEditChannelJob implements ShouldQueue
         public string $discordUserId,
         public string $channelId,
         public string $guildId,
-        public string $message,
+        public string $messageContent,
     ) {
         $this->baseUrl = config('services.discord.rest_api_url');
     }
@@ -49,7 +49,7 @@ final class ProcessEditChannelJob implements ShouldQueue
         }
 
         // 2️⃣ Parse command using regex for labeled parameters
-        preg_match('/^!edit-channel\s+(\d+)(?:\s+name:([^\s]+))?(?:\s+topic:"([^"]+)")?(?:\s+slowmode:(\d+))?(?:\s+nsfw:(true|false))?(?:\s+autohide:(\d+))?$/i', $this->message, $matches);
+        preg_match('/^!edit-channel\s+(\d+)(?:\s+name:([^\s]+))?(?:\s+topic:"([^"]+)")?(?:\s+slowmode:(\d+))?(?:\s+nsfw:(true|false))?(?:\s+autohide:(\d+))?$/i', $this->messageContent, $matches);
 
         if (! isset($matches[1])) {
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);

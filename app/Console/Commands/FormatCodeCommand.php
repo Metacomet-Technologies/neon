@@ -72,7 +72,7 @@ final class FormatCodeCommand extends Command
         'test' => [
             [
                 'name' => 'pest for testing',
-                'command' => 'php ./vendor/bin/pest',
+                'command' => 'php artisan config:clear && php artisan test --env=testing',
             ],
         ],
     ];

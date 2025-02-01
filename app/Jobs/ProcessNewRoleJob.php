@@ -15,8 +15,8 @@ final class ProcessNewRoleJob implements ShouldQueue
     use Queueable;
 
     public string $baseUrl;
-    public string $usageMessage = 'Usage: !add-role <role-name> [color] [hoist]';
-    public string $exampleMessage = 'Example: !add-role VIP #3498db yes';
+    public string $usageMessage = 'Usage: !new-role <role-name> [color] [hoist]';
+    public string $exampleMessage = 'Example: !new-role VIP #3498db yes';
     public array $defaultRoleSettings = [
         'color' => 0xFFFFFF, // Default: White
         'hoist' => false,    // Default: Not separate from members
@@ -29,7 +29,7 @@ final class ProcessNewRoleJob implements ShouldQueue
         public string $discordUserId,
         public string $channelId,
         public string $guildId,
-        public string $messageContent, // ✅ Renamed from message to messageContent
+        public string $messageContent,
     ) {
         $this->baseUrl = config('services.discord.rest_api_url');
     }

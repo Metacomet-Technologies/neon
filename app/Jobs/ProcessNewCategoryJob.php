@@ -28,7 +28,7 @@ final class ProcessNewCategoryJob implements ShouldQueue
         public string $discordUserId,
         public string $channelId,
         public string $guildId,
-        public string $message,
+        public string $messageContent,
     ) {
         $this->baseUrl = config('services.discord.rest_api_url');
     }
@@ -50,7 +50,7 @@ final class ProcessNewCategoryJob implements ShouldQueue
         }
 
         // 2️⃣ Parse the command
-        $parts = explode(' ', $this->message, 2);
+        $parts = explode(' ', $this->messageContent, 2);
 
         // If not enough parameters, send usage message
         if (count($parts) < 2) {

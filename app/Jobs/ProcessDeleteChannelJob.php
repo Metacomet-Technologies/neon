@@ -26,7 +26,7 @@ final class ProcessDeleteChannelJob implements ShouldQueue
         public string $discordUserId,
         public string $channelId,
         public string $guildId,
-        public string $message,
+        public string $messageContent,
     ) {
         $this->baseUrl = config('services.discord.rest_api_url');
     }
@@ -37,7 +37,7 @@ final class ProcessDeleteChannelJob implements ShouldQueue
     public function handle(): void
     {
         // 1️⃣ Parse the command
-        $parts = explode(' ', $this->message);
+        $parts = explode(' ', $this->messageContent);
 
         if (count($parts) < 2) {
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);

@@ -36,7 +36,7 @@ final class ProcessNewChannelJob implements ShouldQueue
         public string $discordUserId,
         public string $channelId,
         public string $guildId,
-        public string $message,
+        public string $messageContent,
     ) {
         $this->baseUrl = config('services.discord.rest_api_url');
     }
@@ -58,7 +58,7 @@ final class ProcessNewChannelJob implements ShouldQueue
         }
 
         // 2️⃣ Parse the command properly
-        preg_match('/^!new-channel\s+(\S+)\s+(\S+)(?:\s+(\d+))?(?:\s+(.+))?$/', $this->message, $matches);
+        preg_match('/^!new-channel\s+(\S+)\s+(\S+)(?:\s+(\d+))?(?:\s+(.+))?$/', $this->messageContent, $matches);
 
         if (! isset($matches[1], $matches[2])) {
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);

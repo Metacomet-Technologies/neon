@@ -4,23 +4,14 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Jobs\ProcessAssignChannelJob;
-use App\Jobs\ProcessAssignRoleJob;
-use App\Jobs\ProcessDeleteCategoryJob;
-use App\Jobs\ProcessDeleteChannelJob;
-use App\Jobs\ProcessEditChannelJob;
-use App\Jobs\ProcessEditChannelNameJob;
-use App\Jobs\ProcessEditChannelTopicJob;
 use App\Jobs\ProcessGuildCommandJob;
-use App\Jobs\ProcessLockChannelJob;
-use App\Jobs\ProcessNewCategoryJob;
-use App\Jobs\ProcessNewChannelJob;
-use App\Jobs\ProcessNewEventJob;
+use App\Models\NativeCommand;
 use App\Models\NeonCommand;
 use Discord\Discord;
 use Discord\WebSockets\Event;
 use Discord\WebSockets\Intents;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Monolog\Handler\StreamHandler;
 use Monolog\Level;
@@ -73,70 +64,29 @@ final class StartNeonCommand extends Command
 
                 $guildId = $message->channel->guild_id;
                 $channelId = $message->channel->id;
+                $discordUserId = $message->author->id;
+                $messageContent = $message->content;
 
                 // Restore dynamic command execution
                 $commands = $this->getCommandsForGuild($guildId);
                 foreach ($commands as $command) {
                     $parts = explode(' ', $message->content);
                     if ($parts[0] === '!' . $command['command']) {
-                        ProcessGuildCommandJob::dispatch($guildId, $channelId, $command, $message->content);
+                        ProcessGuildCommandJob::dispatch($discordUserId, $channelId, $guildId, $messageContent, $command);
 
                         return;
                     }
                 }
 
-                // Hardcoded command checks remain
-                if (str_starts_with($message->content, '!new-channel ')) {
-                    ProcessNewChannelJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
-                }
-
-                if (str_starts_with($message->content, '!assign-channel ')) {
-                    ProcessAssignChannelJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
-                }
-
-                if (str_starts_with($message->content, '!delete-channel ')) {
-                    ProcessDeleteChannelJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
-                }
-
-                if (str_starts_with($message->content, '!edit-channel ')) {
-                    ProcessEditChannelJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
-                }
-
-                if (str_starts_with($message->content, '!edit-channel-name ')) {
-                    ProcessEditChannelNameJob::dispatch($channelId, $message->content);
-                }
-
-                if (str_starts_with($message->content, '!edit-channel-topic ')) {
-                    ProcessEditChannelTopicJob::dispatch($channelId, $message->content);
-                }
-
-                if (str_starts_with($message->content, '!lock-channel ')) {
-                    $args = explode(' ', $message->content);
-                    $channelId = $args[1] ?? null;
-
-                    if (! $channelId) {
-                        $message->reply('Please provide a valid channel ID.');
+                $nativeCommands = $this->getNativeCommands();
+                foreach ($nativeCommands as $command) {
+                    $parts = explode(' ', $messageContent);
+                    $commandSlug = $parts[0];
+                    if ($commandSlug === '!' . $command['slug']) {
+                        Bus::dispatch(new $command['class']($discordUserId, $channelId, $guildId, $messageContent));
 
                         return;
                     }
-
-                    ProcessLockChannelJob::dispatch($message->author->id, $channelId, $message->guild_id, $message->content);
-                }
-
-                if (str_starts_with($message->content, '!new-category ')) {
-                    ProcessNewCategoryJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
-                }
-
-                if (str_starts_with($message->content, '!delete-category ')) {
-                    ProcessDeleteCategoryJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
-                }
-
-                if (str_starts_with($message->content, '!assign-role ')) {
-                    ProcessAssignRoleJob::dispatch($message->channel->id, $guildId, $message->content);
-                }
-
-                if (str_starts_with($message->content, '!create-event ')) {
-                    ProcessNewEventJob::dispatch($message->author->id, $channelId, $guildId, $message->content);
                 }
             });
         });
@@ -161,12 +111,15 @@ final class StartNeonCommand extends Command
         });
     }
 
-    private function setMessageOutput(string $message): string
+    public function getNativeCommands(): array
     {
-        if ($this->environment === 'production') {
-            return $message;
-        }
+        $key = 'native-commands';
 
-        return '[' . $this->environment . '] ' . $message;
+        return Cache::rememberForever($key, function () {
+            return NativeCommand::query()
+                ->where('is_active', true)
+                ->get()
+                ->toArray();
+        });
     }
 }

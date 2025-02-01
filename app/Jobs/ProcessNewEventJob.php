@@ -30,7 +30,7 @@ final class ProcessNewEventJob implements ShouldQueue
         public string $discordUserId,
         public string $channelId,
         public string $guildId,
-        public string $message
+        public string $messageContent,
     ) {
         $this->baseUrl = config('services.discord.rest_api_url');
     }
@@ -52,7 +52,7 @@ final class ProcessNewEventJob implements ShouldQueue
         }
 
         // 2️⃣ Parse command input
-        $parts = explode('|', $this->message);
+        $parts = explode('|', $this->messageContent);
         if (count($parts) < 6) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,

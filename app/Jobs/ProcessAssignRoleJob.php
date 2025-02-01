@@ -23,6 +23,7 @@ final class ProcessAssignRoleJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
+        public string $discordUserId,
         public string $channelId,
         public string $guildId,
         public string $messageContent,
