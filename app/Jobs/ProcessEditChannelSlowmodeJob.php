@@ -14,6 +14,18 @@ final class ProcessEditChannelSlowmodeJob implements ShouldQueue
 {
     use Queueable;
 
+    //TODO: Make the job implement this constructor to align with other jobs
+    // /**
+    //  * Create a new job instance.
+    //  */
+    // public function __construct(
+    //     public string $discordUserId,
+    //     public string $channelId,
+    //     public string $guildId,
+    //     public string $messageContent,
+    // ) {
+    //     $this->baseUrl = config('services.discord.rest_api_url');
+    // }
     public function __construct(
         public string $channelId,
         public string $guildId,
