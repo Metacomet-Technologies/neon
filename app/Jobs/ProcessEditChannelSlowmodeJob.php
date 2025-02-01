@@ -63,11 +63,12 @@ final class ProcessEditChannelSlowmodeJob implements ShouldQueue
     public function handle(): void
     {
         // Ensure the input is a valid Discord channel ID
-        if (!preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
+        if (! preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ Invalid channel ID. Please use `#channel-name` to select a valid channel.',
             ]);
+
             return;
         }
 
@@ -77,6 +78,7 @@ final class ProcessEditChannelSlowmodeJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => "❌ Slowmode must be between {$this->slowmodeRange[0]} and {$this->slowmodeRange[1]} seconds (6 hours).",
             ]);
+
             return;
         }
 
@@ -95,6 +97,7 @@ final class ProcessEditChannelSlowmodeJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to update slowmode setting.',
             ]);
+
             return;
         }
 
@@ -113,7 +116,7 @@ final class ProcessEditChannelSlowmodeJob implements ShouldQueue
         preg_match('/^!edit-channel-slowmode\s+(<#\d{17,19}>|\d{17,19})\s+(\d+)$/', $message, $matches);
 
         // Validate if both channel and slowmode duration were provided
-        if (!isset($matches[1], $matches[2])) {
+        if (! isset($matches[1], $matches[2])) {
             return [null, null]; // Ensure we return null values explicitly
         }
 
