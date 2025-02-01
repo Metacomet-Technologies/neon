@@ -7,7 +7,7 @@ import {
     DropdownLabel,
     DropdownMenu,
 } from '@/Components/dropdown';
-import { Navbar, NavbarItem, NavbarSection, NavbarSpacer } from '@/Components/navbar';
+import { Navbar, NavbarSection, NavbarSpacer } from '@/Components/navbar';
 import {
     Sidebar,
     SidebarBody,
@@ -43,7 +43,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Navbar>
                     <NavbarSpacer />
                     <NavbarSection>
-                        <UserDropdown user={auth?.user} as={NavbarItem} />
+                        <UserDropdown user={auth?.user} />
                     </NavbarSection>
                 </Navbar>
             }
@@ -57,14 +57,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     </SidebarHeader>
                     <SidebarBody>
                         <SidebarSection>
-                            <SidebarItem href={route('admin.native-command.index')} current={component.startsWith('Admin/NativeCommand')}>
+                            <SidebarItem
+                                href={route('admin.native-command.index')}
+                                current={component.startsWith('Admin/NativeCommand')}
+                            >
                                 <CircleStackIcon />
                                 <SidebarLabel>Native Commands</SidebarLabel>
                             </SidebarItem>
                         </SidebarSection>
                     </SidebarBody>
                     <SidebarFooter className="max-lg:hidden">
-                        <UserDropdown user={auth?.user} as={SidebarItem} />
+                        <UserDropdown user={auth?.user} />
                     </SidebarFooter>
                 </Sidebar>
             }
@@ -75,12 +78,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
 }
 
-function UserDropdown({ user, as }: { user: { name: string; email: string; avatar: string }; as: React.ElementType }) {
+function UserDropdown({ user }: { user: { name: string; email: string; avatar: string } }) {
     const { theme, toggleTheme } = useTheme();
 
     return (
         <Dropdown>
-            <DropdownButton as={as}>
+            <DropdownButton as={SidebarItem}>
                 <span className="flex min-w-0 items-center gap-3">
                     <Avatar src={user.avatar} className="size-10" square alt={user.name} />
                     <span className="min-w-0">

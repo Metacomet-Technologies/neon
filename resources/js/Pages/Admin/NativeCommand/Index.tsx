@@ -26,10 +26,9 @@ export default function Index({
     nativeCommands: Pagination<NativeCommand>;
     serverId: string;
 }): React.JSX.Element {
-
     const removePathFromClass = (path: string): string => {
         return path.replace('App\\Jobs\\', '');
-    }
+    };
 
     return (
         <>
