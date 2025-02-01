@@ -14,33 +14,34 @@ final class ProcessEditChannelNSFWJob implements ShouldQueue
 {
     use Queueable;
 
-    /**
-     * User-friendly instruction messages.
-     */
+    public string $baseUrl;
+
     public string $usageMessage = 'Usage: !edit-channel-nsfw <channel-id> <true|false>';
     public string $exampleMessage = 'Example: !edit-channel-nsfw 123456789012345678 true';
 
-    private string $baseUrl;
-    private string $channelId;       // The Discord channel where the command was sent
-    private string $guildId;         // The guild (server) ID
-    private string $targetChannelId; // The actual Discord channel ID to edit
-    private bool $nsfwSetting;       // Whether the channel should be NSFW or not
+    /**
+     * Valid NSFW settings.
+     *
+     * @var array<string>
+     */
+    public array $validNSFWValues = ['true', 'false'];
+
+    public string $targetChannelId;
+    public bool $nsfwSetting;
 
     /**
      * Create a new job instance.
      */
     public function __construct(
         public string $discordUserId,
-        string $channelId,
-        string $guildId,
-        string $messageContent
+        public string $channelId,
+        public string $guildId,
+        public string $messageContent,
     ) {
         $this->baseUrl = config('services.discord.rest_api_url');
-        $this->channelId = $channelId;
-        $this->guildId = $guildId;
 
         // Parse the message
-        [$this->targetChannelId, $this->nsfwSetting] = $this->parseMessage($messageContent);
+        [$this->targetChannelId, $this->nsfwSetting] = $this->parseMessage($this->messageContent);
     }
 
     /**

@@ -21,8 +21,6 @@ final class ProcessEditChannelTopicJob implements ShouldQueue
     public string $exampleMessage = 'Example: !edit-channel-topic 123456789012345678 New topic description';
 
     private string $baseUrl;
-    private string $channelId;       // The Discord channel where the command was sent
-    private string $guildId;         // The guild (server) ID
     private string $targetChannelId; // The actual Discord channel ID to edit
     private string $newTopic;        // The new channel topic
 
@@ -31,13 +29,11 @@ final class ProcessEditChannelTopicJob implements ShouldQueue
      */
     public function __construct(
         public string $discordUserId,
-        string $channelId,
-        string $guildId,
-        string $messageContent
+        public string $channelId,
+        public string $guildId,
+        public string $messageContent
     ) {
         $this->baseUrl = config('services.discord.rest_api_url');
-        $this->channelId = $channelId;
-        $this->guildId = $guildId;
 
         // Parse the message
         [$this->targetChannelId, $this->newTopic] = $this->parseMessage($messageContent);
