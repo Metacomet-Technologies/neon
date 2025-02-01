@@ -10,6 +10,7 @@ use App\Http\Controllers\ServerController;
 use App\Http\Controllers\TermsOfServiceController;
 use App\Http\Controllers\UnsubscribeController;
 use Illuminate\Support\Facades\Route;
+use OpenAI\Laravel\Facades\OpenAI;
 
 Route::inertia('/', 'Home')->name('home');
 
@@ -32,3 +33,18 @@ Route::get('unsubscribe/{email}', [UnsubscribeController::class, 'update'])->nam
 Route::get('unsubscribe/{email}/confirm', [UnsubscribeController::class, 'show'])->name('unsubscribe.show');
 Route::get('terms-of-service', TermsOfServiceController::class)->name('terms-of-service');
 Route::get('privacy-policy', PrivacyPolicyController::class)->name('privacy-policy');
+
+Route::get('test', function () {
+    $result = OpenAI::chat()->create([
+        'model' => 'gpt-3.5-turbo',
+        'messages' => [
+            ['role' => 'user', 'content' => 'Hello!'],
+        ],
+    ]);
+
+    return $result->choices[0]->message->content;
+});
+
+Route::fallback(function () {
+    return response()->json(['message' => 'Not Found'], 404);
+});

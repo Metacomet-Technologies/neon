@@ -17,6 +17,7 @@
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
         "league/flysystem-aws-s3-v3": "3.0",
+        "openai-php/laravel": "^0.10.2",
         "sentry/sentry-laravel": "^4.11",
         "socialiteproviders/discord": "^4.2",
         "spatie/laravel-ignition": "^2.9",
