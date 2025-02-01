@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property bool $is_active
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\NativeCommandParameter> $parameters
+ * @property-read int|null $parameters_count
  *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommand newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommand newQuery()
@@ -49,4 +51,12 @@ class NativeCommand extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    /**
+     * Get the parameters for the NativeCommand
+     */
+    public function parameters(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(NativeCommandParameter::class);
+    }
 }

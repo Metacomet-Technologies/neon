@@ -2,37 +2,42 @@ import { Button } from '@/Components/button';
 import { Heading } from '@/Components/heading';
 import { Link } from '@/Components/link';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/table';
-import { Layout } from '@/Layout/Layout';
+import AdminLayout from '@/Layout/AdminLayout';
 import PaginationRow from '@/Layout/PaginationRow';
 import { Pagination } from '@/types';
 import { booleanToIconForTables, formatDateTime } from '@/utils';
 import { TrashIcon } from '@heroicons/react/16/solid';
 import { Head } from '@inertiajs/react';
 import React from 'react';
-import { Command } from './types';
+import { NativeCommand } from './types';
 
 /**
- * Index component for displaying a list of commands.
+ * Index component for displaying a list of nativeCommands.
  *
  * @param {Object} props - The component props.
- * @param {Pagination<Command>} props.commands - The paginated list of commands.
+ * @param {Pagination<NativeCommand>} props.nativeCommands - The paginated list of nativeCommands.
  * @param {string} props.serverId - The ID of the server.
  * @returns {JSX.Element} The rendered component.
  */
 export default function Index({
-    commands,
+    nativeCommands,
     serverId,
 }: {
-    commands: Pagination<Command>;
+    nativeCommands: Pagination<NativeCommand>;
     serverId: string;
 }): React.JSX.Element {
+
+    const removePathFromClass = (path: string): string => {
+        return path.replace('App\\Jobs\\', '');
+    }
+
     return (
         <>
-            <Head title="Commands" />
+            <Head title="Native Commands" />
             <div className="mb-4 flex justify-between items-center gap-4">
-                <Heading>Commands</Heading>
+                <Heading>Native Commands</Heading>
 
-                <Button href={route('server.command.create', { serverId })} color="green">
+                <Button href="#" color="green">
                     New Command
                 </Button>
             </div>
@@ -40,40 +45,27 @@ export default function Index({
                 <TableHead>
                     <TableRow>
                         <TableHeader>Command</TableHeader>
-                        <TableHeader>Response</TableHeader>
-                        <TableHeader>Enabled</TableHeader>
-                        <TableHeader>Public</TableHeader>
+                        <TableHeader>Description</TableHeader>
+                        <TableHeader>Class</TableHeader>
+                        <TableHeader>Active</TableHeader>
                         <TableHeader>Last Updated</TableHeader>
                         <TableHeader />
                     </TableRow>
                 </TableHead>
 
                 <TableBody>
-                    {commands?.data.length === 0 ? (
+                    {nativeCommands?.data.length === 0 ? (
                         <EmptyState serverId={serverId} />
                     ) : (
-                        commands?.data.map((command: Command) => (
-                            <TableRow
-                                href={route('server.command.edit', {
-                                    command: command.id,
-                                    serverId,
-                                })}
-                                key={command.id}
-                            >
-                                <TableCell>!{command.command}</TableCell>
-                                <TableCell>{command.response}</TableCell>
-                                <TableCell>{booleanToIconForTables(command.is_enabled)}</TableCell>
-                                <TableCell>{booleanToIconForTables(command.is_public)}</TableCell>
+                        nativeCommands?.data.map((command: NativeCommand) => (
+                            <TableRow href="#" key={command.id}>
+                                <TableCell>!{command.slug}</TableCell>
+                                <TableCell>{command.description}</TableCell>
+                                <TableCell>{removePathFromClass(command.class)}</TableCell>
+                                <TableCell>{booleanToIconForTables(command.is_active)}</TableCell>
                                 <TableCell>{formatDateTime(command.updated_at)}</TableCell>
                                 <TableCell>
-                                    <Button
-                                        href={route('server.command.destroy', {
-                                            command: command.id,
-                                            serverId,
-                                        })}
-                                        method="delete"
-                                        plain
-                                    >
+                                    <Button href="#" method="delete" plain>
                                         <TrashIcon />
                                         Delete
                                     </Button>
@@ -83,7 +75,7 @@ export default function Index({
                     )}
                 </TableBody>
             </Table>
-            {commands?.links.length > 3 && <PaginationRow links={commands.links} className="mt-4" />}
+            {nativeCommands?.links.length > 3 && <PaginationRow links={nativeCommands.links} className="mt-4" />}
         </>
     );
 }
@@ -99,10 +91,10 @@ function EmptyState({ serverId }: { serverId: string }): React.JSX.Element {
     return (
         <TableRow>
             <TableCell colSpan={9}>
-                No commands yet... <Link href={route('server.command.create', { serverId })}>Add one now!</Link>
+                No commands yet... <Link href="#">Add one now!</Link>
             </TableCell>
         </TableRow>
     );
 }
 
-Index.layout = (page: React.ReactNode) => <Layout>{page}</Layout>;
+Index.layout = (page: React.ReactNode) => <AdminLayout>{page}</AdminLayout>;

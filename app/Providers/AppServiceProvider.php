@@ -31,7 +31,17 @@ final class AppServiceProvider extends ServiceProvider
             $event->extendSocialite('discord', \SocialiteProviders\Discord\Provider::class);
         });
 
+        Gate::before(function (User $user) {
+            if ($user->isAdmin()) {
+                return true;
+            }
+        });
+
         Gate::define('viewPulse', function (User $user) {
+            return $user->isAdmin();
+        });
+
+        Gate::define('viewAdminPanel', function (User $user) {
             return $user->isAdmin();
         });
     }
