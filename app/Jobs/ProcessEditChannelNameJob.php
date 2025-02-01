@@ -14,17 +14,17 @@ final class ProcessEditChannelNameJob implements ShouldQueue
 {
     use Queueable;
 
-    private string $baseUrl;
-    private string $channelId;       // The Discord channel where the command was sent
-    private string $guildId;         // The guild (server) ID
-    private string $targetChannelId; // The actual Discord channel ID to rename
-    private string $newName;         // The new channel name
-
     /**
      * User-friendly instruction messages.
      */
     public string $usageMessage = 'Usage: !rename-channel <channel-id> <new-name>';
     public string $exampleMessage = 'Example: !rename-channel 123456789012345678 new-channel-name';
+
+    private string $baseUrl;
+    private string $channelId;       // The Discord channel where the command was sent
+    private string $guildId;         // The guild (server) ID
+    private string $targetChannelId; // The actual Discord channel ID to rename
+    private string $newName;         // The new channel name
 
     /**
      * Create a new job instance.
@@ -44,40 +44,18 @@ final class ProcessEditChannelNameJob implements ShouldQueue
 
     }
 
-    private function parseMessage(string $message): array
-    {
-
-
-        // Use regex to parse the command properly
-        preg_match('/^!edit-channel-name\s+(<#\d{17,19}>|\d{17,19})\s+(.+)$/', $message, $matches);
-
-        if (!isset($matches[1], $matches[2])) {
-            return [null, null]; // Not enough valid parts
-        }
-
-        $channelIdentifier = $matches[1]; // Extracted channel mention or ID
-        $newName = trim($matches[2]); // Extracted new name
-
-        // If the channel is mentioned as <#channelID>, extract just the numeric ID
-        if (preg_match('/^<#(\d{17,19})>$/', $channelIdentifier, $idMatches)) {
-            $channelIdentifier = $idMatches[1]; // Extract just the ID
-        }
-
-        return [$channelIdentifier, $newName];
-    }
-
-
     /**
      * Handles the job execution.
      */
     public function handle(): void
     {
         // Ensure the input is a valid Discord channel ID
-        if (!preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
+        if (! preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => '❌ Invalid channel ID. Please use `#channel-name` to select a valid channel.'
+                'response' => '❌ Invalid channel ID. Please use `#channel-name` to select a valid channel.',
             ]);
+
             return;
         }
 
@@ -97,8 +75,9 @@ final class ProcessEditChannelNameJob implements ShouldQueue
             Log::error("Failed to rename channel (ID: `{$this->targetChannelId}`).");
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => '❌ Failed to rename channel.'
+                'response' => '❌ Failed to rename channel.',
             ]);
+
             return;
         }
 
@@ -107,7 +86,28 @@ final class ProcessEditChannelNameJob implements ShouldQueue
             'is_embed' => true,
             'embed_title' => '✅ Channel Renamed!',
             'embed_description' => "**New Name:** #{$this->newName}",
-            'embed_color' => 3447003
+            'embed_color' => 3447003,
         ]);
+    }
+
+    private function parseMessage(string $message): array
+    {
+
+        // Use regex to parse the command properly
+        preg_match('/^!edit-channel-name\s+(<#\d{17,19}>|\d{17,19})\s+(.+)$/', $message, $matches);
+
+        if (! isset($matches[1], $matches[2])) {
+            return [null, null]; // Not enough valid parts
+        }
+
+        $channelIdentifier = $matches[1]; // Extracted channel mention or ID
+        $newName = trim($matches[2]); // Extracted new name
+
+        // If the channel is mentioned as <#channelID>, extract just the numeric ID
+        if (preg_match('/^<#(\d{17,19})>$/', $channelIdentifier, $idMatches)) {
+            $channelIdentifier = $idMatches[1]; // Extract just the ID
+        }
+
+        return [$channelIdentifier, $newName];
     }
 }
