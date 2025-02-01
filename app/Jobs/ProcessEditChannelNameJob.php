@@ -20,28 +20,23 @@ final class ProcessEditChannelNameJob implements ShouldQueue
     public string $usageMessage = 'Usage: !rename-channel <channel-id> <new-name>';
     public string $exampleMessage = 'Example: !rename-channel 123456789012345678 new-channel-name';
 
-    private string $baseUrl;
-    private string $channelId;       // The Discord channel where the command was sent
-    private string $guildId;         // The guild (server) ID
-    private string $targetChannelId; // The actual Discord channel ID to rename
-    private string $newName;         // The new channel name
+    public string $baseUrl;
+    public string $targetChannelId; // The actual Discord channel ID to rename
+    public string $newName;         // The new channel name
 
     /**
      * Create a new job instance.
      */
     public function __construct(
         public string $discordUserId,
-        string $channelId,
-        string $guildId,
-        string $messageContent
+        public string $channelId, // The channel where the command was sent
+        public string $guildId,
+        public string $messageContent,
     ) {
         $this->baseUrl = config('services.discord.rest_api_url');
-        $this->channelId = $channelId;
-        $this->guildId = $guildId;
 
         // Parse the message
-        [$this->targetChannelId, $this->newName] = $this->parseMessage($messageContent);
-
+        [$this->targetChannelId, $this->newName] = $this->parseMessage($this->messageContent);
     }
 
     /**
@@ -68,9 +63,6 @@ final class ProcessEditChannelNameJob implements ShouldQueue
             return Http::withToken(config('discord.token'), 'Bot')->patch($url, $payload);
         }, 200);
 
-        // Debug: Show API response
-        dump(['API Response' => $apiResponse->json(), 'HTTP Status' => $apiResponse->status()]);
-
         if ($apiResponse->failed()) {
             Log::error("Failed to rename channel (ID: `{$this->targetChannelId}`).");
             SendMessage::sendMessage($this->channelId, [
@@ -90,9 +82,11 @@ final class ProcessEditChannelNameJob implements ShouldQueue
         ]);
     }
 
+    /**
+     * Parses the message content for command parameters.
+     */
     private function parseMessage(string $message): array
     {
-
         // Use regex to parse the command properly
         preg_match('/^!edit-channel-name\s+(<#\d{17,19}>|\d{17,19})\s+(.+)$/', $message, $matches);
 
@@ -100,12 +94,12 @@ final class ProcessEditChannelNameJob implements ShouldQueue
             return [null, null]; // Not enough valid parts
         }
 
-        $channelIdentifier = $matches[1]; // Extracted channel mention or ID
-        $newName = trim($matches[2]); // Extracted new name
+        $channelIdentifier = trim($matches[1]);
+        $newName = trim($matches[2]);
 
         // If the channel is mentioned as <#channelID>, extract just the numeric ID
         if (preg_match('/^<#(\d{17,19})>$/', $channelIdentifier, $idMatches)) {
-            $channelIdentifier = $idMatches[1]; // Extract just the ID
+            $channelIdentifier = $idMatches[1];
         }
 
         return [$channelIdentifier, $newName];

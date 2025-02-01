@@ -20,11 +20,9 @@ final class ProcessEditChannelAutohideJob implements ShouldQueue
     public string $usageMessage = 'Usage: !edit-channel-autohide <channel-id> <minutes>';
     public string $exampleMessage = 'Example: !edit-channel-autohide 123456789012345678 1440';
 
-    private string $baseUrl;
-    private string $channelId;       // The Discord channel where the command was sent
-    private string $guildId;         // The guild (server) ID
-    private string $targetChannelId; // The actual Discord channel ID
-    private int $autoHideDuration;   // Auto-hide duration in minutes
+    public string $baseUrl;
+    public string $targetChannelId; // The actual Discord channel ID
+    public int $autoHideDuration;   // Auto-hide duration in minutes
 
     /**
      * Allowed auto-hide durations (in minutes).
@@ -36,16 +34,14 @@ final class ProcessEditChannelAutohideJob implements ShouldQueue
      */
     public function __construct(
         public string $discordUserId,
-        string $channelId,
-        string $guildId,
-        string $messageContent
+        public string $channelId, // The channel where the command was sent
+        public string $guildId,
+        public string $messageContent,
     ) {
         $this->baseUrl = config('services.discord.rest_api_url');
-        $this->channelId = $channelId;
-        $this->guildId = $guildId;
 
         // Parse the message
-        [$this->targetChannelId, $this->autoHideDuration] = $this->parseMessage($messageContent);
+        [$this->targetChannelId, $this->autoHideDuration] = $this->parseMessage($this->messageContent);
 
         // Validate that we got valid values
         if (! $this->targetChannelId || ! in_array($this->autoHideDuration, $this->allowedDurations, true)) {
@@ -111,12 +107,12 @@ final class ProcessEditChannelAutohideJob implements ShouldQueue
             return [null, null]; // Not enough valid parts
         }
 
-        $channelIdentifier = $matches[1]; // Extracted channel mention or ID
-        $autoHideDuration = (int) trim($matches[2]); // Extracted auto-hide duration
+        $channelIdentifier = trim($matches[1]);
+        $autoHideDuration = (int) trim($matches[2]);
 
         // If the channel is mentioned as <#channelID>, extract just the numeric ID
         if (preg_match('/^<#(\d{17,19})>$/', $channelIdentifier, $idMatches)) {
-            $channelIdentifier = $idMatches[1]; // Extract just the ID
+            $channelIdentifier = $idMatches[1];
         }
 
         return [$channelIdentifier, $autoHideDuration];

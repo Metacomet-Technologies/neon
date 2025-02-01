@@ -6,48 +6,68 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
+use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 final class ProcessLockChannelJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, SerializesModels;
+    use Queueable;
 
-    public string $usageMessage = 'Usage: !lock-channel <channel-id>';
-    public int $retryDelay = 2000; // ✅ 2-second delay before retrying
-    public int $maxRetries = 3; // ✅ Max retries per request
+    /**
+     * User-friendly instruction messages.
+     */
+    public string $usageMessage = 'Usage: !lock-channel <channel-id> <true|false>';
+    public string $exampleMessage = 'Example: !lock-channel 123456789012345678 true';
+
+    public string $baseUrl;
+
+    private string $targetChannelId; // The actual Discord channel ID
+    private bool $lockStatus;        // Lock (true) or unlock (false)
+
+    private int $retryDelay = 2000; // ✅ 2-second delay before retrying
+    private int $maxRetries = 3;     // ✅ Max retries per request
 
     /**
      * Create a new job instance.
      */
     public function __construct(
         public string $discordUserId,
-        public string $channelId,
+        public string $channelId, // The channel where the command was sent
         public string $guildId,
         public string $messageContent,
-    ) {}
+    ) {
+        $this->baseUrl = config('services.discord.rest_api_url');
+
+        // Parse the message
+        [$this->targetChannelId, $this->lockStatus] = $this->parseMessage($this->messageContent);
+
+        // Validation: Ensure we have a valid channel ID and lock status
+        if (! $this->targetChannelId || ! is_bool($this->lockStatus)) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => "❌ Invalid input.\n\n{$this->usageMessage}\n{$this->exampleMessage}",
+            ]);
+        }
+    }
 
     /**
-     * Execute the job.
+     * Handles the job execution.
      */
     public function handle(): void
     {
-        // Validate input
-        $parts = explode(' ', $this->messageContent);
-        if (count($parts) < 2) {
+        // Ensure the input is a valid Discord channel ID
+        if (! preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => $this->usageMessage,
+                'response' => '❌ Invalid channel ID. Please use `#channel-name` to select a valid channel.',
             ]);
 
             return;
         }
 
         // 1️⃣ Get all roles in the guild
-        $rolesUrl = config('services.discord.rest_api_url') . "/guilds/{$this->guildId}/roles";
+        $rolesUrl = "{$this->baseUrl}/guilds/{$this->guildId}/roles";
         $rolesResponse = retry($this->maxRetries, function () use ($rolesUrl) {
             return Http::withToken(config('discord.token'), 'Bot')->get($rolesUrl);
         }, $this->retryDelay);
@@ -65,13 +85,13 @@ final class ProcessLockChannelJob implements ShouldQueue
         $roles = $rolesResponse->json();
         $failedRoles = [];
 
-        // 2️⃣ Lock the channel by updating permissions for all roles
+        // 2️⃣ Lock or Unlock the channel by updating permissions for all roles
         foreach ($roles as $role) {
             $roleId = $role['id'];
-            $permissionsUrl = config('services.discord.rest_api_url') . "/channels/{$this->channelId}/permissions/{$roleId}";
+            $permissionsUrl = "{$this->baseUrl}/channels/{$this->targetChannelId}/permissions/{$roleId}";
 
             $payload = [
-                'deny' => (1 << 11), // Deny SEND_MESSAGES permission
+                'deny' => $this->lockStatus ? (1 << 11) : 0, // Deny or allow SEND_MESSAGES
                 'type' => 0, // Role
             ];
 
@@ -88,17 +108,40 @@ final class ProcessLockChannelJob implements ShouldQueue
         if (! empty($failedRoles)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => true,
-                'embed_title' => '🔒 Lock Channel Failed',
-                'embed_description' => '❌ Failed to lock for roles: ' . implode(', ', $failedRoles),
+                'embed_title' => $this->lockStatus ? '🔒 Lock Channel Failed' : '🔓 Unlock Channel Failed',
+                'embed_description' => '❌ Failed for roles: ' . implode(', ', $failedRoles),
                 'embed_color' => 15158332, // Red
             ]);
         } else {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => true,
-                'embed_title' => '🔒 Channel Locked',
-                'embed_description' => "✅ Channel <#{$this->channelId}> has been locked.",
-                'embed_color' => 3066993, // Green
+                'embed_title' => $this->lockStatus ? '🔒 Channel Locked' : '🔓 Channel Unlocked',
+                'embed_description' => "✅ Channel <#{$this->targetChannelId}> has been " . ($this->lockStatus ? 'locked' : 'unlocked') . '.',
+                'embed_color' => $this->lockStatus ? 15158332 : 3066993, // Red for lock, Green for unlock
             ]);
         }
+    }
+
+    /**
+     * Parses the message content for command parameters.
+     */
+    private function parseMessage(string $message): array
+    {
+        // Use regex to extract the channel ID or mention and lock/unlock flag
+        preg_match('/^!lock-channel\s+(<#\d{17,19}>|\d{17,19})\s+(true|false)$/i', $message, $matches);
+
+        if (! isset($matches[1], $matches[2])) {
+            return [null, null]; // Invalid input
+        }
+
+        $channelIdentifier = trim($matches[1]);
+        $lockStatus = strtolower(trim($matches[2])) === 'true'; // Convert to boolean
+
+        // If the channel is mentioned as <#channelID>, extract just the numeric ID
+        if (preg_match('/^<#(\d{17,19})>$/', $channelIdentifier, $idMatches)) {
+            $channelIdentifier = $idMatches[1];
+        }
+
+        return [$channelIdentifier, $lockStatus];
     }
 }
