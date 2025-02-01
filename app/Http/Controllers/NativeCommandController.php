@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
@@ -27,7 +27,7 @@ final class NativeCommandController
     {
         $jobs = collect(scandir(app_path('Jobs')))
             ->filter(function ($file) {
-                return !in_array($file, ['.', '..', 'Job.php']);
+                return ! in_array($file, ['.', '..', 'Job.php']);
             })
             ->map(function ($file) {
                 return str_replace('.php', '', $file);
