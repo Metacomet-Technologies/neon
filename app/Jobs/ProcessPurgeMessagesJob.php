@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Enums\DiscordPermissionEnum;
 use App\Helpers\Discord\SendMessage;
+use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -45,13 +46,8 @@ final class ProcessPurgeMessagesJob implements ShouldQueue
 
     public function handle(): void
     {
-        // Check if user is admin using the ADMINISTRATOR permission (enum check)
-        if ($this->userHasAdminPermission($this->discordUserId)) {
-            $this->purgeMessages();
-            return;
-        }
-
-        if ($this->userHasManageMessagesPermission($this->discordUserId)) {
+        // 1️⃣ Check if user has permission to purge messages using the new helper
+        if ($this->userHasPermission($this->discordUserId)) {
             $this->purgeMessages();
             return;
         }
@@ -69,82 +65,66 @@ final class ProcessPurgeMessagesJob implements ShouldQueue
         return isset($matches[1], $matches[2]) ? [$matches[1], (int) $matches[2]] : [null, null];
     }
 
-    private function userHasAdminPermission(string $userId): bool
+    private function userHasPermission(string $userId): bool
     {
-        dump('Checking if user has ADMINISTRATOR permission.');
-
-        $url = "{$this->baseUrl}/guilds/{$this->guildId}/members/{$userId}";
-        $response = Http::withToken(config('discord.token'), 'Bot')->get($url);
-
-        if ($response->failed()) {
-            dump('Failed to fetch user data. Response:', $response->body());
-            return false;
-        }
-
-        $userData = $response->json();
-        dump('User data for ADMINISTRATOR check:', $userData);
-
-        // Check if the permissions field exists
-        if (isset($userData['permissions'])) {
-            dump('User permissions bitfield for ADMINISTRATOR check:', $userData['permissions']);
-        } else {
-            dump('No permissions field in the response for ADMINISTRATOR check.');
-        }
-
-        // Check if the user has the ADMINISTRATOR permission (bitfield 8)
-        if (isset($userData['permissions']) && ($userData['permissions'] & (int) DiscordPermissionEnum::ADMINISTRATOR->value) === (int) DiscordPermissionEnum::ADMINISTRATOR->value) {
-            dump('User has ADMINISTRATOR permission.');
+        // Check for both the ADMINISTRATOR and MANAGE_MESSAGES permissions using the helper
+        if (GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $userId) === 'success') {
             return true;
         }
 
-        dump('User does not have ADMINISTRATOR permission.');
+        if (GetGuildsByDiscordUserId::getIfUserCanManageMessages($this->guildId, $userId) === 'success') {
+            return true;
+        }
+
         return false;
     }
 
-
-    private function userHasManageMessagesPermission(string $userId): bool
-    {
-        dump('Checking if user has MANAGE_MESSAGES permission.');
-
-        $url = "{$this->baseUrl}/guilds/{$this->guildId}/members/{$userId}";
-        $response = Http::withToken(config('discord.token'), 'Bot')->get($url);
-
-        if ($response->failed()) {
-            dump('Failed to fetch user data for permission check. Response:', $response->body());
-            return false;
-        }
-
-        $userData = $response->json();
-        dump('User data for MANAGE_MESSAGES check:', $userData);
-
-        // Check if the permissions field exists
-        if (isset($userData['permissions'])) {
-            dump('User permissions bitfield for MANAGE_MESSAGES check:', $userData['permissions']);
-        } else {
-            dump('No permissions field in the response for MANAGE_MESSAGES check.');
-        }
-
-        // Check if the user has the MANAGE_MESSAGES permission (bitfield 0x2000)
-        return isset($userData['permissions']) && ($userData['permissions'] & (int) DiscordPermissionEnum::MANAGE_MESSAGES->value) === (int) DiscordPermissionEnum::MANAGE_MESSAGES->value;
-    }
-
-
-
     private function purgeMessages(): void
     {
-        $url = "{$this->baseUrl}/channels/{$this->targetChannelId}/messages/bulk-delete";
-        $response = Http::withToken(config('discord.token'), 'Bot')->post($url, [
-            'messages' => $this->messageCount,
-        ]);
-
-        if ($response->failed()) {
+        // Step 1: Validate the message count to be between 2 and 100
+        if ($this->messageCount < 2 || $this->messageCount > 100) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => '❌ Failed to retrieve messages. Please try again later.',
+                'response' => '❌ The number of messages to purge must be between 2 and 100.',
             ]);
             return;
         }
 
+        // Step 2: Fetch the recent messages from the channel to get the message IDs
+        $url = "{$this->baseUrl}/channels/{$this->targetChannelId}/messages?limit={$this->messageCount}";
+        $response = Http::withToken(config('discord.token'), 'Bot')->get($url);
+
+        // Check if fetching the messages failed
+        if ($response->failed()) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ Failed to fetch messages. Please try again later.',
+            ]);
+            return;
+        }
+
+        // Step 3: Extract message IDs from the fetched messages
+        $messages = $response->json();
+        $messageIds = array_map(function ($message) {
+            return $message['id'];
+        }, $messages);
+
+        // Step 4: Send the bulk delete request with the message IDs
+        $deleteUrl = "{$this->baseUrl}/channels/{$this->targetChannelId}/messages/bulk-delete";
+        $deleteResponse = Http::withToken(config('discord.token'), 'Bot')->post($deleteUrl, [
+            'messages' => $messageIds,
+        ]);
+
+        // Check if the bulk delete request failed
+        if ($deleteResponse->failed()) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ Failed to delete messages. Please try again later.',
+            ]);
+            return;
+        }
+
+        // Step 5: Success! Send confirmation message
         SendMessage::sendMessage($this->channelId, [
             'is_embed' => true,
             'embed_title' => '🧹 Messages Purged',
@@ -152,4 +132,6 @@ final class ProcessPurgeMessagesJob implements ShouldQueue
             'embed_color' => 3066993,
         ]);
     }
+
+
 }
