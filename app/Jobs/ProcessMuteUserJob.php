@@ -1,0 +1,137 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Jobs;
+
+use App\Helpers\Discord\SendMessage;
+use Exception;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+
+final class ProcessMuteUserJob implements ShouldQueue
+{
+    use Queueable;
+
+    /**
+     * User-friendly instruction messages.
+     */
+    public string $usageMessage = 'Usage: !mute <user-id>';
+    public string $exampleMessage = 'Example: !mute 123456789012345678';
+
+    private string $baseUrl;
+    private string $targetUserId; // The user being muted
+
+    private int $retryDelay = 2000; // ✅ 2-second delay before retrying
+    private int $maxRetries = 3;    // ✅ Max retries per request
+
+    /**
+     * Create a new job instance.
+     */
+    public function __construct(
+        public string $discordUserId,
+        public string $channelId, // The channel where the command was sent
+        public string $guildId,
+        public string $messageContent,
+    ) {
+        $this->baseUrl = config('services.discord.rest_api_url');
+
+        // Parse the message
+        $this->targetUserId = $this->parseMessage($this->messageContent);
+
+        // Validate input
+        if (! $this->targetUserId) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => "❌ Invalid user ID.\n\n{$this->usageMessage}\n{$this->exampleMessage}",
+            ]);
+
+            // Stop execution
+            throw new Exception('Invalid input for !mute. Expected a valid user ID.');
+        }
+    }
+
+    /**
+     * Handles the job execution.
+     */
+    public function handle(): void
+    {
+        // Ensure the input is a valid Discord user ID
+        if (! preg_match('/^\d{17,19}$/', $this->targetUserId)) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ Invalid user ID format. Please provide a valid Discord user ID.',
+            ]);
+
+            return;
+        }
+
+        // Step 1️⃣: Fetch all voice channels in the guild
+        $channelsUrl = "{$this->baseUrl}/guilds/{$this->guildId}/channels";
+        $channelsResponse = retry($this->maxRetries, function () use ($channelsUrl) {
+            return Http::withToken(config('discord.token'), 'Bot')->get($channelsUrl);
+        }, $this->retryDelay);
+
+        if ($channelsResponse->failed()) {
+            Log::error("Failed to fetch channels for guild (ID: `{$this->guildId}`).");
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ Failed to retrieve server channels.',
+            ]);
+
+            return;
+        }
+
+        $channels = collect($channelsResponse->json());
+        $voiceChannels = $channels->filter(fn ($ch) => $ch['type'] === 2); // Voice channels only
+
+        // Step 2️⃣: Apply mute permission to the user in each voice channel
+        $failedChannels = [];
+
+        foreach ($voiceChannels as $channel) {
+            $channelId = $channel['id'];
+            $permissionsUrl = "{$this->baseUrl}/channels/{$channelId}/permissions/{$this->targetUserId}";
+
+            $payload = [
+                'deny' => (1 << 11), // Deny SPEAK permission
+                'type' => 1, // Member override (not role)
+            ];
+
+            $permissionsResponse = retry($this->maxRetries, function () use ($permissionsUrl, $payload) {
+                return Http::withToken(config('discord.token'), 'Bot')->put($permissionsUrl, $payload);
+            }, $this->retryDelay);
+
+            if ($permissionsResponse->failed()) {
+                $failedChannels[] = "<#{$channelId}>";
+            }
+        }
+
+        // Step 3️⃣: Send Confirmation Message
+        if (! empty($failedChannels)) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => true,
+                'embed_title' => '🔇 Mute Failed',
+                'embed_description' => '❌ Failed to mute user in: ' . implode(', ', $failedChannels),
+                'embed_color' => 15158332, // Red
+            ]);
+        } else {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => true,
+                'embed_title' => '🔇 User Muted',
+                'embed_description' => "✅ <@{$this->targetUserId}> has been muted in **all voice channels**.",
+                'embed_color' => 3066993, // Green
+            ]);
+        }
+    }
+
+    private function parseMessage(string $message): ?string
+    {
+        // Use regex to extract user ID from mention OR raw ID
+        preg_match('/^!mute\s+(<@!?(\d{17,19})>|\d{17,19})$/', $message, $matches);
+
+        // If user ID is wrapped in <@...>, extract only the ID
+        return $matches[2] ?? $matches[1] ?? null;
+    }
+}
