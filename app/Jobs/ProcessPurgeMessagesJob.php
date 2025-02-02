@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Enums\DiscordPermissionEnum;
-use App\Helpers\Discord\SendMessage;
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
+use App\Helpers\Discord\SendMessage;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -35,7 +34,7 @@ final class ProcessPurgeMessagesJob implements ShouldQueue
         $this->baseUrl = config('services.discord.rest_api_url');
         [$this->targetChannelId, $this->messageCount] = $this->parseMessage($this->messageContent);
 
-        if (!$this->targetChannelId || !$this->messageCount) {
+        if (! $this->targetChannelId || ! $this->messageCount) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => "❌ Invalid input.\n\n{$this->usageMessage}\n{$this->exampleMessage}",
@@ -49,6 +48,7 @@ final class ProcessPurgeMessagesJob implements ShouldQueue
         // 1️⃣ Check if user has permission to purge messages using the new helper
         if ($this->userHasPermission($this->discordUserId)) {
             $this->purgeMessages();
+
             return;
         }
 
@@ -87,6 +87,7 @@ final class ProcessPurgeMessagesJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ The number of messages to purge must be between 2 and 100.',
             ]);
+
             return;
         }
 
@@ -100,6 +101,7 @@ final class ProcessPurgeMessagesJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to fetch messages. Please try again later.',
             ]);
+
             return;
         }
 
@@ -121,6 +123,7 @@ final class ProcessPurgeMessagesJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to delete messages. Please try again later.',
             ]);
+
             return;
         }
 
@@ -132,6 +135,4 @@ final class ProcessPurgeMessagesJob implements ShouldQueue
             'embed_color' => 3066993,
         ]);
     }
-
-
 }

@@ -81,6 +81,7 @@ final class GetGuildsByDiscordUserId
 
         return 'failed';
     }
+
     public static function getIfUserCanMoveMembers(string $guildId, string $userId): string
     {
         $roles = self::getGuildRoles($guildId, $userId);
@@ -108,6 +109,7 @@ final class GetGuildsByDiscordUserId
 
         return 'failed';
     }
+
     public static function getIfUserCanManageMessages(string $guildId, string $userId): string
     {
         $roles = self::getGuildRoles($guildId, $userId);
