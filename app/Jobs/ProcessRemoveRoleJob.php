@@ -28,6 +28,9 @@ final class ProcessRemoveRoleJob implements ShouldQueue
         public string $messageContent,
     ) {}
 
+// TODO: Check if the user is the owner and send owner access token for elevated permissions. This whole job may need permission checks.
+
+
     /**
      * Execute the job.
      */

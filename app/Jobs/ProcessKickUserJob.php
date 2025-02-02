@@ -53,6 +53,7 @@ final class ProcessKickUserJob implements ShouldQueue
 
             return;
         }
+// TODO: Check if the user is the owner and send owner access token for elevated permissions
 
         // Step 1️⃣: Check if the sender has KICK_MEMBERS permission
         if (! $this->userHasKickPermission($this->discordUserId)) {
