@@ -81,7 +81,6 @@ final class GetGuildsByDiscordUserId
 
         return 'failed';
     }
-
     public static function getIfUserCanMoveMembers(string $guildId, string $userId): string
     {
         $roles = self::getGuildRoles($guildId, $userId);
@@ -92,6 +91,33 @@ final class GetGuildsByDiscordUserId
 
         $adminPermission = DiscordPermissionEnum::ADMINISTRATOR;
         $permission = DiscordPermissionEnum::MOVE_MEMBERS;
+
+        foreach ($roles as $role) {
+            $rolePermission = self::getRoleFromGuild($guildId, $role);
+            if (! $rolePermission) {
+                continue;
+            }
+
+            // Ensure $rolePermission is an integer before performing the bitwise operation
+            $rolePermission = (int) $rolePermission;
+
+            if (($rolePermission & $permission->value) || ($rolePermission & $adminPermission->value)) {
+                return 'success';
+            }
+        }
+
+        return 'failed';
+    }
+    public static function getIfUserCanManageMessages(string $guildId, string $userId): string
+    {
+        $roles = self::getGuildRoles($guildId, $userId);
+
+        if (empty($roles)) {
+            return 'failed';
+        }
+
+        $adminPermission = DiscordPermissionEnum::ADMINISTRATOR;
+        $permission = DiscordPermissionEnum::MANAGE_MESSAGES;
 
         foreach ($roles as $role) {
             $rolePermission = self::getRoleFromGuild($guildId, $role);
