@@ -54,8 +54,7 @@ final class ProcessBanUserJob implements ShouldQueue
             return;
         }
 
-// TODO: Check if the user is the owner and send owner access token for elevated permissions
-
+        // TODO: Check if the user is the owner and send owner access token for elevated permissions
 
         // Step 1️⃣: Check if the sender has BAN_MEMBERS permission
         if (! $this->userHasBanPermission($this->discordUserId)) {
