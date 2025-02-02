@@ -81,6 +81,7 @@ final class GetGuildsByDiscordUserId
 
         return 'failed';
     }
+
     public static function getIfUserCanMoveMembers(string $guildId, string $userId): string
     {
         $roles = self::getGuildRoles($guildId, $userId);

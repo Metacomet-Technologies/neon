@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Helpers\Discord\SendMessage;
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
+use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
@@ -38,7 +38,7 @@ final class ProcessMoveUserJob implements ShouldQueue
         [$this->userId, $this->targetChannelId] = $this->parseMessage($this->messageContent);
     }
 
-// TODO: Add the handle method to move the user to the target channel based on name and not ID only.
+    // TODO: Add the handle method to move the user to the target channel based on name and not ID only.
 
     /**
      * Execute the job.
@@ -46,11 +46,12 @@ final class ProcessMoveUserJob implements ShouldQueue
     public function handle(): void
     {
         // 1️⃣ Validate the user and channel IDs
-        if (!$this->userId || !$this->targetChannelId) {
+        if (! $this->userId || ! $this->targetChannelId) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => $this->usageMessage,
             ]);
+
             return;
         }
 
@@ -61,6 +62,7 @@ final class ProcessMoveUserJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You are not allowed to move users.',
             ]);
+
             return;
         }
 
@@ -82,6 +84,7 @@ final class ProcessMoveUserJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to move user.',
             ]);
+
             return;
         }
 
@@ -107,6 +110,7 @@ final class ProcessMoveUserJob implements ShouldQueue
 
         if (count($parts) != 3) {
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
+
             return [null, null];
         }
 
@@ -114,22 +118,24 @@ final class ProcessMoveUserJob implements ShouldQueue
         $channelId = $parts[2]; // Channel ID (raw)
 
         // Validate that the channel ID is a valid numeric ID
-        if (!preg_match('/^\d{17,19}$/', $channelId)) {
+        if (! preg_match('/^\d{17,19}$/', $channelId)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => "❌ Invalid channel ID format: {$channelId}",
             ]);
+
             return [null, null]; // Invalid format
         }
 
         // Validate user ID: it can be a mention or raw ID
         $userId = $this->extractIdFromMention($userId);
 
-        if (!$userId) {
+        if (! $userId) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => "❌ Invalid user ID format: {$parts[1]}",
             ]);
+
             return [null, null]; // Invalid user ID format
         }
 
