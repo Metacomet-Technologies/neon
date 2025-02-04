@@ -256,6 +256,14 @@ class NativeCommandSeeder extends Seeder
                 'example' => 'Example: !lock-voice 123456789012345678 true',
                 'is_active' => true,
             ]
+            [
+                'slug' => 'disconnect',
+                'description' => 'Disconnects one or more users from a voice channel.',
+                'class' => \App\Jobs\ProcessDisconnectUserJob::class,
+                'usage' => 'Usage: !disconnect <@user1> [@user2] ...',
+                'example' => 'Example: !disconnect @User1 @User2',
+                'is_active' => true,
+            ]
 
         ];
 
