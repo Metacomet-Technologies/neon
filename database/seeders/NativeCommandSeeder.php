@@ -272,6 +272,14 @@ class NativeCommandSeeder extends Seeder
                 'example' => 'Example: !poll "What should we play?" "Minecraft" "Valorant" "Overwatch"',
                 'is_active' => true,
             ],
+            [
+                'slug' => 'help',
+                'description' => 'Displays a list of available commands.',
+                'class' => \App\Jobs\ProcessHelpCommandJob::class,
+                'usage' => 'Usage: !help',
+                'example' => 'Example: !help',
+                'is_active' => true,
+            ],
         ];
 
         foreach ($commands as $command) {
