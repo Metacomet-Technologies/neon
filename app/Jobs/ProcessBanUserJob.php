@@ -6,20 +6,26 @@ namespace App\Jobs;
 
 use App\Enums\DiscordPermissionEnum;
 use App\Helpers\Discord\SendMessage;
-use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 final class ProcessBanUserJob implements ShouldQueue
 {
     use Queueable;
 
-    public string $usageMessage = 'Usage: !ban <user-id>';
-    public string $exampleMessage = 'Example: !ban 123456789012345678';
+    public string $usageMessage;
+    public string $exampleMessage;
 
+    // 'slug' => 'ban',
+    // 'description' => 'Bans a user from the server.',
+    // 'class' => \App\Jobs\ProcessBanUserJob::class,
+    // 'usage' => 'Usage: !ban <user-id>',
+    // 'example' => 'Example: !ban 123456789012345678',
+    // 'is_active' => true,
     private string $baseUrl;
-    private string $targetUserId;
+    private ?string $targetUserId = null;
 
     private int $retryDelay = 2000;
     private int $maxRetries = 3;
@@ -31,20 +37,30 @@ final class ProcessBanUserJob implements ShouldQueue
         public string $messageContent,
     ) {
         $this->baseUrl = config('services.discord.rest_api_url');
+
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'ban')->first();
+
+        // Set usage and example messages dynamically
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
+
+        // Parse the message for target user ID
         $this->targetUserId = $this->parseMessage($this->messageContent);
-
-        if (! $this->targetUserId) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "❌ Invalid user ID.\n\n{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
-
-            throw new Exception('Invalid input for !ban. Expected a valid user ID.');
-        }
     }
 
     public function handle(): void
     {
+        // ✅ Validate Input - If no user ID is provided, send a usage message and exit
+        if (! $this->targetUserId) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
+            ]);
+
+            return;
+        }
+
         if (! preg_match('/^\d{17,19}$/', $this->targetUserId)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
@@ -53,8 +69,6 @@ final class ProcessBanUserJob implements ShouldQueue
 
             return;
         }
-
-        // TODO: Check if the user is the owner and send owner access token for elevated permissions
 
         // Step 1️⃣: Check if the sender has BAN_MEMBERS permission
         if (! $this->userHasBanPermission($this->discordUserId)) {

@@ -8,6 +8,7 @@ use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 final class ProcessCreatePollJob implements ShouldQueue
@@ -15,10 +16,17 @@ final class ProcessCreatePollJob implements ShouldQueue
     use Queueable;
 
     /**
-     * User-friendly instruction messages.
+     * User-friendly instruction messages dynamically fetched from the database.
      */
-    public string $usageMessage = 'Usage: !poll "Question" "Option 1" "Option 2" ...';
-    public string $exampleMessage = 'Example: !poll "What should we play?" "Minecraft" "Valorant" "Overwatch"';
+    public string $usageMessage;
+    public string $exampleMessage;
+
+    // 'slug' => 'poll',
+    // 'description' => 'Creates a poll with multiple voting options.',
+    // 'class' => \App\Jobs\ProcessCreatePollJob::class,
+    // 'usage' => 'Usage: !poll "Question" "Option 1" "Option 2" "Option 3"',
+    // 'example' => 'Example: !poll "What should we play?" "Minecraft" "Valorant" "Overwatch"',
+    // 'is_active' => true,
 
     public string $baseUrl;
 
@@ -39,25 +47,32 @@ final class ProcessCreatePollJob implements ShouldQueue
     ) {
         $this->baseUrl = config('services.discord.rest_api_url');
 
-        // Parse the poll question and options
-        [$this->question, $this->options] = $this->parseMessage($this->messageContent);
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'poll')->first();
 
-        // If parsing fails, send a help message
-        if (! $this->question || count($this->options) < 2) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "❌ Invalid input.\n\n{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
-
-            return;
-        }
+        // Set usage and example messages dynamically
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
     }
-
+//TODO: Add ability for emojis to be included in text
     /**
      * Handles the job execution.
      */
     public function handle(): void
     {
+        // Parse the poll question and options
+        [$this->question, $this->options] = $this->parseMessage($this->messageContent);
+
+        // Validate input: Must have a question and at least two options
+        if (! $this->question || count($this->options) < 2) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
+            ]);
+
+            return;
+        }
+
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanSendPolls($this->guildId, $this->discordUserId);
 
         if ($permissionCheck !== 'success') {
@@ -80,7 +95,7 @@ final class ProcessCreatePollJob implements ShouldQueue
         }
 
         // List of default number emojis for poll choices
-        $defaultEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+        // $defaultEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
 
         // Construct the poll payload
         $pollPayload = [
@@ -92,9 +107,9 @@ final class ProcessCreatePollJob implements ShouldQueue
                 'answers' => array_map(fn ($index, $option) => [
                     'poll_media' => [
                         'text' => (string) $option,
-                        'emoji' => [
-                            'name' => $defaultEmojis[$index] ?? '✅',
-                        ],
+                        // 'emoji' => [
+                        //     'name' => $defaultEmojis[$index] ?? '✅',
+                        // ],
                     ],
                 ], array_keys($this->options), $this->options),
                 'duration' => 24, // Default to 24 hours
@@ -123,6 +138,9 @@ final class ProcessCreatePollJob implements ShouldQueue
      */
     private function parseMessage(string $message): array
     {
+        // Normalize curly quotes to straight quotes
+        $message = str_replace(['“', '”'], '"', $message);
+
         preg_match_all('/"([^"]+)"/', $message, $matches);
 
         if (count($matches[1]) < 2) {

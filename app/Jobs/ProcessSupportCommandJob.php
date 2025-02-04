@@ -25,7 +25,8 @@ final class ProcessSupportCommandJob implements ShouldQueue
     ) {
         $this->baseUrl = config('services.discord.rest_api_url');
     }
-//TODO: This may or may not work, needs testing. Currently set isactive to false.
+
+    //TODO: This may or may not work, needs testing. Currently set isactive to false.
     public function handle(): void
     {
         // Remove the command itself from the message
@@ -37,6 +38,7 @@ final class ProcessSupportCommandJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Please provide a message with your support request. Example: `!support I need help with my role.`',
             ]);
+
             return;
         }
 
@@ -65,6 +67,7 @@ final class ProcessSupportCommandJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to send the support request. Please try again later.',
             ]);
+
             return;
         }
 

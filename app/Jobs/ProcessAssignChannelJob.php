@@ -8,6 +8,7 @@ use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -17,8 +18,15 @@ final class ProcessAssignChannelJob implements ShouldQueue
 
     public string $baseUrl;
 
-    public string $usageMessage = 'Usage: !assign-channel <channel-id|channel-name> <category-id|category-name>';
-    public string $exampleMessage = 'Example: !assign-channel 123456789012345678 987654321098765432';
+    public string $usageMessage;
+    public string $exampleMessage;
+
+    // 'slug' => 'assign-channel',
+    // 'description' => 'Assigns a channel to a category.',
+    // 'class' => \App\Jobs\ProcessAssignChannelJob::class,
+    // 'usage' => 'Usage: !assign-channel <channel-id|channel-name> <category-id|category-name>',
+    // 'example' => 'Example: !assign-channel 123456789012345678 987654321098765432',
+    // 'is_active' => true,
 
     /**
      * Create a new job instance.
@@ -30,6 +38,13 @@ final class ProcessAssignChannelJob implements ShouldQueue
         public string $messageContent,
     ) {
         $this->baseUrl = config('services.discord.rest_api_url');
+
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'assign-channel')->first();
+
+        // Set usage and example messages dynamically
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
     }
 
     /**

@@ -8,6 +8,7 @@ use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -15,8 +16,15 @@ final class ProcessAssignRoleJob implements ShouldQueue
 {
     use Queueable;
 
-    public string $usageMessage = 'Usage: !assign-role <role-name> <@user1> <@user2> ...';
-    public string $exampleMessage = 'Example: !assign-role VIP 987654321098765432';
+    public string $usageMessage;
+    public string $exampleMessage;
+
+    // 'slug' => 'assign-role',
+    // 'description' => 'Assigns a role to one or more users.',
+    // 'class' => \App\Jobs\ProcessAssignRoleJob::class,
+    // 'usage' => 'Usage: !assign-role <role-name> <@user1> <@user2> ...',
+    // 'example' => 'Example: !assign-role VIP 987654321098765432',
+    // 'is_active' => true,
 
     public int $batchSize = 5; // ✅ Process users in groups of 5 to avoid rate limits
     public int $retryDelay = 2000; // ✅ 2-second delay before retrying
@@ -30,7 +38,14 @@ final class ProcessAssignRoleJob implements ShouldQueue
         public string $channelId,
         public string $guildId,
         public string $messageContent,
-    ) {}
+    ) {
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'assign-channel')->first();
+
+        // Set usage and example messages dynamically
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
+    }
 
     /**
      * Execute the job.
@@ -53,7 +68,10 @@ final class ProcessAssignRoleJob implements ShouldQueue
 
         // Validate input
         if (count($parts) < 3) {
-            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
+            ]);
 
             return;
         }

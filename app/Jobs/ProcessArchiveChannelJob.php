@@ -8,8 +8,8 @@ use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 final class ProcessArchiveChannelJob implements ShouldQueue
 {
@@ -18,15 +18,22 @@ final class ProcessArchiveChannelJob implements ShouldQueue
     /**
      * User-friendly instruction messages.
      */
-    public string $usageMessage = 'Usage: !archive-channel <channel-id> <true|false>';
-    public string $exampleMessage = 'Example: !archive-channel 123456789012345678 true';
+    public string $usageMessage;
+    public string $exampleMessage;
+
+    // 'slug' => 'archive-channel',
+    // 'description' => 'Archives or unarchives a channel.',
+    // 'class' => \App\Jobs\ProcessArchiveChannelJob::class,
+    // 'usage' => 'Usage: !archive-channel <channel-id> <true|false>',
+    // 'example' => 'Example: !archive-channel 123456789012345678 true',
+    // 'is_active' => false,
 
     public string $baseUrl;
-    public string $targetChannelId; // The actual Discord channel ID
-    public bool $archiveStatus;     // Archive (true) or unarchive (false)
+    public ?string $targetChannelId = null; // The actual Discord channel ID
+    public ?bool $archiveStatus = null;     // Archive (true) or unarchive (false)
 
     private int $retryDelay = 2000; // ✅ 2-second delay before retrying
-    private int $maxRetries = 3;     // ✅ Max retries per request
+    private int $maxRetries = 3;    // ✅ Max retries per request
 
     /**
      * Create a new job instance.
@@ -39,15 +46,24 @@ final class ProcessArchiveChannelJob implements ShouldQueue
     ) {
         $this->baseUrl = config('services.discord.rest_api_url');
 
-        // Parse the message
+        // Parse the message first
         [$this->targetChannelId, $this->archiveStatus] = $this->parseMessage($this->messageContent);
 
-        // Validate input
-        if (! $this->targetChannelId || ! is_bool($this->archiveStatus)) {
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'archive-channel')->first();
+
+        // Set usage and example messages dynamically
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
+
+        // ✅ If invalid input, send help message and **exit early**
+        if (! $this->targetChannelId || is_null($this->archiveStatus)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => "❌ Invalid input.\n\n{$this->usageMessage}\n{$this->exampleMessage}",
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
             ]);
+
+            return;
         }
     }
 
@@ -87,7 +103,6 @@ final class ProcessArchiveChannelJob implements ShouldQueue
         }, $this->retryDelay);
 
         if ($apiResponse->failed()) {
-            Log::error("Failed to update archive status for channel (ID: `{$this->targetChannelId}`).");
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ Failed to update channel archive status.',
@@ -111,7 +126,7 @@ final class ProcessArchiveChannelJob implements ShouldQueue
     private function parseMessage(string $message): array
     {
         // Use regex to extract the channel ID or mention and archive/unarchive flag
-        preg_match('/^!archive-channel\s+(<#?(\d{17,19})>)?\s*(true|false)$/i', $message, $matches);
+        preg_match('/^!archive-channel\s+(<#?(\d{17,19})>)?\s*(true|false)?$/i', $message, $matches);
 
         if (! isset($matches[2], $matches[3])) {
             return [null, null]; // Invalid input
