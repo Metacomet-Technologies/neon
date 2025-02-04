@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -58,6 +59,17 @@ final class ProcessMuteUserJob implements ShouldQueue
      */
     public function handle(): void
     {
+        // Ensure the user has permission to manage channels
+        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanMuteMembers($this->guildId, $this->discordUserId);
+
+        if ($permissionCheck !== 'success') {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ You do not have permission to mute/unmute users in this server.',
+            ]);
+
+            return;
+        }
         // Ensure the input is a valid Discord user ID
         if (! preg_match('/^\d{17,19}$/', $this->targetUserId)) {
             SendMessage::sendMessage($this->channelId, [

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -15,6 +16,7 @@ final class ProcessRemoveRoleJob implements ShouldQueue
     use Queueable;
 
     public string $usageMessage = 'Usage: !remove-role <role-name> <@user1> <@user2> ...';
+    public string $exampleMessage = 'Example: !remove-role VIP 123456789012345678 123456789012345678';
     public int $batchSize = 5; // ✅ Process users in groups of 5 to avoid rate limits
     public int $delayBetweenBatches = 2; // ✅ 2-second delay between batches
 
@@ -35,8 +37,17 @@ final class ProcessRemoveRoleJob implements ShouldQueue
      */
     public function handle(): void
     {
-        Log::info("Processing remove role command: {$this->messageContent}");
+        // Ensure the user has permission to manage channels
+        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageRoles($this->guildId, $this->discordUserId);
 
+        if ($permissionCheck !== 'success') {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ You do not have permission to manage roles in this server.',
+            ]);
+
+            return;
+        }
         // 1️⃣ Parse command arguments
         $parts = explode(' ', $this->messageContent);
 

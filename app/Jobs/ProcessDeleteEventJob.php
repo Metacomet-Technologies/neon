@@ -11,13 +11,13 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-final class ProcessDeleteChannelJob implements ShouldQueue
+final class ProcessDeleteEventJob implements ShouldQueue
 {
     use Queueable;
 
     public string $baseUrl;
-    public string $usageMessage = 'Usage: !delete-channel <channel-id|channel-name>';
-    public string $exampleMessage = 'Example: !delete-channel 123456789012345678 or !delete-channel #general';
+    public string $usageMessage = 'Usage: !delete-event <event-id>';
+    public string $exampleMessage = 'Example: !delete-event 123456789012345678';
 
     /**
      * Create a new job instance.
@@ -36,22 +36,22 @@ final class ProcessDeleteChannelJob implements ShouldQueue
      */
     public function handle(): void
     {
-        // Ensure the user has permission to manage channels
-        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
+        // Ensure the user has permission to manage events
+        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanCreateEvents($this->guildId, $this->discordUserId);
 
         if ($permissionCheck !== 'success') {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => '❌ You do not have permission to delete channels in this server.',
+                'response' => '❌ You do not have permission to delete events in this server.',
             ]);
 
             return;
         }
 
         // Parse the command message
-        $targetChannelId = $this->parseMessage($this->messageContent);
+        $eventId = $this->parseMessage($this->messageContent);
 
-        if (!$targetChannelId) {
+        if (!$eventId) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
@@ -60,22 +60,22 @@ final class ProcessDeleteChannelJob implements ShouldQueue
             return;
         }
 
-        // 3️⃣ Construct the delete API request
-        $deleteUrl = $this->baseUrl . "/channels/{$targetChannelId}";
+        // Construct the delete API request
+        $deleteUrl = $this->baseUrl . "/guilds/{$this->guildId}/scheduled-events/{$eventId}";
 
-        // 4️⃣ Make the delete request with retries
+        // Make the delete request with retries
         $deleteResponse = retry(3, function () use ($deleteUrl) {
             return Http::withToken(config('discord.token'), 'Bot')->delete($deleteUrl);
         }, 200);
 
         if ($deleteResponse->failed()) {
-            Log::error("Failed to delete channel '{$targetChannelId}' in guild {$this->guildId}", [
+            Log::error("Failed to delete event '{$eventId}' in guild {$this->guildId}", [
                 'response' => $deleteResponse->json(),
             ]);
 
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => "❌ Failed to delete channel (ID: `{$targetChannelId}`).",
+                'response' => "❌ Failed to delete event (ID: `{$eventId}`).",
             ]);
 
             return;
@@ -84,14 +84,14 @@ final class ProcessDeleteChannelJob implements ShouldQueue
         // ✅ Success! Send confirmation message
         SendMessage::sendMessage($this->channelId, [
             'is_embed' => true,
-            'embed_title' => '✅ Channel Deleted!',
-            'embed_description' => "**Channel ID:** `{$targetChannelId}` has been successfully removed.",
+            'embed_title' => '✅ Event Deleted!',
+            'embed_description' => "**Event ID:** `{$eventId}` has been successfully removed.",
             'embed_color' => 15158332, // Red embed
         ]);
     }
 
     /**
-     * Parses the message content for extracting the target channel ID.
+     * Parses the message content for extracting the event ID.
      */
     private function parseMessage(string $message): ?string
     {
@@ -99,20 +99,9 @@ final class ProcessDeleteChannelJob implements ShouldQueue
         $cleanedMessage = preg_replace('/[\p{Cf}]/u', '', $message); // Removes control characters
         $cleanedMessage = trim(preg_replace('/\s+/', ' ', $cleanedMessage)); // Normalize spaces
 
-        // Use regex to extract the channel ID or name
-        preg_match('/^!delete-channel\s+(<#?(\d{17,19})>|[\w-]+)$/iu', $cleanedMessage, $matches);
+        // Use regex to extract the event ID
+        preg_match('/^!delete-event\s+(\d{17,19})$/iu', $cleanedMessage, $matches);
 
-        if (!isset($matches[2])) {
-            return null; // Invalid input
-        }
-
-        $channelInput = trim($matches[2]); // This could be <#channelID> or channel name
-
-        // If channel mention format (<#channelID>), extract the numeric ID
-        if (preg_match('/^<#(\d{17,19})>$/', $channelInput, $channelMatches)) {
-            return $channelMatches[1]; // Extract numeric channel ID
-        }
-
-        return $channelInput;
+        return $matches[1] ?? null;
     }
 }

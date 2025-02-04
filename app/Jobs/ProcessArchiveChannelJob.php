@@ -9,6 +9,8 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Helpers\Discord\GetGuildsByDiscordUserId;
+use App\Enums\DiscordPermissionEnum;
 
 final class ProcessArchiveChannelJob implements ShouldQueue
 {
@@ -55,6 +57,17 @@ final class ProcessArchiveChannelJob implements ShouldQueue
      */
     public function handle(): void
     {
+        // Ensure the user has permission to manage channels
+        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
+
+        if ($permissionCheck !== 'success') {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ You do not have permission to manage channels in this server.',
+            ]);
+
+            return;
+        }
         // Ensure the input is a valid Discord channel ID
         if (! preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
             SendMessage::sendMessage($this->channelId, [
@@ -99,20 +112,16 @@ final class ProcessArchiveChannelJob implements ShouldQueue
     private function parseMessage(string $message): array
     {
         // Use regex to extract the channel ID or mention and archive/unarchive flag
-        preg_match('/^!archive-channel\s+(<#\d{17,19}>|\d{17,19})\s+(true|false)$/i', $message, $matches);
+        preg_match('/^!archive-channel\s+(<#?(\d{17,19})>)?\s*(true|false)$/i', $message, $matches);
 
-        if (! isset($matches[1], $matches[2])) {
+        if (!isset($matches[2], $matches[3])) {
             return [null, null]; // Invalid input
         }
 
-        $channelIdentifier = trim($matches[1]);
-        $archiveStatus = strtolower(trim($matches[2])) === 'true'; // Convert to boolean
-
-        // If the channel is mentioned as <#channelID>, extract just the numeric ID
-        if (preg_match('/^<#(\d{17,19})>$/', $channelIdentifier, $idMatches)) {
-            $channelIdentifier = $idMatches[1];
-        }
+        $channelIdentifier = trim($matches[2]); // Extracted numeric channel ID
+        $archiveStatus = strtolower(trim($matches[3])) === 'true'; // Convert to boolean
 
         return [$channelIdentifier, $archiveStatus];
     }
+
 }

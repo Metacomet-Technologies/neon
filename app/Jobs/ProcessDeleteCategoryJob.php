@@ -36,6 +36,17 @@ final class ProcessDeleteCategoryJob implements ShouldQueue
      */
     public function handle(): void
     {
+        // Ensure the user has permission to manage channels
+        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
+
+        if ($permissionCheck !== 'success') {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ You do not have permission to manage categories in this server.',
+            ]);
+
+            return;
+        }
         // 1️⃣ Parse the command
         $parts = explode(' ', $this->messageContent);
 

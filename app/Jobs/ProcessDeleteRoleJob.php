@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -15,6 +16,7 @@ final class ProcessDeleteRoleJob implements ShouldQueue
     use Queueable;
 
     public string $usageMessage = 'Usage: !delete-role <role-name>';
+    public string $exampleMessage = 'Example: !delete-role VIP';
 
     /**
      * Create a new job instance.
@@ -31,6 +33,17 @@ final class ProcessDeleteRoleJob implements ShouldQueue
      */
     public function handle(): void
     {
+        // Ensure the user has permission to manage channels
+        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageRoles($this->guildId, $this->discordUserId);
+
+        if ($permissionCheck !== 'success') {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ You do not have permission to manage roles in this server.',
+            ]);
+
+            return;
+        }
         // 1️⃣ Parse the command
         $parts = explode(' ', $this->messageContent);
 

@@ -16,6 +16,7 @@ final class ProcessMoveUserJob implements ShouldQueue
     use Queueable;
 
     public string $usageMessage = 'Usage: !move-user <@userID | userID> <channelID>';
+    public string $exampleMessage = 'Example: !move-user 123456789012345678 123456789012345678';
     public int $retryDelay = 2000; // 2-second delay before retrying
     public int $maxRetries = 3; // Max retries per request
 

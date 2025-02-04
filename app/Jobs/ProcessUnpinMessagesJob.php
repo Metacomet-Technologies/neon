@@ -16,6 +16,7 @@ final class ProcessUnpinMessagesJob implements ShouldQueue
     use Queueable;
 
     public string $usageMessage = 'Usage: !unpin <message-id>';
+    public string $exampleMessage = 'Example: !unpin 123456789012345678';
 
     private string $baseUrl;
     private string $messageId;

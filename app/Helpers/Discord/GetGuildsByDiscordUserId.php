@@ -137,4 +137,85 @@ final class GetGuildsByDiscordUserId
 
         return 'failed';
     }
+    public static function getIfUserCanCreateEvents(string $guildId, string $userId): string
+    {
+        $roles = self::getGuildRoles($guildId, $userId);
+
+        if (empty($roles)) {
+            return 'failed';
+        }
+
+        $adminPermission = DiscordPermissionEnum::ADMINISTRATOR;
+        $permission = DiscordPermissionEnum::CREATE_EVENTS;
+
+        foreach ($roles as $role) {
+            $rolePermission = self::getRoleFromGuild($guildId, $role);
+            if (! $rolePermission) {
+                continue;
+            }
+
+            // Ensure $rolePermission is an integer before performing the bitwise operation
+            $rolePermission = (int) $rolePermission;
+
+            if (($rolePermission & $permission->value) || ($rolePermission & $adminPermission->value)) {
+                return 'success';
+            }
+        }
+
+        return 'failed';
+    }
+    public static function getIfUserCanMuteMembers(string $guildId, string $userId): string
+    {
+        $roles = self::getGuildRoles($guildId, $userId);
+
+        if (empty($roles)) {
+            return 'failed';
+        }
+
+        $adminPermission = DiscordPermissionEnum::ADMINISTRATOR;
+        $permission = DiscordPermissionEnum::MUTE_MEMBERS;
+
+        foreach ($roles as $role) {
+            $rolePermission = self::getRoleFromGuild($guildId, $role);
+            if (! $rolePermission) {
+                continue;
+            }
+
+            // Ensure $rolePermission is an integer before performing the bitwise operation
+            $rolePermission = (int) $rolePermission;
+
+            if (($rolePermission & $permission->value) || ($rolePermission & $adminPermission->value)) {
+                return 'success';
+            }
+        }
+
+        return 'failed';
+    }
+    public static function getIfUserCanManageRoles(string $guildId, string $userId): string
+    {
+        $roles = self::getGuildRoles($guildId, $userId);
+
+        if (empty($roles)) {
+            return 'failed';
+        }
+
+        $adminPermission = DiscordPermissionEnum::ADMINISTRATOR;
+        $permission = DiscordPermissionEnum::MANAGE_ROLES;
+
+        foreach ($roles as $role) {
+            $rolePermission = self::getRoleFromGuild($guildId, $role);
+            if (! $rolePermission) {
+                continue;
+            }
+
+            // Ensure $rolePermission is an integer before performing the bitwise operation
+            $rolePermission = (int) $rolePermission;
+
+            if (($rolePermission & $permission->value) || ($rolePermission & $adminPermission->value)) {
+                return 'success';
+            }
+        }
+
+        return 'failed';
+    }
 }

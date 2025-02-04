@@ -18,9 +18,7 @@ final class ProcessNewEventJob implements ShouldQueue
     use Queueable;
 
     public string $baseUrl;
-
     public string $usageMessage = 'Usage: !create-event <event-topic> | <start-date> | <start-time> | <event-frequency> | <location> | <description> | [cover-image-url]';
-
     public string $exampleMessage = 'Example: !create-event "Weekly Meeting" | 2025-02-10 | 14:00 | weekly | #general | "Join us for our weekly team meeting" | https://example.com/cover.jpg';
 
     /**
@@ -41,7 +39,7 @@ final class ProcessNewEventJob implements ShouldQueue
     public function handle(): void
     {
         // 1️⃣ Check if user is an admin
-        $adminCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
+        $adminCheck = GetGuildsByDiscordUserId::getIfUserCanCreateEvents($this->guildId, $this->discordUserId);
         if ($adminCheck === 'failed') {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
@@ -137,11 +135,15 @@ final class ProcessNewEventJob implements ShouldQueue
             throw new Exception('Failed to create event. ' . json_encode($apiResponse->json()));
         }
 
-        // ✅ Send an Embedded Confirmation Message
+        // Extract Event ID from response
+        $responseData = $apiResponse->json();
+        $eventId = $responseData['id'] ?? 'Unknown';
+
+        // ✅ Send an Embedded Confirmation Message with Event ID
         SendMessage::sendMessage($this->channelId, [
             'is_embed' => true,
             'embed_title' => '🎉 Event Created!',
-            'embed_description' => "**Event:** {$eventTopic}\n**Start:** {$startDate} at {$startTime} UTC\n**Location:** " . ($isVoiceChannel ? '🔊 Voice Channel' : '🌍 External/Text Channel'),
+            'embed_description' => "**Event:** {$eventTopic}\n**Start:** {$startDate} at {$startTime} UTC\n**Location:** " . ($isVoiceChannel ? '🔊 Voice Channel' : '🌍 External/Text Channel') . "\n**Event ID:** `{$eventId}`",
         ]);
     }
 }

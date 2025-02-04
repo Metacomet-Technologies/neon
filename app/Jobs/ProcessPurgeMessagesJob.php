@@ -42,7 +42,7 @@ final class ProcessPurgeMessagesJob implements ShouldQueue
             throw new Exception('Invalid input for !purge. Expected a valid channel and number of messages.');
         }
     }
-
+//TODO: add batch jobs to send more than 100 messages at a time.
     public function handle(): void
     {
         // 1️⃣ Check if user has permission to purge messages using the new helper

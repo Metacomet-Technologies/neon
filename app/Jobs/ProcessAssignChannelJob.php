@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Helpers\Discord\SendMessage;
+use App\Helpers\Discord\GetGuildsByDiscordUserId;
+use App\Enums\DiscordPermissionEnum;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
@@ -36,24 +38,29 @@ final class ProcessAssignChannelJob implements ShouldQueue
      */
     public function handle(): void
     {
-        // 1️⃣ Parse the command
-        $parts = explode(' ', $this->messageContent, 3);
+        // Ensure the user has permission to manage channels
+        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
 
-        if (count($parts) < 3) {
+        if ($permissionCheck !== 'success') {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => $this->usageMessage,
-            ]);
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => $this->exampleMessage,
+                'response' => '❌ You do not have permission to manage channels in this server.',
             ]);
 
             return;
         }
 
-        $channelInput = $parts[1]; // Can be an ID or name
-        $categoryInput = $parts[2]; // Can be an ID or name
+        // Parse the command message
+        [$channelInput, $categoryInput] = $this->parseMessage($this->messageContent);
+
+        if (!$channelInput || !$categoryInput) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
+            ]);
+
+            return;
+        }
 
         // 2️⃣ Fetch all channels in the guild
         $channelsUrl = $this->baseUrl . "/guilds/{$this->guildId}/channels";
@@ -74,26 +81,8 @@ final class ProcessAssignChannelJob implements ShouldQueue
 
         $channels = collect($channelsResponse->json());
 
-        // 3️⃣ Find the target channel by ID first (preferred)
-        $channel = $channels->first(fn ($c) => $c['id'] === $channelInput);
-
-        // If no ID match, try to match by name
-        if (! $channel) {
-            $matchingChannels = $channels->filter(fn ($c) => strcasecmp($c['name'], $channelInput) === 0);
-
-            if ($matchingChannels->count() > 1) {
-                $matchesList = $matchingChannels->map(fn ($c) => "**{$c['name']}** (ID: `{$c['id']}`)")->implode("\n");
-
-                SendMessage::sendMessage($this->channelId, [
-                    'is_embed' => false,
-                    'response' => "❌ Multiple channels named '{$channelInput}' found. Please use an ID instead:\n{$matchesList}",
-                ]);
-
-                return;
-            }
-
-            $channel = $matchingChannels->first();
-        }
+        // 3️⃣ Find the target channel
+        $channel = $channels->first(fn ($c) => $c['id'] === $channelInput || strcasecmp($c['name'], $channelInput) === 0);
 
         if (! $channel) {
             SendMessage::sendMessage($this->channelId, [
@@ -106,26 +95,9 @@ final class ProcessAssignChannelJob implements ShouldQueue
 
         $channelId = $channel['id'];
 
-        // 4️⃣ Find the category by ID first (preferred)
-        $category = $channels->first(fn ($c) => $c['id'] === $categoryInput && $c['type'] === 4); // Type 4 = Category
-
-        // If no ID match, try to match by name
-        if (! $category) {
-            $matchingCategories = $channels->filter(fn ($c) => strcasecmp($c['name'], $categoryInput) === 0 && $c['type'] === 4);
-
-            if ($matchingCategories->count() > 1) {
-                $matchesList = $matchingCategories->map(fn ($c) => "**{$c['name']}** (ID: `{$c['id']}`)")->implode("\n");
-
-                SendMessage::sendMessage($this->channelId, [
-                    'is_embed' => false,
-                    'response' => "❌ Multiple categories named '{$categoryInput}' found. Please use an ID instead:\n{$matchesList}",
-                ]);
-
-                return;
-            }
-
-            $category = $matchingCategories->first();
-        }
+        // 4️⃣ Find the target category
+        // TODO: Implement logic to find the category without requiring a raw category ID.
+        $category = $channels->first(fn ($c) => ($c['id'] === $categoryInput || strcasecmp($c['name'], $categoryInput) === 0) && $c['type'] === 4);
 
         if (! $category) {
             SendMessage::sendMessage($this->channelId, [
@@ -166,5 +138,33 @@ final class ProcessAssignChannelJob implements ShouldQueue
             'embed_description' => "**Channel Name:** #{$channel['name']} (ID: `{$channelId}`)\n**New Category:** 📂 {$category['name']} (ID: `{$categoryId}`)",
             'embed_color' => 3066993, // Green embed
         ]);
+    }
+
+    /**
+     * Parses the message content for command parameters.
+     */
+    private function parseMessage(string $message): array
+    {
+        // Remove invisible characters (zero-width spaces, control characters)
+        $cleanedMessage = preg_replace('/[\p{Cf}]/u', '', $message); // Removes control characters
+        $cleanedMessage = trim(preg_replace('/\s+/', ' ', $cleanedMessage)); // Normalize spaces
+
+        // Use regex to extract the channel ID or name and category ID or name
+        preg_match('/^!assign-channel\s+(<#?(\d{17,19})>|[\w-]+)\s+(<#?(\d{17,19})>|[\w-]+)$/iu', $cleanedMessage, $matches);
+
+        if (!isset($matches[2], $matches[3])) { // ✅ Fix category index reference
+            return [null, null]; // Invalid input
+        }
+
+        // Extract the channel ID
+        $channelInput = trim($matches[2]); // This could be <#channelID> or channel name
+        $categoryInput = trim($matches[3]); // This could be category ID or name
+
+        // If channel mention format (<#channelID>), extract the numeric ID
+        if (preg_match('/^<#(\d{17,19})>$/', $channelInput, $channelMatches)) {
+            $channelInput = $channelMatches[1]; // Extract numeric channel ID
+        }
+
+        return [$channelInput, $categoryInput];
     }
 }
