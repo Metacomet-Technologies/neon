@@ -22,7 +22,7 @@ class NativeCommandSeeder extends Seeder
                 'class' => \App\Jobs\ProcessArchiveChannelJob::class,
                 'usage' => 'Usage: !archive-channel <channel-id> <true|false>',
                 'example' => 'Example: !archive-channel 123456789012345678 true',
-                'is_active' => true,
+                'is_active' => false,
             ],
             [
                 'slug' => 'assign-channel',
@@ -280,6 +280,15 @@ class NativeCommandSeeder extends Seeder
                 'example' => 'Example: !help',
                 'is_active' => true,
             ],
+            [
+                'slug' => 'support',
+                'description' => 'Sends a support message to a designated support server.',
+                'class' => \App\Jobs\ProcessSupportCommandJob::class,
+                'usage' => 'Usage: !support <message>',
+                'example' => 'Example: !support I need help with my role.',
+                'is_active' => false,
+            ],
+
         ];
 
         foreach ($commands as $command) {
