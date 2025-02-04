@@ -264,7 +264,14 @@ class NativeCommandSeeder extends Seeder
                 'example' => 'Example: !disconnect @User1 @User2',
                 'is_active' => true,
             ],
-
+            [
+                'slug' => 'poll',
+                'description' => 'Creates a poll with multiple voting options.',
+                'class' => \App\Jobs\ProcessCreatePollJob::class,
+                'usage' => 'Usage: !poll "Question" "Option 1" "Option 2" "Option 3"',
+                'example' => 'Example: !poll "What should we play?" "Minecraft" "Valorant" "Overwatch"',
+                'is_active' => true,
+            ],
         ];
 
         foreach ($commands as $command) {
