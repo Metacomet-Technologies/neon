@@ -55,7 +55,7 @@ final class ProcessLockVoiceChannelJob implements ShouldQueue
 
         // If parsing fails, log the issue and return early
         if ($this->targetChannelId === '') {
-            Log::error("Lock Voice Job Failed: Invalid input. Raw message: " . $this->messageContent);
+            Log::error('Lock Voice Job Failed: Invalid input. Raw message: ' . $this->messageContent);
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => "❌ Invalid input.\n\n{$this->usageMessage}\n{$this->exampleMessage}",
@@ -147,8 +147,9 @@ final class ProcessLockVoiceChannelJob implements ShouldQueue
         // Extract the channel ID (only numbers) and lock/unlock flag
         preg_match('/^!lock-voice\s+(\d{17,19})\s+(true|false)$/i', trim($message), $matches);
 
-        if (!isset($matches[1], $matches[2])) {
-            Log::error("Failed to parse command: " . $message);
+        if (! isset($matches[1], $matches[2])) {
+            Log::error('Failed to parse command: ' . $message);
+
             return ['', false];
         }
 

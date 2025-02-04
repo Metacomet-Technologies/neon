@@ -255,7 +255,7 @@ class NativeCommandSeeder extends Seeder
                 'usage' => 'Usage: !lock-voice <channel-id> <true|false>',
                 'example' => 'Example: !lock-voice 123456789012345678 true',
                 'is_active' => true,
-            ]
+            ],
 
         ];
 
