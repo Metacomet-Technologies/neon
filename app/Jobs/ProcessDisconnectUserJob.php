@@ -22,6 +22,7 @@ final class ProcessDisconnectUserJob implements ShouldQueue
     public string $exampleMessage = 'Example: !disconnect @User1 @User2';
 
     public string $baseUrl;
+
     private array $targetUserIds = [];
 
     private int $retryDelay = 2000;
@@ -43,7 +44,7 @@ final class ProcessDisconnectUserJob implements ShouldQueue
 
         // If parsing fails, send help message
         if (empty($this->targetUserIds)) {
-            Log::error("Disconnect User Job Failed: Invalid input. Raw message: " . $this->messageContent);
+            Log::error('Disconnect User Job Failed: Invalid input. Raw message: ' . $this->messageContent);
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => "❌ Invalid input.\n\n{$this->usageMessage}\n{$this->exampleMessage}",
@@ -87,7 +88,7 @@ final class ProcessDisconnectUserJob implements ShouldQueue
         }
 
         // Send response message
-        if (!empty($failedUsers)) {
+        if (! empty($failedUsers)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => true,
                 'embed_title' => '❌ Disconnect Failed',

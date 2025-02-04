@@ -263,7 +263,7 @@ class NativeCommandSeeder extends Seeder
                 'usage' => 'Usage: !disconnect <@user1> [@user2] ...',
                 'example' => 'Example: !disconnect @User1 @User2',
                 'is_active' => true,
-            ]
+            ],
 
         ];
 
