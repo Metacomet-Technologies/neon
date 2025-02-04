@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use App\Helpers\Discord\GetGuildsByDiscordUserId;
-use App\Enums\DiscordPermissionEnum;
 
 final class ProcessArchiveChannelJob implements ShouldQueue
 {
@@ -114,7 +113,7 @@ final class ProcessArchiveChannelJob implements ShouldQueue
         // Use regex to extract the channel ID or mention and archive/unarchive flag
         preg_match('/^!archive-channel\s+(<#?(\d{17,19})>)?\s*(true|false)$/i', $message, $matches);
 
-        if (!isset($matches[2], $matches[3])) {
+        if (! isset($matches[2], $matches[3])) {
             return [null, null]; // Invalid input
         }
 
@@ -123,5 +122,4 @@ final class ProcessArchiveChannelJob implements ShouldQueue
 
         return [$channelIdentifier, $archiveStatus];
     }
-
 }

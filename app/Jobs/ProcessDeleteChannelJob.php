@@ -51,7 +51,7 @@ final class ProcessDeleteChannelJob implements ShouldQueue
         // Parse the command message
         $targetChannelId = $this->parseMessage($this->messageContent);
 
-        if (!$targetChannelId) {
+        if (! $targetChannelId) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
@@ -102,7 +102,7 @@ final class ProcessDeleteChannelJob implements ShouldQueue
         // Use regex to extract the channel ID or name
         preg_match('/^!delete-channel\s+(<#?(\d{17,19})>|[\w-]+)$/iu', $cleanedMessage, $matches);
 
-        if (!isset($matches[2])) {
+        if (! isset($matches[2])) {
             return null; // Invalid input
         }
 

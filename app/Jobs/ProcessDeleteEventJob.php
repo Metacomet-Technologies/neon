@@ -51,7 +51,7 @@ final class ProcessDeleteEventJob implements ShouldQueue
         // Parse the command message
         $eventId = $this->parseMessage($this->messageContent);
 
-        if (!$eventId) {
+        if (! $eventId) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => "{$this->usageMessage}\n{$this->exampleMessage}",

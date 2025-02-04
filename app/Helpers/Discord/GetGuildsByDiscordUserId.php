@@ -137,6 +137,7 @@ final class GetGuildsByDiscordUserId
 
         return 'failed';
     }
+
     public static function getIfUserCanCreateEvents(string $guildId, string $userId): string
     {
         $roles = self::getGuildRoles($guildId, $userId);
@@ -164,6 +165,7 @@ final class GetGuildsByDiscordUserId
 
         return 'failed';
     }
+
     public static function getIfUserCanMuteMembers(string $guildId, string $userId): string
     {
         $roles = self::getGuildRoles($guildId, $userId);
@@ -191,6 +193,7 @@ final class GetGuildsByDiscordUserId
 
         return 'failed';
     }
+
     public static function getIfUserCanManageRoles(string $guildId, string $userId): string
     {
         $roles = self::getGuildRoles($guildId, $userId);

@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Helpers\Discord\SendMessage;
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
-use App\Enums\DiscordPermissionEnum;
+use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
@@ -53,7 +52,7 @@ final class ProcessAssignChannelJob implements ShouldQueue
         // Parse the command message
         [$channelInput, $categoryInput] = $this->parseMessage($this->messageContent);
 
-        if (!$channelInput || !$categoryInput) {
+        if (! $channelInput || ! $categoryInput) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
@@ -152,7 +151,7 @@ final class ProcessAssignChannelJob implements ShouldQueue
         // Use regex to extract the channel ID or name and category ID or name
         preg_match('/^!assign-channel\s+(<#?(\d{17,19})>|[\w-]+)\s+(<#?(\d{17,19})>|[\w-]+)$/iu', $cleanedMessage, $matches);
 
-        if (!isset($matches[2], $matches[3])) { // ✅ Fix category index reference
+        if (! isset($matches[2], $matches[3])) { // ✅ Fix category index reference
             return [null, null]; // Invalid input
         }
 
