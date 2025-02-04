@@ -1,3 +1,5 @@
+import { FormDataConvertible } from '@inertiajs/core';
+
 export interface NativeCommand {
     id: number;
     slug: string;
@@ -13,5 +15,5 @@ export interface NativeCommandStore {
     description?: string | null;
     class: string;
     is_active: boolean;
-    [key: string]: any;
+    [key: string]: FormDataConvertible;
 }

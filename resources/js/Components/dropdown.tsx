@@ -1,28 +1,49 @@
 'use client';
 
-import * as Headless from '@headlessui/react';
+import * as Headless from '@headlessui/react'; // skipcq: JS-C1003
 import clsx from 'clsx';
 import type React from 'react';
 
 import { Button } from './button';
 import { Link } from './link';
 
-export function Dropdown(props: Headless.MenuProps) {
+/**
+ * Dropdown component using Headless UI Menu.
+ *
+ * @param {Headless.MenuProps} props - The properties for the Headless UI Menu.
+ * @returns {React.JSX.Element} The rendered Dropdown component.
+ */
+export function Dropdown(props: Headless.MenuProps): React.JSX.Element {
     return <Headless.Menu {...props} />;
 }
 
+/**
+ * DropdownButton component using Headless UI MenuButton.
+ *
+ * @param {Object} props - The properties for the Headless UI MenuButton.
+ * @param {string} [props.className] - Additional class names to apply to the button.
+ * @returns {React.JSX.Element} The rendered DropdownButton component.
+ */
 export function DropdownButton<T extends React.ElementType = typeof Button>({
     as = Button,
     ...props
-}: { className?: string } & Omit<Headless.MenuButtonProps<T>, 'className'>) {
+}: { className?: string } & Omit<Headless.MenuButtonProps<T>, 'className'>): React.JSX.Element {
     return <Headless.MenuButton as={as} {...props} />;
 }
 
+/**
+ * DropdownMenu component using Headless UI MenuItems.
+ *
+ * @param {Object} props - The properties for the Headless UI MenuItems.
+ * @param {string} [props.className] - Additional class names to apply to the menu items.
+ * @param {string} [props.anchor] - The anchor position for the menu items.
+ * @returns {React.JSX.Element} The rendered DropdownMenu component.
+ */
 export function DropdownMenu({
     anchor = 'bottom',
     className,
     ...props
-}: { className?: string } & Omit<Headless.MenuItemsProps, 'as' | 'className'>) {
+}: { className?: string } & Omit<Headless.MenuItemsProps, 'as' | 'className'>): React.JSX.Element {
     return (
         <Headless.MenuItems
             {...props}
@@ -51,14 +72,21 @@ export function DropdownMenu({
     );
 }
 
+/**
+ * DropdownItem component using Headless UI MenuItem.
+ *
+ * @param {Object} props - The properties for the Headless UI MenuItem.
+ * @param {string} [props.className] - Additional class names to apply to the menu item.
+ * @returns {React.JSX.Element} The rendered DropdownItem component.
+ */
 export function DropdownItem({
     className,
     ...props
 }: { className?: string } & (
     | Omit<Headless.MenuItemProps<'button'>, 'as' | 'className'>
     | Omit<Headless.MenuItemProps<typeof Link>, 'as' | 'className'>
-)) {
-    let classes = clsx(
+)): React.JSX.Element {
+    const classes = clsx(
         className,
         // Base styles
         'group cursor-default rounded-lg px-3.5 py-2.5 focus:outline-hidden sm:px-3 sm:py-1.5',
@@ -86,14 +114,28 @@ export function DropdownItem({
     );
 }
 
-export function DropdownHeader({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
+/**
+ * DropdownHeader component.
+ *
+ * @param {Object} props - The properties for the DropdownHeader component.
+ * @param {string} [props.className] - Additional class names to apply to the header.
+ * @returns {React.JSX.Element} The rendered DropdownHeader component.
+ */
+export function DropdownHeader({ className, ...props }: React.ComponentPropsWithoutRef<'div'>): React.JSX.Element {
     return <div {...props} className={clsx(className, 'col-span-5 px-3.5 pb-1 pt-2.5 sm:px-3')} />;
 }
 
+/**
+ * DropdownSection component using Headless UI MenuSection.
+ *
+ * @param {Object} props - The properties for the Headless UI MenuSection.
+ * @param {string} [props.className] - Additional class names to apply to the section.
+ * @returns {React.JSX.Element} The rendered DropdownSection component.
+ */
 export function DropdownSection({
     className,
     ...props
-}: { className?: string } & Omit<Headless.MenuSectionProps, 'as' | 'className'>) {
+}: { className?: string } & Omit<Headless.MenuSectionProps, 'as' | 'className'>): React.JSX.Element {
     return (
         <Headless.MenuSection
             {...props}
@@ -106,10 +148,17 @@ export function DropdownSection({
     );
 }
 
+/**
+ * DropdownHeading component using Headless UI MenuHeading.
+ *
+ * @param {Object} props - The properties for the Headless UI MenuHeading.
+ * @param {string} [props.className] - Additional class names to apply to the heading.
+ * @returns {React.JSX.Element} The rendered DropdownHeading component.
+ */
 export function DropdownHeading({
     className,
     ...props
-}: { className?: string } & Omit<Headless.MenuHeadingProps, 'as' | 'className'>) {
+}: { className?: string } & Omit<Headless.MenuHeadingProps, 'as' | 'className'>): React.JSX.Element {
     return (
         <Headless.MenuHeading
             {...props}
@@ -121,10 +170,17 @@ export function DropdownHeading({
     );
 }
 
+/**
+ * DropdownDivider component using Headless UI MenuSeparator.
+ *
+ * @param {Object} props - The properties for the Headless UI MenuSeparator.
+ * @param {string} [props.className] - Additional class names to apply to the separator.
+ * @returns {React.JSX.Element} The rendered DropdownDivider component.
+ */
 export function DropdownDivider({
     className,
     ...props
-}: { className?: string } & Omit<Headless.MenuSeparatorProps, 'as' | 'className'>) {
+}: { className?: string } & Omit<Headless.MenuSeparatorProps, 'as' | 'className'>): React.JSX.Element {
     return (
         <Headless.MenuSeparator
             {...props}
@@ -136,10 +192,17 @@ export function DropdownDivider({
     );
 }
 
+/**
+ * DropdownLabel component using Headless UI Label.
+ *
+ * @param {Object} props - The properties for the Headless UI Label.
+ * @param {string} [props.className] - Additional class names to apply to the label.
+ * @returns {React.JSX.Element} The rendered DropdownLabel component.
+ */
 export function DropdownLabel({
     className,
     ...props
-}: { className?: string } & Omit<Headless.LabelProps, 'as' | 'className'>) {
+}: { className?: string } & Omit<Headless.LabelProps, 'as' | 'className'>): React.JSX.Element {
     return (
         <Headless.Label
             {...props}
@@ -150,10 +213,17 @@ export function DropdownLabel({
     );
 }
 
+/**
+ * DropdownDescription component using Headless UI Description.
+ *
+ * @param {Object} props - The properties for the Headless UI Description.
+ * @param {string} [props.className] - Additional class names to apply to the description.
+ * @returns {React.JSX.Element} The rendered DropdownDescription component.
+ */
 export function DropdownDescription({
     className,
     ...props
-}: { className?: string } & Omit<Headless.DescriptionProps, 'as' | 'className'>) {
+}: { className?: string } & Omit<Headless.DescriptionProps, 'as' | 'className'>): React.JSX.Element {
     return (
         <Headless.Description
             data-slot="description"
@@ -166,11 +236,22 @@ export function DropdownDescription({
     );
 }
 
+/**
+ * DropdownShortcut component using Headless UI Description.
+ *
+ * @param {Object} props - The properties for the Headless UI Description.
+ * @param {string | string[]} props.keys - The shortcut keys to display.
+ * @param {string} [props.className] - Additional class names to apply to the shortcut.
+ * @returns {React.JSX.Element} The rendered DropdownShortcut component.
+ */
 export function DropdownShortcut({
     keys,
     className,
     ...props
-}: { keys: string | string[]; className?: string } & Omit<Headless.DescriptionProps<'kbd'>, 'as' | 'className'>) {
+}: { keys: string | string[]; className?: string } & Omit<
+    Headless.DescriptionProps<'kbd'>,
+    'as' | 'className'
+>): React.JSX.Element {
     return (
         <Headless.Description
             as="kbd"
@@ -179,7 +260,7 @@ export function DropdownShortcut({
         >
             {(Array.isArray(keys) ? keys : keys.split('')).map((char, index) => (
                 <kbd
-                    key={index}
+                    key={index} // skipcq: JS-0437
                     className={clsx([
                         'min-w-[2ch] text-center font-sans capitalize text-zinc-400 group-data-focus:text-white forced-colors:group-data-focus:text-[HighlightText]',
                         // Make sure key names that are longer than one character (like "Tab") have extra space

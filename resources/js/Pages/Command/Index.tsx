@@ -36,53 +36,7 @@ export default function Index({
                     New Command
                 </Button>
             </div>
-            <Table striped dense className="[--gutter:--spacing(6)] sm:[--gutter:--spacing(8)]">
-                <TableHead>
-                    <TableRow>
-                        <TableHeader>Command</TableHeader>
-                        <TableHeader>Response</TableHeader>
-                        <TableHeader>Enabled</TableHeader>
-                        <TableHeader>Public</TableHeader>
-                        <TableHeader>Last Updated</TableHeader>
-                        <TableHeader />
-                    </TableRow>
-                </TableHead>
-
-                <TableBody>
-                    {commands?.data.length === 0 ? (
-                        <EmptyState serverId={serverId} />
-                    ) : (
-                        commands?.data.map((command: Command) => (
-                            <TableRow
-                                href={route('server.command.edit', {
-                                    command: command.id,
-                                    serverId,
-                                })}
-                                key={command.id}
-                            >
-                                <TableCell>!{command.command}</TableCell>
-                                <TableCell>{command.response}</TableCell>
-                                <TableCell>{booleanToIconForTables(command.is_enabled)}</TableCell>
-                                <TableCell>{booleanToIconForTables(command.is_public)}</TableCell>
-                                <TableCell>{formatDateTime(command.updated_at)}</TableCell>
-                                <TableCell>
-                                    <Button
-                                        href={route('server.command.destroy', {
-                                            command: command.id,
-                                            serverId,
-                                        })}
-                                        method="delete"
-                                        plain
-                                    >
-                                        <TrashIcon />
-                                        Delete
-                                    </Button>
-                                </TableCell>
-                            </TableRow>
-                        ))
-                    )}
-                </TableBody>
-            </Table>
+            <CommandTable commands={commands} serverId={serverId} />
             {commands?.links.length > 3 && <PaginationRow links={commands.links} className="mt-4" />}
         </>
     );
@@ -106,3 +60,63 @@ function EmptyState({ serverId }: { serverId: string }): React.JSX.Element {
 }
 
 Index.layout = (page: React.ReactNode) => <Layout>{page}</Layout>;
+
+/**
+ * CommandTable component for displaying a table of commands.
+ *
+ * @param {Object} props - The component props.
+ * @param {Pagination<Command>} props.commands - The paginated list of commands.
+ * @param {string} props.serverId - The ID of the server.
+ * @returns {JSX.Element} The rendered component.
+ */
+function CommandTable({ commands, serverId }: { commands: Pagination<Command>; serverId: string }): React.JSX.Element {
+    return (
+        <Table striped dense className="[--gutter:--spacing(6)] sm:[--gutter:--spacing(8)]">
+            <TableHead>
+                <TableRow>
+                    <TableHeader>Command</TableHeader>
+                    <TableHeader>Response</TableHeader>
+                    <TableHeader>Enabled</TableHeader>
+                    <TableHeader>Public</TableHeader>
+                    <TableHeader>Last Updated</TableHeader>
+                    <TableHeader />
+                </TableRow>
+            </TableHead>
+
+            <TableBody>
+                {commands?.data.length === 0 ? (
+                    <EmptyState serverId={serverId} />
+                ) : (
+                    commands?.data.map((command: Command) => (
+                        <TableRow
+                            href={route('server.command.edit', {
+                                command: command.id,
+                                serverId,
+                            })}
+                            key={command.id}
+                        >
+                            <TableCell>!{command.command}</TableCell>
+                            <TableCell>{command.response}</TableCell>
+                            <TableCell>{booleanToIconForTables(command.is_enabled)}</TableCell>
+                            <TableCell>{booleanToIconForTables(command.is_public)}</TableCell>
+                            <TableCell>{formatDateTime(command.updated_at)}</TableCell>
+                            <TableCell>
+                                <Button
+                                    href={route('server.command.destroy', {
+                                        command: command.id,
+                                        serverId,
+                                    })}
+                                    method="delete"
+                                    plain
+                                >
+                                    <TrashIcon />
+                                    Delete
+                                </Button>
+                            </TableCell>
+                        </TableRow>
+                    ))
+                )}
+            </TableBody>
+        </Table>
+    );
+}

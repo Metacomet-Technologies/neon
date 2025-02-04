@@ -1,4 +1,5 @@
 import { User } from '@/types';
+import { FormDataConvertible } from '@inertiajs/core';
 
 export interface Command {
     id: number;
@@ -31,5 +32,5 @@ export interface CommandStore {
     embed_color?: number | null;
     embed_title?: string | null;
     embed_description?: string | null;
-    [key: string]: any;
+    [key: string]: FormDataConvertible;
 }

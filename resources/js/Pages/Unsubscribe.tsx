@@ -1,8 +1,14 @@
 import { Heading } from '@/Components/heading';
 import { Text } from '@/Components/text';
 import { Head } from '@inertiajs/react';
+import React from 'react';
 
-export default function Unsubscribe() {
+/**
+ * Unsubscribe component renders the unsubscribe confirmation message.
+ *
+ * @returns {JSX.Element} The JSX code for the unsubscribe page.
+ */
+export default function Unsubscribe(): React.JSX.Element {
     return (
         <>
             <Head title="Unsubscribe from Mailing List" />
