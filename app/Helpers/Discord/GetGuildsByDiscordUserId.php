@@ -249,6 +249,7 @@ final class GetGuildsByDiscordUserId
 
         return 'failed';
     }
+
     public static function getIfUserCanSendPolls(string $guildId, string $userId): string
     {
         $roles = self::getGuildRoles($guildId, $userId);

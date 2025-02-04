@@ -21,6 +21,7 @@ final class ProcessCreatePollJob implements ShouldQueue
     public string $exampleMessage = 'Example: !poll "What should we play?" "Minecraft" "Valorant" "Overwatch"';
 
     public string $baseUrl;
+
     private string $question;
     private array $options = [];
 
@@ -42,7 +43,7 @@ final class ProcessCreatePollJob implements ShouldQueue
         [$this->question, $this->options] = $this->parseMessage($this->messageContent);
 
         // If parsing fails, send a help message
-        if (!$this->question || count($this->options) < 2) {
+        if (! $this->question || count($this->options) < 2) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => "❌ Invalid input.\n\n{$this->usageMessage}\n{$this->exampleMessage}",
@@ -74,6 +75,7 @@ final class ProcessCreatePollJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Polls can have a maximum of 10 options.',
             ]);
+
             return;
         }
 
@@ -82,23 +84,23 @@ final class ProcessCreatePollJob implements ShouldQueue
 
         // Construct the poll payload
         $pollPayload = [
-            'content' => "**📊 Poll Created! Click below to vote!**",
+            'content' => '**📊 Poll Created! Click below to vote!**',
             'poll' => [
                 'question' => [
                     'text' => $this->question,
                 ],
-                'answers' => array_map(fn($index, $option) => [
+                'answers' => array_map(fn ($index, $option) => [
                     'poll_media' => [
                         'text' => (string) $option,
                         'emoji' => [
-                            'name' => $defaultEmojis[$index] ?? '✅'
-                        ]
-                    ]
+                            'name' => $defaultEmojis[$index] ?? '✅',
+                        ],
+                    ],
                 ], array_keys($this->options), $this->options),
                 'duration' => 24, // Default to 24 hours
                 'allow_multiselect' => false,
                 'layout_type' => 1,
-            ]
+            ],
         ];
 
         // Send the poll message
