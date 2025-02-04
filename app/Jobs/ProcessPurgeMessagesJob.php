@@ -16,20 +16,21 @@ final class ProcessPurgeMessagesJob implements ShouldQueue
     use Queueable;
 
     public string $usageMessage = 'Usage: !purge #channel <number>';
-    public string $exampleMessage = 'Example: !purge #general 100';
+    public string $exampleMessage = 'Example: !purge #general 250';
 
     private string $baseUrl;
     private string $targetChannelId;
     private int $messageCount;
 
-    private int $retryDelay = 2000;
+    private int $retryDelay = 4000; // 4-second delay
     private int $maxRetries = 3;
+    private int $batchSize = 100; // Max messages per API call
 
     public function __construct(
-        public string $discordUserId, // Command sender (user executing !purge)
-        public string $channelId,     // The channel where the command was sent
-        public string $guildId,       // The guild (server) ID
-        public string $messageContent, // The raw message content
+        public string $discordUserId,
+        public string $channelId,
+        public string $guildId,
+        public string $messageContent,
     ) {
         $this->baseUrl = config('services.discord.rest_api_url');
         [$this->targetChannelId, $this->messageCount] = $this->parseMessage($this->messageContent);
@@ -43,20 +44,18 @@ final class ProcessPurgeMessagesJob implements ShouldQueue
         }
     }
 
-    //TODO: add batch jobs to send more than 100 messages at a time.
     public function handle(): void
     {
-        // 1️⃣ Check if user has permission to purge messages using the new helper
-        if ($this->userHasPermission($this->discordUserId)) {
-            $this->purgeMessages();
+        if (! $this->userHasPermission($this->discordUserId)) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ You do not have permission to purge messages.',
+            ]);
 
             return;
         }
 
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => false,
-            'response' => '❌ You do not have permission to purge messages.',
-        ]);
+        $this->purgeMessages();
     }
 
     private function parseMessage(string $message): array
@@ -68,72 +67,102 @@ final class ProcessPurgeMessagesJob implements ShouldQueue
 
     private function userHasPermission(string $userId): bool
     {
-        // Check for both the ADMINISTRATOR and MANAGE_MESSAGES permissions using the helper
-        if (GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $userId) === 'success') {
-            return true;
-        }
-
-        if (GetGuildsByDiscordUserId::getIfUserCanManageMessages($this->guildId, $userId) === 'success') {
-            return true;
-        }
-
-        return false;
+        return GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $userId) === 'success'
+            || GetGuildsByDiscordUserId::getIfUserCanManageMessages($this->guildId, $userId) === 'success';
     }
 
     private function purgeMessages(): void
     {
-        // Step 1: Validate the message count to be between 2 and 100
-        if ($this->messageCount < 2 || $this->messageCount > 100) {
+        if ($this->messageCount < 2) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => '❌ The number of messages to purge must be between 2 and 100.',
+                'response' => '❌ The number of messages to purge must be at least 2.',
             ]);
 
             return;
         }
 
-        // Step 2: Fetch the recent messages from the channel to get the message IDs
-        $url = "{$this->baseUrl}/channels/{$this->targetChannelId}/messages?limit={$this->messageCount}";
-        $response = Http::withToken(config('discord.token'), 'Bot')->get($url);
+        $messagesToFetch = $this->messageCount;
+        $allMessages = [];
+        $lastMessageId = null;
 
-        // Check if fetching the messages failed
-        if ($response->failed()) {
+        while ($messagesToFetch > 0) {
+            $limit = min($messagesToFetch, 100);
+            $url = "{$this->baseUrl}/channels/{$this->targetChannelId}/messages?limit={$limit}"
+                   . ($lastMessageId ? "&before={$lastMessageId}" : '');
+
+            $response = retry(5, function () use ($url) {
+                return Http::withToken(config('discord.token'), 'Bot')->get($url);
+            }, [4000, 6000, 12000, 20000, 30000]); // Backoff strategy
+
+            if ($response->failed()) {
+                SendMessage::sendMessage($this->channelId, [
+                    'is_embed' => false,
+                    'response' => '❌ Failed to fetch messages. Please try again later.',
+                ]);
+
+                return;
+            }
+
+            $messages = $response->json();
+            if (empty($messages)) {
+                break;
+            }
+
+            foreach ($messages as $msg) {
+                if ((time() - strtotime($msg['timestamp'])) > (14 * 24 * 60 * 60)) {
+                    continue; // Skip messages older than 14 days
+                }
+                $allMessages[] = $msg;
+            }
+
+            $messagesToFetch -= count($messages);
+            $lastMessageId = end($messages)['id'];
+
+            if (! $lastMessageId) {
+                break;
+            }
+        }
+
+        $messageIds = array_column($allMessages, 'id');
+
+        if (empty($messageIds)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => '❌ Failed to fetch messages. Please try again later.',
+                'response' => '❌ No messages found to delete. Messages older than 14 days cannot be deleted in bulk.',
             ]);
 
             return;
         }
 
-        // Step 3: Extract message IDs from the fetched messages
-        $messages = $response->json();
-        $messageIds = array_map(function ($message) {
-            return $message['id'];
-        }, $messages);
+        $batches = array_chunk($messageIds, 100);
+        $failedBatches = 0;
 
-        // Step 4: Send the bulk delete request with the message IDs
-        $deleteUrl = "{$this->baseUrl}/channels/{$this->targetChannelId}/messages/bulk-delete";
-        $deleteResponse = Http::withToken(config('discord.token'), 'Bot')->post($deleteUrl, [
-            'messages' => $messageIds,
-        ]);
+        foreach ($batches as $batchIndex => $batch) {
+            $deleteUrl = "{$this->baseUrl}/channels/{$this->targetChannelId}/messages/bulk-delete";
 
-        // Check if the bulk delete request failed
-        if ($deleteResponse->failed()) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Failed to delete messages. Please try again later.',
-            ]);
+            $deleteResponse = retry(5, function () use ($deleteUrl, $batch) {
+                return Http::withToken(config('discord.token'), 'Bot')
+                    ->post($deleteUrl, ['messages' => $batch]);
+            }, [4000, 6000, 12000, 20000, 30000]);
 
-            return;
+            if ($deleteResponse->failed()) {
+                $failedBatches++;
+            }
         }
 
-        // Step 5: Success! Send confirmation message
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => true,
-            'embed_title' => '🧹 Messages Purged',
-            'embed_description' => "✅ Successfully purged {$this->messageCount} messages from <#{$this->targetChannelId}>.",
-            'embed_color' => 3066993,
-        ]);
+        if ($failedBatches === count($batches)) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ Failed to delete all messages due to rate limits or API errors.',
+            ]);
+        } else {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => true,
+                'embed_title' => '🧹 Messages Purged',
+                'embed_description' => '✅ Successfully purged ' . count($messageIds) . " messages from <#{$this->targetChannelId}>.",
+                'embed_color' => 3066993,
+            ]);
+        }
     }
 }
