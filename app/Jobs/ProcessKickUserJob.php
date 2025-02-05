@@ -8,6 +8,7 @@ use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -18,8 +19,15 @@ final class ProcessKickUserJob implements ShouldQueue
     /**
      * User-friendly instruction messages.
      */
-    public string $usageMessage = 'Usage: !kick <@user>';
-    public string $exampleMessage = 'Example: !kick @User1';
+    public string $usageMessage;
+    public string $exampleMessage;
+
+    // 'slug' => 'kick',
+    // 'description' => 'Kicks a user from the server.',
+    // 'class' => \App\Jobs\ProcessKickUserJob::class,
+    // 'usage' => 'Usage: !kick <user-id>',
+    // 'example' => 'Example: !kick 123456789012345678',
+    // 'is_active' => true,
 
     public string $baseUrl;
 
@@ -37,36 +45,58 @@ final class ProcessKickUserJob implements ShouldQueue
         public string $guildId,
         public string $messageContent,
     ) {
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'kick')->first();
+
+        // Set usage and example messages dynamically
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
+
         $this->baseUrl = config('services.discord.rest_api_url');
 
+        // Normalize curly quotes to straight quotes for better parsing
+        $normalizedMessage = str_replace(['“', '”'], '"', $this->messageContent);
+
         // Parse the message
-        $this->targetUserId = $this->parseMessage($this->messageContent);
-
-        // If parsing fails, send a help message
-        if (! $this->targetUserId) {
-            Log::error('Kick User Job Failed: Invalid input. Raw message: ' . $this->messageContent);
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "❌ Invalid input.\n\n{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
-
-            return;
-        }
+        $this->targetUserId = $this->parseMessage($normalizedMessage);
     }
-
     // TODO: Check if the user is the owner and send owner access token for elevated permissions. this whole file is fubar.
+
     /**
      * Handles the job execution.
      */
     public function handle(): void
     {
+        // Validate input: If no user was provided, return the help message
+        if (! $this->targetUserId) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
+            ]);
+
+            return;
+        }
+
         // Check if the user has permission to kick members
-        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanKickMembers($this->guildId, $this->discordUserId, \App\Enums\DiscordPermissionEnum::KICK_MEMBERS);
+        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanKickMembers(
+            $this->guildId,
+            $this->discordUserId
+        );
 
         if ($permissionCheck !== 'success') {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to kick users in this server.',
+            ]);
+
+            return;
+        }
+
+        // Ensure sender's role is higher than target user's role
+        if (! $this->canKickUser($this->discordUserId, $this->targetUserId)) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ You cannot kick this user. Their role is equal to or higher than yours.',
             ]);
 
             return;
@@ -108,5 +138,48 @@ final class ProcessKickUserJob implements ShouldQueue
         preg_match('/<@!?(\d{17,19})>/', $message, $matches);
 
         return $matches[1] ?? null;
+    }
+
+    /**
+     * ✅ Ensure the sender has a higher role than the target user.
+     */
+    private function canKickUser(string $senderId, string $targetId): bool
+    {
+        $senderRole = $this->getUserHighestRole($senderId);
+        $targetRole = $this->getUserHighestRole($targetId);
+
+        return $senderRole > $targetRole;
+    }
+
+    /**
+     * ✅ Fetch the highest role position for a user.
+     */
+    private function getUserHighestRole(string $userId): int
+    {
+        $url = "{$this->baseUrl}/guilds/{$this->guildId}/members/{$userId}";
+        $response = Http::withToken(config('discord.token'), 'Bot')->get($url);
+
+        if ($response->failed()) {
+            return 0;
+        }
+
+        $userData = $response->json();
+        $roles = $userData['roles'] ?? [];
+
+        if (empty($roles)) {
+            return 0;
+        }
+
+        $rolesUrl = "{$this->baseUrl}/guilds/{$this->guildId}/roles";
+        $rolesResponse = Http::withToken(config('discord.token'), 'Bot')->get($rolesUrl);
+
+        if ($rolesResponse->failed()) {
+            return 0;
+        }
+
+        $allRoles = collect($rolesResponse->json());
+        $userRoles = $allRoles->whereIn('id', $roles);
+
+        return $userRoles->max('position') ?? 0;
     }
 }

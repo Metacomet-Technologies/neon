@@ -8,6 +8,7 @@ use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -18,12 +19,18 @@ final class ProcessEditChannelTopicJob implements ShouldQueue
     /**
      * User-friendly instruction messages.
      */
-    public string $usageMessage = 'Usage: !edit-channel-topic <channel-id> <new-topic>';
-    public string $exampleMessage = 'Example: !edit-channel-topic 123456789012345678 New topic description';
+    public string $usageMessage;
+    public string $exampleMessage;
 
+    // 'slug' => 'edit-channel-topic',
+    // 'description' => 'Edits a channel topic.',
+    // 'class' => \App\Jobs\ProcessEditChannelTopicJob::class,
+    // 'usage' => 'Usage: !edit-channel-topic <channel-id> <new-topic>',
+    // 'example' => 'Example: !edit-channel-topic 123456789012345678 New topic description',
+    // 'is_active' => true,
     private string $baseUrl;
-    private string $targetChannelId; // The actual Discord channel ID to edit
-    private string $newTopic;        // The new channel topic
+    private ?string $targetChannelId = null; // The actual Discord channel ID to edit
+    private ?string $newTopic = null;        // The new channel topic
 
     /**
      * Create a new job instance.
@@ -34,10 +41,20 @@ final class ProcessEditChannelTopicJob implements ShouldQueue
         public string $guildId,
         public string $messageContent
     ) {
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'edit-channel-topic')->first();
+
+        // Set usage and example messages dynamically
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
+
         $this->baseUrl = config('services.discord.rest_api_url');
 
+        // Normalize curly quotes to straight quotes for better parsing
+        $normalizedMessage = str_replace(['“', '”'], '"', $this->messageContent);
+
         // Parse the message
-        [$this->targetChannelId, $this->newTopic] = $this->parseMessage($messageContent);
+        [$this->targetChannelId, $this->newTopic] = $this->parseMessage($normalizedMessage);
     }
 
     /**
@@ -45,6 +62,16 @@ final class ProcessEditChannelTopicJob implements ShouldQueue
      */
     public function handle(): void
     {
+        // Validate input: If no channel/topic provided, send help message
+        if (! $this->targetChannelId || ! $this->newTopic) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
+            ]);
+
+            return;
+        }
+
         // Ensure the user has permission to manage channels
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
 
@@ -56,6 +83,7 @@ final class ProcessEditChannelTopicJob implements ShouldQueue
 
             return;
         }
+
         // Ensure the input is a valid Discord channel ID
         if (! preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
             SendMessage::sendMessage($this->channelId, [

@@ -8,6 +8,7 @@ use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -18,13 +19,20 @@ final class ProcessLockVoiceChannelJob implements ShouldQueue
     /**
      * User-friendly instruction messages.
      */
-    public string $usageMessage = 'Usage: !lock-voice <channel-id> <true|false>';
-    public string $exampleMessage = 'Example: !lock-voice 123456789012345678 true';
+    public string $usageMessage;
+    public string $exampleMessage;
+
+    // 'slug' => 'lock-voice',
+    // 'description' => 'Locks or unlocks a voice channel.',
+    // 'class' => \App\Jobs\ProcessLockVoiceChannelJob::class,
+    // 'usage' => 'Usage: !lock-voice <channel-id> <true|false>',
+    // 'example' => 'Example: !lock-voice 123456789012345678 true',
+    // 'is_active' => true,
 
     public string $baseUrl;
 
-    private string $targetChannelId;
-    private bool $lockStatus;
+    private ?string $targetChannelId = null;
+    private ?bool $lockStatus = null;
 
     private int $retryDelay = 2000;
     private int $maxRetries = 3;
@@ -38,13 +46,24 @@ final class ProcessLockVoiceChannelJob implements ShouldQueue
         public string $guildId,
         public string $messageContent,
     ) {
-        $this->baseUrl = config('services.discord.rest_api_url');
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'lock-voice')->first();
 
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
+        $this->baseUrl = config('services.discord.rest_api_url');
+    }
+
+    /**
+     * Handles the job execution.
+     */
+    public function handle(): void
+    {
         // Check if the user only typed "!lock-voice" with no arguments
         if (trim($this->messageContent) === '!lock-voice') {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => "❌ Invalid input.\n\n{$this->usageMessage}\n{$this->exampleMessage}",
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
             ]);
 
             return;
@@ -53,9 +72,8 @@ final class ProcessLockVoiceChannelJob implements ShouldQueue
         // Parse the message
         [$this->targetChannelId, $this->lockStatus] = $this->parseMessage($this->messageContent);
 
-        // If parsing fails, log the issue and return early
-        if ($this->targetChannelId === '') {
-            Log::error('Lock Voice Job Failed: Invalid input. Raw message: ' . $this->messageContent);
+        // If parsing fails, return early
+        if (! $this->targetChannelId || ! is_bool($this->lockStatus)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => "❌ Invalid input.\n\n{$this->usageMessage}\n{$this->exampleMessage}",
@@ -63,13 +81,7 @@ final class ProcessLockVoiceChannelJob implements ShouldQueue
 
             return;
         }
-    }
 
-    /**
-     * Handles the job execution.
-     */
-    public function handle(): void
-    {
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
 
         if ($permissionCheck !== 'success') {
@@ -150,7 +162,7 @@ final class ProcessLockVoiceChannelJob implements ShouldQueue
         if (! isset($matches[1], $matches[2])) {
             Log::error('Failed to parse command: ' . $message);
 
-            return ['', false];
+            return [null, null];
         }
 
         return [trim($matches[1]), strtolower(trim($matches[2])) === 'true'];

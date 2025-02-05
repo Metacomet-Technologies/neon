@@ -47,7 +47,7 @@ final class ProcessHelpCommandJob implements ShouldQueue
         }
 
         $helpChunks = [];
-        $currentMessage = "**📜 Available Commands:**\n\n";
+        $currentMessage = "**For Syntax and Example type the command with no parameters.\n\nAvailable Commands:**\n\n";
 
         foreach ($commands as $command) {
             $description = $command->description ?? '*No description available.*';

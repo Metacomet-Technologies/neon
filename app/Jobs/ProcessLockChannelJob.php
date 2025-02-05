@@ -8,6 +8,7 @@ use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -15,19 +16,14 @@ final class ProcessLockChannelJob implements ShouldQueue
 {
     use Queueable;
 
-    /**
-     * User-friendly instruction messages.
-     */
-    public string $usageMessage = 'Usage: !lock-channel <channel-id> <true|false>';
-    public string $exampleMessage = 'Example: !lock-channel 123456789012345678 true';
-
     public string $baseUrl;
+    public string $usageMessage;
+    public string $exampleMessage;
 
-    private string $targetChannelId; // The actual Discord channel ID
-    private bool $lockStatus;        // Lock (true) or unlock (false)
-
-    private int $retryDelay = 2000; // ✅ 2-second delay before retrying
-    private int $maxRetries = 3;     // ✅ Max retries per request
+    private ?string $targetChannelId = null;
+    private ?bool $lockStatus = null;
+    private int $retryDelay = 2000;
+    private int $maxRetries = 3;
 
     /**
      * Create a new job instance.
@@ -38,18 +34,12 @@ final class ProcessLockChannelJob implements ShouldQueue
         public string $guildId,
         public string $messageContent,
     ) {
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'lock-channel')->first();
+
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
         $this->baseUrl = config('services.discord.rest_api_url');
-
-        // Parse the message
-        [$this->targetChannelId, $this->lockStatus] = $this->parseMessage($this->messageContent);
-
-        // Validation: Ensure we have a valid channel ID and lock status
-        if (! $this->targetChannelId || ! is_bool($this->lockStatus)) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "❌ Invalid input.\n\n{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
-        }
     }
 
     /**
@@ -57,6 +47,29 @@ final class ProcessLockChannelJob implements ShouldQueue
      */
     public function handle(): void
     {
+        // If the message is just "!lock-channel" with no additional arguments, send help
+        if (trim($this->messageContent) === '!lock-channel') {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
+            ]);
+
+            return;
+        }
+
+        // Parse the message
+        [$this->targetChannelId, $this->lockStatus] = $this->parseMessage($this->messageContent);
+
+        // Ensure proper usage message is sent if no parameters are provided
+        if (! $this->targetChannelId || ! is_bool($this->lockStatus)) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
+            ]);
+
+            return;
+        }
+
         // Ensure the user has permission to manage channels
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
 
@@ -68,6 +81,7 @@ final class ProcessLockChannelJob implements ShouldQueue
 
             return;
         }
+
         // Ensure the input is a valid Discord channel ID
         if (! preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
             SendMessage::sendMessage($this->channelId, [
@@ -78,7 +92,7 @@ final class ProcessLockChannelJob implements ShouldQueue
             return;
         }
 
-        // 1️⃣ Get all roles in the guild
+        // Retrieve all roles in the guild
         $rolesUrl = "{$this->baseUrl}/guilds/{$this->guildId}/roles";
         $rolesResponse = retry($this->maxRetries, function () use ($rolesUrl) {
             return Http::withToken(config('discord.token'), 'Bot')->get($rolesUrl);
@@ -97,7 +111,7 @@ final class ProcessLockChannelJob implements ShouldQueue
         $roles = $rolesResponse->json();
         $failedRoles = [];
 
-        // 2️⃣ Lock or Unlock the channel by updating permissions for all roles
+        // Lock or Unlock the channel by updating permissions for all roles
         foreach ($roles as $role) {
             $roleId = $role['id'];
             $permissionsUrl = "{$this->baseUrl}/channels/{$this->targetChannelId}/permissions/{$roleId}";
@@ -116,7 +130,7 @@ final class ProcessLockChannelJob implements ShouldQueue
             }
         }
 
-        // 3️⃣ Send Response Message
+        // Send response message
         if (! empty($failedRoles)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => true,

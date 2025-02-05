@@ -8,6 +8,7 @@ use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -15,8 +16,8 @@ final class ProcessMoveUserJob implements ShouldQueue
 {
     use Queueable;
 
-    public string $usageMessage = 'Usage: !move-user <@userID | userID> <channelID>';
-    public string $exampleMessage = 'Example: !move-user 123456789012345678 123456789012345678';
+    public string $usageMessage;
+    public string $exampleMessage;
     public int $retryDelay = 2000; // 2-second delay before retrying
     public int $maxRetries = 3; // Max retries per request
 
@@ -33,6 +34,11 @@ final class ProcessMoveUserJob implements ShouldQueue
         public string $guildId,       // The guild (server) ID
         public string $messageContent, // The raw message content
     ) {
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'move-user')->first();
+
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
         $this->baseUrl = config('services.discord.rest_api_url');
 
         // Parse the message
@@ -50,7 +56,7 @@ final class ProcessMoveUserJob implements ShouldQueue
         if (! $this->userId || ! $this->targetChannelId) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => $this->usageMessage,
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
             ]);
 
             return;
