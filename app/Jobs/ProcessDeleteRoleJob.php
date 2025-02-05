@@ -19,12 +19,12 @@ final class ProcessDeleteRoleJob implements ShouldQueue
     public string $usageMessage;
     public string $exampleMessage;
 
-        // 'slug' => 'delete-role',
-        // 'description' => 'Deletes a role.',
-        // 'class' => \App\Jobs\ProcessDeleteRoleJob::class,
-        // 'usage' => 'Usage: !delete-role <role-name>',
-        // 'example' => 'Example: !delete-role VIP',
-        // 'is_active' => true,
+    // 'slug' => 'delete-role',
+    // 'description' => 'Deletes a role.',
+    // 'class' => \App\Jobs\ProcessDeleteRoleJob::class,
+    // 'usage' => 'Usage: !delete-role <role-name>',
+    // 'example' => 'Example: !delete-role VIP',
+    // 'is_active' => true,
 
     /**
      * Create a new job instance.

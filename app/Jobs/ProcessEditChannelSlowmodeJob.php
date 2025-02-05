@@ -8,6 +8,7 @@ use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -16,18 +17,23 @@ final class ProcessEditChannelSlowmodeJob implements ShouldQueue
     use Queueable;
 
     public string $baseUrl;
+    public string $usageMessage;
+    public string $exampleMessage;
 
-    public string $usageMessage = 'Usage: !edit-channel-slowmode <channel-id> <seconds>';
-    public string $exampleMessage = 'Example: !edit-channel-slowmode 123456789012345678 10';
-    public string $targetChannelId;
-    public int $slowmodeSetting;
+    // 'slug' => 'edit-channel-slowmode',
+    // 'description' => 'Edits a channel to have slowmode.',
+    // 'class' => \App\Jobs\ProcessEditChannelSlowmodeJob::class,
+    // 'usage' => 'Usage: !edit-channel-slowmode <channel-id> <seconds [0 - 21600]>',
+    // 'example' => 'Example: !edit-channel-slowmode 123456789012345678 10',
+    // 'is_active' => true,
+
+    public ?string $targetChannelId = null;
+    public ?int $slowmodeSetting = null;
 
     /**
      * The minimum and maximum allowed slowmode durations in seconds.
-     *
-     * @var array<int>
      */
-    public array $slowmodeRange = [0, 21600];
+    public array $slowmodeRange = [0, 21600]; // 0 - 6 hours
 
     /**
      * Create a new job instance.
@@ -38,24 +44,17 @@ final class ProcessEditChannelSlowmodeJob implements ShouldQueue
         public string $guildId,
         public string $messageContent,
     ) {
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'edit-channel-slowmode')->first();
+
+        // Set usage and example messages dynamically
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
+
         $this->baseUrl = config('services.discord.rest_api_url');
 
         // Parse the message
-        [$targetChannelId, $slowmodeSetting] = $this->parseMessage($this->messageContent);
-
-        // If parsing failed, send an error message and exit
-        if ($targetChannelId === null || $slowmodeSetting === null) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "❌ Invalid input format.\n\n{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
-
-            return;
-        }
-
-        // Assign validated values
-        $this->targetChannelId = $targetChannelId;
-        $this->slowmodeSetting = $slowmodeSetting;
+        [$this->targetChannelId, $this->slowmodeSetting] = $this->parseMessage($this->messageContent);
     }
 
     /**
@@ -63,6 +62,16 @@ final class ProcessEditChannelSlowmodeJob implements ShouldQueue
      */
     public function handle(): void
     {
+        // ✅ If the command was used without parameters, send the help message
+        if (! $this->targetChannelId || is_null($this->slowmodeSetting)) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
+            ]);
+
+            return;
+        }
+
         // Ensure the user has permission to manage channels
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
 
@@ -74,6 +83,7 @@ final class ProcessEditChannelSlowmodeJob implements ShouldQueue
 
             return;
         }
+
         // Ensure the input is a valid Discord channel ID
         if (! preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
             SendMessage::sendMessage($this->channelId, [
@@ -122,9 +132,15 @@ final class ProcessEditChannelSlowmodeJob implements ShouldQueue
         ]);
     }
 
+    /**
+     * Parses the message content for command parameters.
+     */
     private function parseMessage(string $message): array
     {
-        // Use regex to parse the command properly (ensure slowmode is strictly numeric)
+        // Normalize curly quotes to straight quotes for mobile compatibility
+        $message = str_replace(['“', '”'], '"', $message);
+
+        // Use regex to parse the command properly
         preg_match('/^!edit-channel-slowmode\s+(<#\d{17,19}>|\d{17,19})\s+(\d+)$/', $message, $matches);
 
         // Validate if both channel and slowmode duration were provided

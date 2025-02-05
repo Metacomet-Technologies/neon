@@ -19,14 +19,15 @@ final class ProcessDisconnectUserJob implements ShouldQueue
     public string $usageMessage;
     public string $exampleMessage;
 
-        // 'slug' => 'disconnect',
-        // 'description' => 'Disconnects one or more users from a voice channel.',
-        // 'class' => \App\Jobs\ProcessDisconnectUserJob::class,
-        // 'usage' => 'Usage: !disconnect <@user1> [@user2] ...',
-        // 'example' => 'Example: !disconnect @User1 @User2',
-        // 'is_active' => true,
+    // 'slug' => 'disconnect',
+    // 'description' => 'Disconnects one or more users from a voice channel.',
+    // 'class' => \App\Jobs\ProcessDisconnectUserJob::class,
+    // 'usage' => 'Usage: !disconnect <@user1> [@user2] ...',
+    // 'example' => 'Example: !disconnect @User1 @User2',
+    // 'is_active' => true,
 
     public string $baseUrl;
+
     private array $targetUserIds = [];
 
     private int $retryDelay = 2000;
@@ -50,12 +51,13 @@ final class ProcessDisconnectUserJob implements ShouldQueue
         // Parse the message
         $this->targetUserIds = $this->parseMessage($this->messageContent);
     }
-//TODO: May want to add logic to have channel id instead of user, which would disonnect all users in that channel.
+
+    //TODO: May want to add logic to have channel id instead of user, which would disonnect all users in that channel.
     public function handle(): void
     {
         // 🚨 **Moved validation here to ensure job does not execute unnecessarily**
         if (empty($this->targetUserIds)) {
-            Log::warning("Disconnect command used without target users.");
+            Log::warning('Disconnect command used without target users.');
 
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
@@ -114,6 +116,7 @@ final class ProcessDisconnectUserJob implements ShouldQueue
     private function parseMessage(string $message): array
     {
         preg_match_all('/<@!?(\d{17,19})>/', $message, $matches);
+
         return $matches[1] ?? [];
     }
 }

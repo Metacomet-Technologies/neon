@@ -8,6 +8,7 @@ use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -18,12 +19,19 @@ final class ProcessEditChannelAutohideJob implements ShouldQueue
     /**
      * User-friendly instruction messages.
      */
-    public string $usageMessage = 'Usage: !edit-channel-autohide <channel-id> <minutes>';
-    public string $exampleMessage = 'Example: !edit-channel-autohide 123456789012345678 1440';
+    public string $usageMessage;
+    public string $exampleMessage;
+
+    // 'slug' => 'edit-channel-autohide',
+    // 'description' => 'Edits channel autohide settings.',
+    // 'class' => \App\Jobs\ProcessEditChannelAutohideJob::class,
+    // 'usage' => 'Usage: !edit-channel-autohide <channel-id> <minutes [60, 1440, 4320, 10080]>',
+    // 'example' => 'Example: !edit-channel-autohide 123456789012345678 1440',
+    // 'is_active' => true,
 
     public string $baseUrl;
-    public string $targetChannelId; // The actual Discord channel ID
-    public int $autoHideDuration;   // Auto-hide duration in minutes
+    public ?string $targetChannelId = null;
+    public ?int $autoHideDuration = null;
 
     /**
      * Allowed auto-hide durations (in minutes).
@@ -39,18 +47,17 @@ final class ProcessEditChannelAutohideJob implements ShouldQueue
         public string $guildId,
         public string $messageContent,
     ) {
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'edit-channel-autohide')->first();
+
+        // Set usage and example messages dynamically
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
+
         $this->baseUrl = config('services.discord.rest_api_url');
 
         // Parse the message
         [$this->targetChannelId, $this->autoHideDuration] = $this->parseMessage($this->messageContent);
-
-        // Validate that we got valid values
-        if (! $this->targetChannelId || ! in_array($this->autoHideDuration, $this->allowedDurations, true)) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "❌ Invalid auto-hide duration.\n\n{$this->usageMessage}\n{$this->exampleMessage}\n\nAllowed values: `60, 1440, 4320, 10080` minutes.",
-            ]);
-        }
     }
 
     /**
@@ -58,6 +65,16 @@ final class ProcessEditChannelAutohideJob implements ShouldQueue
      */
     public function handle(): void
     {
+        // ✅ If the command was used without parameters, send the help message
+        if (! $this->targetChannelId || ! $this->autoHideDuration) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}\n\nAllowed values: `60, 1440, 4320, 10080` minutes.",
+            ]);
+
+            return;
+        }
+
         // Ensure the user has permission to manage channels
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
 
@@ -69,6 +86,7 @@ final class ProcessEditChannelAutohideJob implements ShouldQueue
 
             return;
         }
+
         // Ensure the input is a valid Discord channel ID
         if (! preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
             SendMessage::sendMessage($this->channelId, [

@@ -20,12 +20,12 @@ final class ProcessDeleteChannelJob implements ShouldQueue
     public string $usageMessage;
     public string $exampleMessage;
 
-        // 'slug' => 'delete-channel',
-        // 'description' => 'Deletes a channel.',
-        // 'class' => \App\Jobs\ProcessDeleteChannelJob::class,
-        // 'usage' => 'Usage: !delete-channel <channel-id|channel-name>',
-        // 'example' => 'Example: !delete-channel 123456789012345678 or !delete-channel #general',
-        // 'is_active' => true,
+    // 'slug' => 'delete-channel',
+    // 'description' => 'Deletes a channel.',
+    // 'class' => \App\Jobs\ProcessDeleteChannelJob::class,
+    // 'usage' => 'Usage: !delete-channel <channel-id|channel-name>',
+    // 'example' => 'Example: !delete-channel 123456789012345678 or !delete-channel #general',
+    // 'is_active' => true,
 
     /**
      * Create a new job instance.

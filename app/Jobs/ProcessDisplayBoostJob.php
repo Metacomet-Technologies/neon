@@ -9,6 +9,7 @@ use App\Helpers\Discord\SendMessage;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -19,9 +20,15 @@ final class ProcessDisplayBoostJob implements ShouldQueue
     /**
      * User-friendly instruction messages.
      */
-    public string $usageMessage = 'Usage: !display-boost <true|false>';
-    public string $exampleMessage = 'Example: !display-boost true';
+    public string $usageMessage;
+    public string $exampleMessage;
 
+    // 'slug' => 'display-boost',
+    // 'description' => 'Displays Nitro boost bar status.',
+    // 'class' => \App\Jobs\ProcessDisplayBoostJob::class,
+    // 'usage' => 'Usage: !display-boost <true|false>',
+    // 'example' => 'Example: !display-boost true',
+    // 'is_active' => true,
     private string $baseUrl;
     private ?bool $displayBoost = null; // Whether to enable or disable the boost bar
 
@@ -34,6 +41,13 @@ final class ProcessDisplayBoostJob implements ShouldQueue
         public string $guildId,
         public string $messageContent,
     ) {
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'display-boost')->first();
+
+        // Set usage and example messages dynamically
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
+
         $this->baseUrl = config('services.discord.rest_api_url');
 
         // Parse the message
@@ -43,7 +57,7 @@ final class ProcessDisplayBoostJob implements ShouldQueue
         if ($this->displayBoost === null) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => "❌ Invalid input. Use `true` or `false`.\n\n{$this->usageMessage}\n{$this->exampleMessage}",
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
             ]);
 
             // Stop job execution

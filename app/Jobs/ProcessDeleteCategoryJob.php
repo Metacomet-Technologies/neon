@@ -20,12 +20,12 @@ final class ProcessDeleteCategoryJob implements ShouldQueue
     public string $usageMessage;
     public string $exampleMessage;
 
-        // 'slug' => 'delete-category',
-        // 'description' => 'Deletes a category.',
-        // 'class' => \App\Jobs\ProcessDeleteCategoryJob::class,
-        // 'usage' => 'Usage: !delete-category <category-id>',
-        // 'example' => 'Example: !delete-category 123456789012345678',
-        // 'is_active' => true,
+    // 'slug' => 'delete-category',
+    // 'description' => 'Deletes a category.',
+    // 'class' => \App\Jobs\ProcessDeleteCategoryJob::class,
+    // 'usage' => 'Usage: !delete-category <category-id>',
+    // 'example' => 'Example: !delete-category 123456789012345678',
+    // 'is_active' => true,
 
     /**
      * Create a new job instance.

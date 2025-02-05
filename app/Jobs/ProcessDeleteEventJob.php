@@ -20,12 +20,12 @@ final class ProcessDeleteEventJob implements ShouldQueue
     public string $usageMessage;
     public string $exampleMessage;
 
-        // 'slug' => 'delete-event',
-        // 'description' => 'Deletes a scheduled event.',
-        // 'class' => \App\Jobs\ProcessDeleteEventJob::class,
-        // 'usage' => 'Usage: !delete-event <event-id>',
-        // 'example' => 'Example: !delete-event 123456789012345678',
-        // 'is_active' => true,
+    // 'slug' => 'delete-event',
+    // 'description' => 'Deletes a scheduled event.',
+    // 'class' => \App\Jobs\ProcessDeleteEventJob::class,
+    // 'usage' => 'Usage: !delete-event <event-id>',
+    // 'example' => 'Example: !delete-event 123456789012345678',
+    // 'is_active' => true,
 
     /**
      * Create a new job instance.

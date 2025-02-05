@@ -54,7 +54,8 @@ final class ProcessCreatePollJob implements ShouldQueue
         $this->usageMessage = $command->usage;
         $this->exampleMessage = $command->example;
     }
-//TODO: Add ability for emojis to be included in text
+
+    //TODO: Add ability for emojis to be included in text
     /**
      * Handles the job execution.
      */

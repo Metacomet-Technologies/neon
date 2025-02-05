@@ -8,6 +8,7 @@ use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -16,9 +17,15 @@ final class ProcessEditChannelNSFWJob implements ShouldQueue
     use Queueable;
 
     public string $baseUrl;
+    public string $usageMessage;
+    public string $exampleMessage;
 
-    public string $usageMessage = 'Usage: !edit-channel-nsfw <channel-id> <true|false>';
-    public string $exampleMessage = 'Example: !edit-channel-nsfw 123456789012345678 true';
+    // 'slug' => 'edit-channel-nsfw',
+    // 'description' => 'Edits a channel age-rating or "not suitable for work" NSFW.',
+    // 'class' => \App\Jobs\ProcessEditChannelNSFWJob::class,
+    // 'usage' => 'Usage: !edit-channel-nsfw <channel-id> <true|false>',
+    // 'example' => 'Example: !edit-channel-nsfw 123456789012345678 true',
+    // 'is_active' => true,
 
     /**
      * Valid NSFW settings.
@@ -27,8 +34,8 @@ final class ProcessEditChannelNSFWJob implements ShouldQueue
      */
     public array $validNSFWValues = ['true', 'false'];
 
-    public string $targetChannelId;
-    public bool $nsfwSetting;
+    public ?string $targetChannelId = null;
+    public ?bool $nsfwSetting = null;
 
     /**
      * Create a new job instance.
@@ -39,6 +46,13 @@ final class ProcessEditChannelNSFWJob implements ShouldQueue
         public string $guildId,
         public string $messageContent,
     ) {
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'edit-channel-nsfw')->first();
+
+        // Set usage and example messages dynamically
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
+
         $this->baseUrl = config('services.discord.rest_api_url');
 
         // Parse the message
@@ -50,6 +64,16 @@ final class ProcessEditChannelNSFWJob implements ShouldQueue
      */
     public function handle(): void
     {
+        // ✅ If the command was used without parameters, send the help message
+        if (! $this->targetChannelId || is_null($this->nsfwSetting)) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
+            ]);
+
+            return;
+        }
+
         // Ensure the user has permission to manage channels
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
 
@@ -61,6 +85,7 @@ final class ProcessEditChannelNSFWJob implements ShouldQueue
 
             return;
         }
+
         // Ensure the input is a valid Discord channel ID
         if (! preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
             SendMessage::sendMessage($this->channelId, [
@@ -99,8 +124,14 @@ final class ProcessEditChannelNSFWJob implements ShouldQueue
         ]);
     }
 
+    /**
+     * Parses the message content for command parameters.
+     */
     private function parseMessage(string $message): array
     {
+        // Normalize curly quotes to straight quotes for mobile compatibility
+        $message = str_replace(['“', '”'], '"', $message);
+
         // Use regex to parse the command properly
         preg_match('/^!edit-channel-nsfw\s+(<#\d{17,19}>|\d{17,19})\s+(true|false)$/i', $message, $matches);
 
@@ -108,7 +139,7 @@ final class ProcessEditChannelNSFWJob implements ShouldQueue
             return [null, null]; // Not enough valid parts
         }
 
-        $channelIdentifier = $matches[1]; // Extracted channel mention or ID
+        $channelIdentifier = trim($matches[1]); // Extracted channel mention or ID
         $nsfwSetting = strtolower(trim($matches[2])) === 'true'; // Convert to boolean
 
         // If the channel is mentioned as <#channelID>, extract just the numeric ID

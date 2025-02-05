@@ -8,6 +8,7 @@ use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -18,12 +19,19 @@ final class ProcessEditChannelNameJob implements ShouldQueue
     /**
      * User-friendly instruction messages.
      */
-    public string $usageMessage = 'Usage: !rename-channel <channel-id> <new-name>';
-    public string $exampleMessage = 'Example: !rename-channel 123456789012345678 new-channel-name';
+    public string $usageMessage;
+    public string $exampleMessage;
+
+    // 'slug' => 'edit-channel-name',
+    // 'description' => 'Edits a channel name.',
+    // 'class' => \App\Jobs\ProcessEditChannelNameJob::class,
+    // 'usage' => 'Usage: !edit-channel-name <channel-id> <new-name>',
+    // 'example' => 'Example: !edit-channel-name 123456789012345678 new-channel-name',
+    // 'is_active' => true,
 
     public string $baseUrl;
-    public string $targetChannelId; // The actual Discord channel ID to rename
-    public string $newName;         // The new channel name
+    public ?string $targetChannelId = null;
+    public ?string $newName = null;
 
     /**
      * Create a new job instance.
@@ -34,6 +42,13 @@ final class ProcessEditChannelNameJob implements ShouldQueue
         public string $guildId,
         public string $messageContent,
     ) {
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'edit-channel-name')->first();
+
+        // Set usage and example messages dynamically
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
+
         $this->baseUrl = config('services.discord.rest_api_url');
 
         // Parse the message
@@ -45,6 +60,16 @@ final class ProcessEditChannelNameJob implements ShouldQueue
      */
     public function handle(): void
     {
+        // ✅ If the command was used without parameters, send the help message
+        if (! $this->targetChannelId || ! $this->newName) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
+            ]);
+
+            return;
+        }
+
         // Ensure the user has permission to manage channels
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
 
@@ -56,6 +81,7 @@ final class ProcessEditChannelNameJob implements ShouldQueue
 
             return;
         }
+
         // Ensure the input is a valid Discord channel ID
         if (! preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
             SendMessage::sendMessage($this->channelId, [
@@ -99,6 +125,9 @@ final class ProcessEditChannelNameJob implements ShouldQueue
      */
     private function parseMessage(string $message): array
     {
+        // Normalize curly quotes to straight quotes for mobile compatibility
+        $message = str_replace(['“', '”'], '"', $message);
+
         // Use regex to parse the command properly
         preg_match('/^!edit-channel-name\s+(<#\d{17,19}>|\d{17,19})\s+(.+)$/', $message, $matches);
 
