@@ -8,6 +8,7 @@ use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -16,8 +17,15 @@ final class ProcessDeleteEventJob implements ShouldQueue
     use Queueable;
 
     public string $baseUrl;
-    public string $usageMessage = 'Usage: !delete-event <event-id>';
-    public string $exampleMessage = 'Example: !delete-event 123456789012345678';
+    public string $usageMessage;
+    public string $exampleMessage;
+
+        // 'slug' => 'delete-event',
+        // 'description' => 'Deletes a scheduled event.',
+        // 'class' => \App\Jobs\ProcessDeleteEventJob::class,
+        // 'usage' => 'Usage: !delete-event <event-id>',
+        // 'example' => 'Example: !delete-event 123456789012345678',
+        // 'is_active' => true,
 
     /**
      * Create a new job instance.
@@ -28,6 +36,13 @@ final class ProcessDeleteEventJob implements ShouldQueue
         public string $guildId,
         public string $messageContent,
     ) {
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'delete-event')->first();
+
+        // Set usage and example messages dynamically
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
+
         $this->baseUrl = config('services.discord.rest_api_url');
     }
 

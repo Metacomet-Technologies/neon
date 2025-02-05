@@ -8,6 +8,7 @@ use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -15,8 +16,15 @@ final class ProcessDeleteRoleJob implements ShouldQueue
 {
     use Queueable;
 
-    public string $usageMessage = 'Usage: !delete-role <role-name>';
-    public string $exampleMessage = 'Example: !delete-role VIP';
+    public string $usageMessage;
+    public string $exampleMessage;
+
+        // 'slug' => 'delete-role',
+        // 'description' => 'Deletes a role.',
+        // 'class' => \App\Jobs\ProcessDeleteRoleJob::class,
+        // 'usage' => 'Usage: !delete-role <role-name>',
+        // 'example' => 'Example: !delete-role VIP',
+        // 'is_active' => true,
 
     /**
      * Create a new job instance.
@@ -26,7 +34,14 @@ final class ProcessDeleteRoleJob implements ShouldQueue
         public string $channelId,
         public string $guildId,
         public string $messageContent,
-    ) {}
+    ) {
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'delete-role')->first();
+
+        // Set usage and example messages dynamically
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
+    }
 
     /**
      * Execute the job.
@@ -50,7 +65,7 @@ final class ProcessDeleteRoleJob implements ShouldQueue
         if (count($parts) < 2) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => $this->usageMessage,
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
             ]);
 
             return;

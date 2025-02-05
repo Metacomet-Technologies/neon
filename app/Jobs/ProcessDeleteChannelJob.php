@@ -8,6 +8,7 @@ use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -16,8 +17,15 @@ final class ProcessDeleteChannelJob implements ShouldQueue
     use Queueable;
 
     public string $baseUrl;
-    public string $usageMessage = 'Usage: !delete-channel <channel-id|channel-name>';
-    public string $exampleMessage = 'Example: !delete-channel 123456789012345678 or !delete-channel #general';
+    public string $usageMessage;
+    public string $exampleMessage;
+
+        // 'slug' => 'delete-channel',
+        // 'description' => 'Deletes a channel.',
+        // 'class' => \App\Jobs\ProcessDeleteChannelJob::class,
+        // 'usage' => 'Usage: !delete-channel <channel-id|channel-name>',
+        // 'example' => 'Example: !delete-channel 123456789012345678 or !delete-channel #general',
+        // 'is_active' => true,
 
     /**
      * Create a new job instance.
@@ -28,6 +36,13 @@ final class ProcessDeleteChannelJob implements ShouldQueue
         public string $guildId,
         public string $messageContent,
     ) {
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'delete-channel')->first();
+
+        // Set usage and example messages dynamically
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
+
         $this->baseUrl = config('services.discord.rest_api_url');
     }
 

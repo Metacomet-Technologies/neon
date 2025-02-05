@@ -8,6 +8,7 @@ use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -16,8 +17,15 @@ final class ProcessDeleteCategoryJob implements ShouldQueue
     use Queueable;
 
     public string $baseUrl;
-    public string $usageMessage = 'Usage: !delete-category <category-id>';
-    public string $exampleMessage = 'Example: !delete-category 123456789012345678';
+    public string $usageMessage;
+    public string $exampleMessage;
+
+        // 'slug' => 'delete-category',
+        // 'description' => 'Deletes a category.',
+        // 'class' => \App\Jobs\ProcessDeleteCategoryJob::class,
+        // 'usage' => 'Usage: !delete-category <category-id>',
+        // 'example' => 'Example: !delete-category 123456789012345678',
+        // 'is_active' => true,
 
     /**
      * Create a new job instance.
@@ -28,6 +36,13 @@ final class ProcessDeleteCategoryJob implements ShouldQueue
         public string $guildId,
         public string $messageContent,
     ) {
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'delete-category')->first();
+
+        // Set usage and example messages dynamically
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
+
         $this->baseUrl = config('services.discord.rest_api_url');
     }
 
