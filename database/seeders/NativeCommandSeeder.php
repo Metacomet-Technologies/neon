@@ -288,6 +288,14 @@ class NativeCommandSeeder extends Seeder
                 'example' => 'Example: !support I need help with my role.',
                 'is_active' => false,
             ],
+            [
+                'slug' => 'color',
+                'description' => 'Displays a list of 50 hex colors with their corresponding names.',
+                'class' => \App\Jobs\ProcessColorJob::class,
+                'usage' => 'Usage: !color list | <color-name>',
+                'example' => 'Example: !color list or !color red',
+                'is_active' => true,
+            ],
 
         ];
 

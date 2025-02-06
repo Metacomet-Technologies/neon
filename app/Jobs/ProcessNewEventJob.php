@@ -11,6 +11,7 @@ use DateTimeZone;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 final class ProcessNewEventJob implements ShouldQueue
@@ -18,8 +19,15 @@ final class ProcessNewEventJob implements ShouldQueue
     use Queueable;
 
     public string $baseUrl;
-    public string $usageMessage = 'Usage: !create-event <event-topic> | <start-date> | <start-time> | <event-frequency> | <location> | <description> | [cover-image-url]';
-    public string $exampleMessage = 'Example: !create-event "Weekly Meeting" | 2025-02-10 | 14:00 | weekly | #general | "Join us for our weekly team meeting" | https://example.com/cover.jpg';
+    public string $usageMessage;
+    public string $exampleMessage;
+
+    // 'slug' => 'create-event',
+    // 'description' => 'Creates a new scheduled event.',
+    // 'class' => \App\Jobs\ProcessNewEventJob::class,
+    // 'usage' => 'Usage: !create-event <event-topic> | <start-date> | <start-time> | <event-frequency> | <location> | <description> | [cover-image-url]',
+    // 'example' => 'Example: !create-event "Weekly Meeting" | 2025-02-10 | 14:00 | weekly | #general | "Join us for our weekly team meeting" | https://example.com/cover.jpg',
+    // 'is_active' => true,
 
     /**
      * Create a new job instance.
@@ -30,6 +38,11 @@ final class ProcessNewEventJob implements ShouldQueue
         public string $guildId,
         public string $messageContent,
     ) {
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'create-event')->first();
+
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
         $this->baseUrl = config('services.discord.rest_api_url');
     }
 
@@ -54,7 +67,7 @@ final class ProcessNewEventJob implements ShouldQueue
         if (count($parts) < 6) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => '⚠️ Invalid event format. Use: !create-event "Title" | Date | Time | Frequency | Location | Description',
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
             ]);
 
             return;

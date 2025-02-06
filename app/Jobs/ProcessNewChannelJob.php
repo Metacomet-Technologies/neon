@@ -52,6 +52,13 @@ final class ProcessNewChannelJob implements ShouldQueue
         $this->usageMessage = $command->usage;
         $this->exampleMessage = $command->example;
 
+        // 'slug' => 'new-channel',
+        // 'description' => 'Creates a new text or voice channel.',
+        // 'class' => \App\Jobs\ProcessNewChannelJob::class,
+        // 'usage' => 'Usage: !new-channel <channel-name> <channel-type> [category-id] [channel-topic]',
+        // 'example' => 'Example: !new-channel test-channel text 123456789012345678 "A fun chat for everyone!"',
+        // 'is_active' => true,
+
         $this->baseUrl = config('services.discord.rest_api_url');
     }
 

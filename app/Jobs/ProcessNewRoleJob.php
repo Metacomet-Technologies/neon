@@ -8,6 +8,7 @@ use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB as FacadesDB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -16,12 +17,16 @@ final class ProcessNewRoleJob implements ShouldQueue
     use Queueable;
 
     public string $baseUrl;
-    public string $usageMessage = 'Usage: !new-role <role-name> [color] [hoist]';
-    public string $exampleMessage = 'Example: !new-role VIP #3498db yes';
-    public array $defaultRoleSettings = [
-        'color' => 0xFFFFFF, // Default: White
-        'hoist' => false,    // Default: Not separate from members
-    ];
+    public string $usageMessage;
+    public string $exampleMessage;
+    public array $defaultRoleSettings;
+
+    // 'slug' => 'new-role',
+    // 'description' => 'Creates a new role with optional color and hoist settings.',
+    // 'class' => \App\Jobs\ProcessNewRoleJob::class,
+    // 'usage' => 'Usage: !new-role <role-name> [color] [hoist]',
+    // 'example' => 'Example: !new-role VIP #3498db yes',
+    // 'is_active' => true,
 
     /**
      * Create a new job instance.
@@ -32,6 +37,18 @@ final class ProcessNewRoleJob implements ShouldQueue
         public string $guildId,
         public string $messageContent,
     ) {
+        // Fetch command details from the database
+        $command = FacadesDB::table('native_commands')->where('slug', 'new-role')->first();
+
+        // Set default role settings
+        $this->defaultRoleSettings = [
+            'color' => hexdec('FFFFFF'), // ✅ Ensure default is properly converted to decimal
+            'hoist' => false,
+        ];
+
+        // Fetch command details from the database
+        $this->exampleMessage = $command->example;
+
         $this->baseUrl = config('services.discord.rest_api_url');
     }
 
@@ -40,7 +57,7 @@ final class ProcessNewRoleJob implements ShouldQueue
      */
     public function handle(): void
     {
-        // Ensure the user has permission to manage channels
+        // Ensure the user has permission to manage roles
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageRoles($this->guildId, $this->discordUserId);
 
         if ($permissionCheck !== 'success') {
@@ -51,6 +68,7 @@ final class ProcessNewRoleJob implements ShouldQueue
 
             return;
         }
+
         // 1️⃣ Parse command arguments
         $parts = explode(' ', $this->messageContent);
 
@@ -64,7 +82,7 @@ final class ProcessNewRoleJob implements ShouldQueue
 
         // 2️⃣ Extract role details
         $roleName = $parts[1];
-        $roleColor = $this->defaultRoleSettings['color'];
+        $roleColor = (int) $this->defaultRoleSettings['color']; // ✅ Ensure integer format
         $roleHoist = $this->defaultRoleSettings['hoist'];
 
         // 3️⃣ Handle optional color argument
@@ -76,6 +94,8 @@ final class ProcessNewRoleJob implements ShouldQueue
         if (isset($parts[3]) && strtolower($parts[3]) === 'yes') {
             $roleHoist = true;
         }
+
+        dump('Final Role Color (Decimal)', $roleColor); // ✅ Debugging output
 
         // 5️⃣ Fetch existing roles
         $rolesResponse = Http::withToken(config('discord.token'), 'Bot')
