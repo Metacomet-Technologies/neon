@@ -30,31 +30,20 @@ final class ProcessAssignRoleJob implements ShouldQueue
     public int $retryDelay = 2000; // ✅ 2-second delay before retrying
     public int $maxRetries = 3; // ✅ Max retries per request
 
-    /**
-     * Create a new job instance.
-     */
     public function __construct(
         public string $discordUserId,
         public string $channelId,
         public string $guildId,
         public string $messageContent,
     ) {
-        // Fetch command details from the database
-        $command = DB::table('native_commands')->where('slug', 'assign-channel')->first();
-
-        // Set usage and example messages dynamically
+        $command = DB::table('native_commands')->where('slug', 'assign-role')->first();
         $this->usageMessage = $command->usage;
         $this->exampleMessage = $command->example;
     }
 
-    /**
-     * Execute the job.
-     */
     public function handle(): void
     {
-        // Ensure the user has permission to manage channels
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageRoles($this->guildId, $this->discordUserId);
-
         if ($permissionCheck !== 'success') {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
@@ -63,10 +52,8 @@ final class ProcessAssignRoleJob implements ShouldQueue
 
             return;
         }
-        // 1️⃣ Parse command arguments
-        $parts = explode(' ', $this->messageContent);
 
-        // Validate input
+        $parts = explode(' ', $this->messageContent);
         if (count($parts) < 3) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
@@ -76,12 +63,10 @@ final class ProcessAssignRoleJob implements ShouldQueue
             return;
         }
 
-        // 2️⃣ Extract role name and user mentions
         $roleName = $parts[1];
         $userMentions = array_slice($parts, 2);
         $userIds = [];
 
-        // Validate user mentions
         foreach ($userMentions as $mention) {
             if (! preg_match('/^<@!?(\d+)>$/', $mention, $matches)) {
                 SendMessage::sendMessage($this->channelId, [
@@ -91,10 +76,9 @@ final class ProcessAssignRoleJob implements ShouldQueue
 
                 return;
             }
-            $userIds[] = $matches[1]; // Extract user ID from mention
+            $userIds[] = $matches[1];
         }
 
-        // Fetch all roles in the guild with Laravel's retry
         $rolesUrl = config('services.discord.rest_api_url') . "/guilds/{$this->guildId}/roles";
         $rolesResponse = retry($this->maxRetries, function () use ($rolesUrl) {
             return Http::withToken(config('discord.token'), 'Bot')->get($rolesUrl);
@@ -110,7 +94,6 @@ final class ProcessAssignRoleJob implements ShouldQueue
             return;
         }
 
-        // 4️⃣ Find the role by name
         $roles = $rolesResponse->json();
         $role = collect($roles)->first(fn ($r) => strcasecmp($r['name'], $roleName) === 0);
 
@@ -123,18 +106,14 @@ final class ProcessAssignRoleJob implements ShouldQueue
             return;
         }
 
-        $roleId = $role['id']; // Extract role ID
-
-        // 5️⃣ Assign the role in batches (to avoid rate limits)
+        $roleId = $role['id'];
         $failedUsers = [];
         $successfulUsers = [];
 
-        $chunks = array_chunk($userIds, $this->batchSize); // ✅ Split into batches of 5
+        $chunks = array_chunk($userIds, $this->batchSize);
         foreach ($chunks as $batchIndex => $batch) {
             foreach ($batch as $userId) {
                 $assignUrl = config('services.discord.rest_api_url') . "/guilds/{$this->guildId}/members/{$userId}/roles/{$roleId}";
-
-                // Use Laravel's retry for assigning roles
                 $assignResponse = retry($this->maxRetries, function () use ($assignUrl) {
                     return Http::withToken(config('discord.token'), 'Bot')->put($assignUrl);
                 }, $this->retryDelay);
@@ -146,17 +125,15 @@ final class ProcessAssignRoleJob implements ShouldQueue
                 }
             }
 
-            // ✅ Introduce a retry delay between batches instead of a fixed sleep
             if ($batchIndex < count($chunks) - 1) {
                 retry(1, function () {
-                    sleep($this->retryDelay / 1000); // Convert ms to seconds
+                    usleep($this->retryDelay * 1000); // ✅ Laravel retry for batch delay
 
                     return true;
                 }, $this->retryDelay);
             }
         }
 
-        // ✅ Send Result Message
         $successMessage = count($successfulUsers) > 0
             ? "✅ Assigned role '{$roleName}' to: " . implode(', ', $successfulUsers)
             : '';
@@ -169,7 +146,7 @@ final class ProcessAssignRoleJob implements ShouldQueue
             'is_embed' => true,
             'embed_title' => '🔹 Role Assignment Results',
             'embed_description' => trim($successMessage . "\n" . $errorMessage),
-            'embed_color' => count($successfulUsers) > 0 ? 3066993 : 15158332, // Green if success, Red if failure
+            'embed_color' => count($successfulUsers) > 0 ? 3066993 : 15158332,
         ]);
     }
 }

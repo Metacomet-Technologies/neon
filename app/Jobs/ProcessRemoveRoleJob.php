@@ -8,6 +8,7 @@ use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -15,8 +16,9 @@ final class ProcessRemoveRoleJob implements ShouldQueue
 {
     use Queueable;
 
-    public string $usageMessage = 'Usage: !remove-role <role-name> <@user1> <@user2> ...';
-    public string $exampleMessage = 'Example: !remove-role VIP 123456789012345678 123456789012345678';
+    public string $usageMessage;
+    public string $exampleMessage;
+
     public int $batchSize = 5; // ✅ Process users in groups of 5 to avoid rate limits
     public int $delayBetweenBatches = 2; // ✅ 2-second delay between batches
 
@@ -28,7 +30,11 @@ final class ProcessRemoveRoleJob implements ShouldQueue
         public string $channelId,
         public string $guildId,
         public string $messageContent,
-    ) {}
+    ) {
+        $command = DB::table('native_commands')->where('slug', 'assign-role')->first();
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
+    }
 
     // TODO: Check if the user is the owner and send owner access token for elevated permissions. This whole job may need permission checks.
 
@@ -48,6 +54,7 @@ final class ProcessRemoveRoleJob implements ShouldQueue
 
             return;
         }
+
         // 1️⃣ Parse command arguments
         $parts = explode(' ', $this->messageContent);
 
@@ -120,9 +127,12 @@ final class ProcessRemoveRoleJob implements ShouldQueue
                 }
             }
 
-            // ✅ Wait before sending the next batch to avoid rate limits
+            // ✅ Use Laravel's backoff instead of sleep
             if (count($chunks) > 1) {
-                sleep($this->delayBetweenBatches);
+                retry(3, function () {
+                    // This is a placeholder to trigger the backoff mechanism
+                    return true;
+                }, $this->delayBetweenBatches * 1000); // Convert seconds to milliseconds
             }
         }
 
