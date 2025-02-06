@@ -9,6 +9,7 @@ use App\Helpers\Discord\SendMessage;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -19,9 +20,15 @@ final class ProcessMuteUserJob implements ShouldQueue
     /**
      * User-friendly instruction messages.
      */
-    public string $usageMessage = 'Usage: !mute <user-id>';
-    public string $exampleMessage = 'Example: !mute 123456789012345678';
+    public string $usageMessage;
+    public string $exampleMessage;
 
+    // 'slug' => 'mute',
+    // 'description' => 'Mutes a user in the server.',
+    // 'class' => \App\Jobs\ProcessMuteUserJob::class,
+    // 'usage' => 'Usage: !mute <user-id>',
+    // 'example' => 'Example: !mute 123456789012345678',
+    // 'is_active' => true,
     private string $baseUrl;
     private string $targetUserId; // The user being muted
 
@@ -37,16 +44,32 @@ final class ProcessMuteUserJob implements ShouldQueue
         public string $guildId,
         public string $messageContent,
     ) {
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'mute')->first();
+
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
+
         $this->baseUrl = config('services.discord.rest_api_url');
 
-        // Parse the message
+        // Check if the command was sent without any arguments (only "!mute")
+        if (trim($this->messageContent) === '!mute') {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
+            ]);
+            // Stop further processing by throwing an exception
+            throw new Exception('No user ID provided for !mute command.');
+        }
+
+        // Parse the message for a valid user ID
         $this->targetUserId = $this->parseMessage($this->messageContent);
 
         // Validate input
         if (! $this->targetUserId) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => "❌ Invalid user ID.\n\n{$this->usageMessage}\n{$this->exampleMessage}",
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
             ]);
 
             // Stop execution

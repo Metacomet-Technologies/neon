@@ -20,6 +20,12 @@ final class ProcessLockChannelJob implements ShouldQueue
     public string $usageMessage;
     public string $exampleMessage;
 
+    // 'slug' => 'lock-channel',
+    // 'description' => 'Locks or unlocks a text channel.',
+    // 'class' => \App\Jobs\ProcessLockChannelJob::class,
+    // 'usage' => 'Usage: !lock-channel <channel-id> <true|false>',
+    // 'example' => 'Example: !lock-channel 123456789012345678 true',
+    // 'is_active' => true,
     private ?string $targetChannelId = null;
     private ?bool $lockStatus = null;
     private int $retryDelay = 2000;

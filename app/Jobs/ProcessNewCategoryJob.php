@@ -10,6 +10,7 @@ use Discord\Parts\Channel\Channel;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 final class ProcessNewCategoryJob implements ShouldQueue
@@ -18,8 +19,15 @@ final class ProcessNewCategoryJob implements ShouldQueue
 
     public string $baseUrl;
 
-    public string $usageMessage = 'Usage: !new-category <category-name>';
-    public string $exampleMessage = 'Example: !new-category test-category';
+    public string $usageMessage;
+    public string $exampleMessage;
+
+    // 'slug' => 'new-category',
+    // 'description' => 'Creates a new category in the server.',
+    // 'class' => \App\Jobs\ProcessNewCategoryJob::class,
+    // 'usage' => 'Usage: !new-category <category-name>',
+    // 'example' => 'Example: !new-category test-category',
+    // 'is_active' => true,
 
     /**
      * Create a new job instance.
@@ -30,6 +38,12 @@ final class ProcessNewCategoryJob implements ShouldQueue
         public string $guildId,
         public string $messageContent,
     ) {
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'new-category')->first();
+
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
+
         $this->baseUrl = config('services.discord.rest_api_url');
     }
 
@@ -38,6 +52,16 @@ final class ProcessNewCategoryJob implements ShouldQueue
      */
     public function handle(): void
     {
+        // Validate that required IDs are provided.
+        if (! $this->discordUserId || ! $this->channelId) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
+            ]);
+
+            return;
+        }
+
         // 1️⃣ Ensure the user has permission to create categories
         $adminCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
         if ($adminCheck === 'failed') {
@@ -49,13 +73,18 @@ final class ProcessNewCategoryJob implements ShouldQueue
             return;
         }
 
-        // 2️⃣ Parse the command
+        // 2️⃣ Parse the command: check for command with missing parameters
         $parts = explode(' ', $this->messageContent, 2);
-
-        // If not enough parameters, send usage message
         if (count($parts) < 2) {
-            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
-            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->exampleMessage]);
+            // Send the usage and example messages if no category name is provided.
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => $this->usageMessage,
+            ]);
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => $this->exampleMessage,
+            ]);
 
             return;
         }

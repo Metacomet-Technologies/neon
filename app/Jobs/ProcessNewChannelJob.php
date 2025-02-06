@@ -10,6 +10,7 @@ use App\Helpers\DiscordChannelValidator;
 use Discord\Parts\Channel\Channel;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -19,8 +20,15 @@ final class ProcessNewChannelJob implements ShouldQueue
 
     public string $baseUrl;
 
-    public string $usageMessage = 'Usage: !new-channel <channel-name> <channel-type> [category-id] [channel-topic]';
-    public string $exampleMessage = 'Example: !new-channel test-channel text 123456789012345678 "A fun chat for everyone!"';
+    public string $usageMessage;
+    public string $exampleMessage;
+
+    // 'slug' => 'new-channel',
+    // 'description' => 'Creates a new text or voice channel.',
+    // 'class' => \App\Jobs\ProcessNewChannelJob::class,
+    // 'usage' => 'Usage: !new-channel <channel-name> <channel-type> [category-id] [channel-topic]',
+    // 'example' => 'Example: !new-channel test-channel text 123456789012345678 "A fun chat for everyone!"',
+    // 'is_active' => true,
 
     /**
      * The types of channels that can be created.
@@ -38,6 +46,12 @@ final class ProcessNewChannelJob implements ShouldQueue
         public string $guildId,
         public string $messageContent,
     ) {
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'new-channel')->first();
+
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
+
         $this->baseUrl = config('services.discord.rest_api_url');
     }
 

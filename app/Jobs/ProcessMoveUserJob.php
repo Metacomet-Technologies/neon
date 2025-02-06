@@ -21,6 +21,13 @@ final class ProcessMoveUserJob implements ShouldQueue
     public int $retryDelay = 2000; // 2-second delay before retrying
     public int $maxRetries = 3; // Max retries per request
 
+    // 'slug' => 'move-user',
+    // 'description' => 'Moves a user to a different voice channel.',
+    // 'class' => \App\Jobs\ProcessMoveUserJob::class,
+    // 'usage' => 'Usage: !move-user <@userID | userID> <channelID>',
+    // 'example' => 'Example: !move-user 123456789012345678 123456789012345678',
+    // 'is_active' => true,
+
     public string $baseUrl;
     public string $userId;
     public string $targetChannelId;
