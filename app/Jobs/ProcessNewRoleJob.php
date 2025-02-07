@@ -6,11 +6,11 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB as FacadesDB;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 final class ProcessNewRoleJob implements ShouldQueue
 {
@@ -21,16 +21,6 @@ final class ProcessNewRoleJob implements ShouldQueue
     public string $exampleMessage;
     public array $defaultRoleSettings;
 
-    // 'slug' => 'new-role',
-    // 'description' => 'Creates a new role with optional color and hoist settings.',
-    // 'class' => \App\Jobs\ProcessNewRoleJob::class,
-    // 'usage' => 'Usage: !new-role <role-name> [color] [hoist]',
-    // 'example' => 'Example: !new-role VIP #3498db yes',
-    // 'is_active' => true,
-
-    /**
-     * Create a new job instance.
-     */
     public function __construct(
         public string $discordUserId,
         public string $channelId,
@@ -40,27 +30,32 @@ final class ProcessNewRoleJob implements ShouldQueue
         // Fetch command details from the database
         $command = FacadesDB::table('native_commands')->where('slug', 'new-role')->first();
 
+        dump('Command Data:', $command);
+
+        if (! $command) {
+            throw new Exception('Command configuration missing from database.');
+        }
+
+        // Set correct usage & example messages
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
+
         // Set default role settings
         $this->defaultRoleSettings = [
-            'color' => hexdec('FFFFFF'), // ✅ Ensure default is properly converted to decimal
+            'color' => hexdec('FFFFFF'), // Default white color
             'hoist' => false,
         ];
-
-        // Fetch command details from the database
-        $this->exampleMessage = $command->example;
 
         $this->baseUrl = config('services.discord.rest_api_url');
     }
 
-    /**
-     * Execute the job.
-     */
     public function handle(): void
     {
-        // Ensure the user has permission to manage roles
-        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageRoles($this->guildId, $this->discordUserId);
+        dump("Processing !new-role command from {$this->discordUserId} in guild {$this->guildId}");
 
-        if ($permissionCheck !== 'success') {
+        // Ensure the user has permission to manage roles
+        if (! GetGuildsByDiscordUserId::getIfUserCanManageRoles($this->guildId, $this->discordUserId)) {
+            dump('❌ User does not have permission to manage roles.');
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to manage roles in this server.',
@@ -70,19 +65,24 @@ final class ProcessNewRoleJob implements ShouldQueue
         }
 
         // 1️⃣ Parse command arguments
-        $parts = explode(' ', $this->messageContent);
+        $parts = explode(' ', trim($this->messageContent));
+
+        dump('Parsed Command Parts:', $parts);
 
         // If not enough parameters, send usage message
         if (count($parts) < 2) {
-            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
-            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->exampleMessage]);
+            dump('❌ Not enough parameters. Sending help message.');
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
+            ]);
 
             return;
         }
 
         // 2️⃣ Extract role details
         $roleName = $parts[1];
-        $roleColor = (int) $this->defaultRoleSettings['color']; // ✅ Ensure integer format
+        $roleColor = (int) $this->defaultRoleSettings['color']; // Convert to integer
         $roleHoist = $this->defaultRoleSettings['hoist'];
 
         // 3️⃣ Handle optional color argument
@@ -95,14 +95,14 @@ final class ProcessNewRoleJob implements ShouldQueue
             $roleHoist = true;
         }
 
-        dump('Final Role Color (Decimal)', $roleColor); // ✅ Debugging output
+        dump('Final Role Color (Decimal)', $roleColor);
 
         // 5️⃣ Fetch existing roles
         $rolesResponse = Http::withToken(config('discord.token'), 'Bot')
             ->get("{$this->baseUrl}/guilds/{$this->guildId}/roles");
 
         if ($rolesResponse->failed()) {
-            Log::error("Failed to fetch roles for guild {$this->guildId}");
+            dump("❌ Failed to fetch roles for guild {$this->guildId}");
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ Failed to retrieve roles from the server.',
@@ -115,7 +115,8 @@ final class ProcessNewRoleJob implements ShouldQueue
 
         // 6️⃣ Check if the role exists
         foreach ($existingRoles as $role) {
-            if (strcasecmp($role['name'], $roleName) === 0) { // ✅ Case-insensitive comparison
+            if (strcasecmp($role['name'], $roleName) === 0) { // Case-insensitive comparison
+                dump("❌ Role '{$roleName}' already exists.");
                 SendMessage::sendMessage($this->channelId, [
                     'is_embed' => false,
                     'response' => "❌ Role '{$roleName}' already exists.",
@@ -137,9 +138,7 @@ final class ProcessNewRoleJob implements ShouldQueue
 
         // 8️⃣ Handle API Response
         if ($apiResponse->failed()) {
-            Log::error("Failed to create role '{$roleName}' in guild {$this->guildId}", [
-                'response' => $apiResponse->json(),
-            ]);
+            dump("❌ Failed to create role '{$roleName}' in guild {$this->guildId}", $apiResponse->json());
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => "❌ Failed to create role '{$roleName}'.",
@@ -150,6 +149,8 @@ final class ProcessNewRoleJob implements ShouldQueue
 
         // ✅ Success! Send confirmation message
         $createdRole = $apiResponse->json();
+        dump('✅ Role Created Successfully:', $createdRole);
+
         SendMessage::sendMessage($this->channelId, [
             'is_embed' => true,
             'embed_title' => '✅ Role Created!',

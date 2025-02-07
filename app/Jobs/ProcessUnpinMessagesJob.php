@@ -50,7 +50,7 @@ final class ProcessUnpinMessagesJob implements ShouldQueue
         if (empty(trim($this->messageContent)) || ($this->messageId === null && $this->unpinType === null)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => "❌ Invalid input.\n\n{$this->usageMessage}\n{$this->exampleMessage}",
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
             ]);
             throw new Exception('Invalid input for !unpin. Expected a valid message ID, "latest", or "oldest".');
         }

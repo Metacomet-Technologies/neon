@@ -296,6 +296,14 @@ class NativeCommandSeeder extends Seeder
                 'example' => 'Example: !color list or !color red',
                 'is_active' => true,
             ],
+            [
+                'slug' => 'set-nickname',
+                'description' => 'Changes a user’s nickname in the server.',
+                'class' => \App\Jobs\ProcessUserNicknameJob::class,
+                'usage' => 'Usage: !set-nickname <@user> <nickname>',
+                'example' => 'Example: !set-nickname @JohnDoe CoolGuy123',
+                'is_active' => true,
+            ],
 
         ];
 
