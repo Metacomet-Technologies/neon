@@ -304,7 +304,46 @@ class NativeCommandSeeder extends Seeder
                 'example' => 'Example: !set-nickname @JohnDoe CoolGuy123',
                 'is_active' => true,
             ],
-
+            [
+                'slug' => 'prune',
+                'description' => 'Kicks members inactive for the specified number of days.',
+                'class' => \App\Jobs\ProcessPruneInactiveMembersJob::class,
+                'usage' => 'Usage: !prune <days>',
+                'example' => 'Example: !prune 30',
+                'is_active' => true,
+            ],
+            [
+                'slug' => 'vanish',
+                'description' => 'Hides a text channel for everyone but admins.',
+                'class' => \App\Jobs\ProcessVanishChannelJob::class,
+                'usage' => 'Usage: !vanish <channel>',
+                'example' => 'Example: !vanish #general',
+                'is_active' => true,
+            ],
+            [
+                'slug' => 'unvanish',
+                'description' => 'Restores visibility to a previously vanished channel for everyone.',
+                'class' => \App\Jobs\ProcessUnvanishChannelJob::class,
+                'usage' => 'Usage: !unvanish <channel>',
+                'example' => 'Example: !unvanish #general',
+                'is_active' => true,
+            ],
+            [
+                'slug' => 'notify',
+                'description' => 'Sends an embedded announcement to a specified channel with mentions.',
+                'class' => \App\Jobs\ProcessNotifyMessageJob::class,
+                'usage' => 'Usage: !notify <#channel> <(@user, @everyone, @here, @role)> [title] | <message>',
+                'example' => 'Example: !notify #announcements @everyone Server Maintenance | The server will be down at midnight.',
+                'is_active' => true,
+            ],
+            [
+                'slug' => 'scheduled-message',
+                'description' => 'Schedules a message to be sent at a later time in a specific channel.',
+                'class' => \App\Jobs\ProcessScheduledMessageJob::class,
+                'usage' => 'Usage: !scheduled-message <#channel> <YYYY-MM-DD HH:MM> <message>',
+                'example' => 'Example: !scheduled-message #announcements 2025-02-07 18:48 Server maintenance Starting!',
+                'is_active' => true,
+            ],
         ];
 
         foreach ($commands as $command) {

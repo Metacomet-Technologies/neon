@@ -55,6 +55,40 @@ final class GetGuildsByDiscordUserId
     /**
      * Get all guilds where the user has the given permission.
      */
+    public static function getIfUserIsAdmin(string $guildId, string $userId): string
+    {
+        $roles = self::getGuildRoles($guildId, $userId);
+
+        if (empty($roles)) {
+            return 'failed';
+        }
+
+        // Required permissions
+        $adminPermission = DiscordPermissionEnum::ADMINISTRATOR;
+        $manageChannels = DiscordPermissionEnum::MANAGE_CHANNELS;
+        $manageRoles = DiscordPermissionEnum::MANAGE_ROLES;
+
+        foreach ($roles as $role) {
+            $rolePermission = self::getRoleFromGuild($guildId, $role);
+            if (! $rolePermission) {
+                continue;
+            }
+
+            // Ensure $rolePermission is an integer before performing bitwise operation
+            $rolePermission = (int) $rolePermission;
+
+            if (
+                ($rolePermission & $adminPermission->value) ||
+                ($rolePermission & $manageChannels->value) ||
+                ($rolePermission & $manageRoles->value)
+            ) {
+                return 'success';
+            }
+        }
+
+        return 'failed';
+    }
+
     public static function getIfUserCanManageChannels(string $guildId, string $userId, DiscordPermissionEnum $permission = DiscordPermissionEnum::MANAGE_CHANNELS): string
     {
         $roles = self::getGuildRoles($guildId, $userId);
