@@ -1,5 +1,6 @@
 <?php
 
+//TODO: Check backoff strategy and retry logic. doesnt seem to be in parity with number stated in message
 declare(strict_types=1);
 
 namespace App\Jobs;
@@ -9,20 +10,27 @@ use App\Helpers\Discord\SendMessage;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 final class ProcessPurgeMessagesJob implements ShouldQueue
 {
     use Queueable;
 
-    public string $usageMessage = 'Usage: !purge #channel <number>';
-    public string $exampleMessage = 'Example: !purge #general 250';
+    public string $usageMessage;
+    public string $exampleMessage;
 
+    // 'slug' => 'purge',
+    // 'description' => 'Deletes a specified number of messages from a channel.',
+    // 'class' => \App\Jobs\ProcessPurgeMessagesJob::class,
+    // 'usage' => 'Usage: !purge #channel <number>',
+    // 'example' => 'Example: !purge #general 100',
+    // 'is_active' => true,
     private string $baseUrl;
-    private string $targetChannelId;
-    private int $messageCount;
+    private ?string $targetChannelId = null;
+    private ?int $messageCount = null;
 
-    private int $retryDelay = 4000; // 4-second delay
+    private int $retryDelay = 6000; // 4-second delay
     private int $maxRetries = 3;
     private int $batchSize = 100; // Max messages per API call
 
@@ -32,13 +40,21 @@ final class ProcessPurgeMessagesJob implements ShouldQueue
         public string $guildId,
         public string $messageContent,
     ) {
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'purge')->first();
+
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
         $this->baseUrl = config('services.discord.rest_api_url');
+
+        // Parse the message
         [$this->targetChannelId, $this->messageCount] = $this->parseMessage($this->messageContent);
 
-        if (! $this->targetChannelId || ! $this->messageCount) {
+        // 🚨 **Validation: Show help message if no arguments are provided**
+        if (empty(trim($this->messageContent)) || $this->targetChannelId === null || $this->messageCount === null) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => "❌ Invalid input.\n\n{$this->usageMessage}\n{$this->exampleMessage}",
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
             ]);
             throw new Exception('Invalid input for !purge. Expected a valid channel and number of messages.');
         }
@@ -144,7 +160,7 @@ final class ProcessPurgeMessagesJob implements ShouldQueue
             $deleteResponse = retry(5, function () use ($deleteUrl, $batch) {
                 return Http::withToken(config('discord.token'), 'Bot')
                     ->post($deleteUrl, ['messages' => $batch]);
-            }, [4000, 6000, 12000, 20000, 30000]);
+            }, [6000, 8000, 12000, 20000, 30000]);
 
             if ($deleteResponse->failed()) {
                 $failedBatches++;

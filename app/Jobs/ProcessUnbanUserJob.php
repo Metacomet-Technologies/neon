@@ -9,17 +9,24 @@ use App\Helpers\Discord\SendMessage;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 final class ProcessUnbanUserJob implements ShouldQueue
 {
     use Queueable;
 
-    public string $usageMessage = 'Usage: !unban <user-id>';
-    public string $exampleMessage = 'Example: !unban 1335401202648748064';
+    public string $usageMessage;
+    public string $exampleMessage;
 
+    // 'slug' => 'unban',
+    // 'description' => 'Unbans a user from the server.',
+    // 'class' => \App\Jobs\ProcessUnbanUserJob::class,
+    // 'usage' => 'Usage: !unban <user-id>',
+    // 'example' => 'Example: !unban 1335401202648748064',
+    // 'is_active' => true,
     private string $baseUrl;
-    private string $targetUserId;
+    private ?string $targetUserId = null;
 
     private int $retryDelay = 2000;
     private int $maxRetries = 3;
@@ -30,15 +37,18 @@ final class ProcessUnbanUserJob implements ShouldQueue
         public string $guildId,
         public string $messageContent,
     ) {
+        $command = DB::table('native_commands')->where('slug', 'unban')->first();
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
         $this->baseUrl = config('services.discord.rest_api_url');
         $this->targetUserId = $this->parseMessage($this->messageContent);
 
-        if (! $this->targetUserId) {
+        // 🚨 **Validation: Show help message if no arguments are provided**
+        if (empty(trim($this->messageContent)) || $this->targetUserId === null) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => "❌ Invalid user ID.\n\n{$this->usageMessage}\n{$this->exampleMessage}",
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
             ]);
-
             throw new Exception('Invalid input for !unban. Expected a valid user ID.');
         }
     }

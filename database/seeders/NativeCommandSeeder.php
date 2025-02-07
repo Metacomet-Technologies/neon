@@ -244,7 +244,7 @@ class NativeCommandSeeder extends Seeder
                 'slug' => 'unpin',
                 'description' => 'Unpins a specified message.',
                 'class' => \App\Jobs\ProcessUnpinMessagesJob::class,
-                'usage' => 'Usage: !unpin <message-id>',
+                'usage' => 'Usage: !unpin <message-id> | oldest | latest',
                 'example' => 'Example: !unpin 123456789012345678',
                 'is_active' => true,
             ],

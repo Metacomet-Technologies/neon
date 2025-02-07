@@ -9,6 +9,7 @@ use App\Helpers\Discord\SendMessage;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -19,11 +20,17 @@ final class ProcessUnmuteUserJob implements ShouldQueue
     /**
      * User-friendly instruction messages.
      */
-    public string $usageMessage = 'Usage: !unmute <user-id>';
-    public string $exampleMessage = 'Example: !unmute 123456789012345678';
+    public string $usageMessage;
+    public string $exampleMessage;
 
+    // 'slug' => 'unmute',
+    // 'description' => 'Unmutes a user in the server.',
+    // 'class' => \App\Jobs\ProcessUnmuteUserJob::class,
+    // 'usage' => 'Usage: !unmute <user-id>',
+    // 'example' => 'Example: !unmute 123456789012345678',
+    // 'is_active' => true,
     private string $baseUrl;
-    private string $targetUserId; // The user being unmuted
+    private ?string $targetUserId = null; // The user being unmuted
 
     private int $retryDelay = 2000; // ✅ 2-second delay before retrying
     private int $maxRetries = 3;    // ✅ Max retries per request
@@ -37,18 +44,20 @@ final class ProcessUnmuteUserJob implements ShouldQueue
         public string $guildId,
         public string $messageContent,
     ) {
+        $command = DB::table('native_commands')->where('slug', 'unmute')->first();
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
         $this->baseUrl = config('services.discord.rest_api_url');
 
         // Parse the message
         $this->targetUserId = $this->parseMessage($this->messageContent);
 
-        // Validate input
-        if (! $this->targetUserId) {
+        // 🚨 **Validation: Show help message if no arguments are provided**
+        if (empty(trim($this->messageContent)) || $this->targetUserId === null) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => "❌ Invalid user ID.\n\n{$this->usageMessage}\n{$this->exampleMessage}",
+                'response' => "{$this->usageMessage}}\n{$this->exampleMessage}",
             ]);
-
             throw new Exception('Invalid input for !unmute. Expected a valid user ID.');
         }
     }

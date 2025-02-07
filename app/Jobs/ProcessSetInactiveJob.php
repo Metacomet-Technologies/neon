@@ -6,8 +6,10 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -18,12 +20,18 @@ final class ProcessSetInactiveJob implements ShouldQueue
     /**
      * User-friendly instruction messages.
      */
-    public string $usageMessage = 'Usage: !set-inactive <channel-name|channel-id> <timeout>';
-    public string $exampleMessage = 'Example: !set-inactive general-voice 300';
+    public string $usageMessage;
+    public string $exampleMessage;
 
+    // 'slug' => 'set-inactive',
+    // 'description' => 'Sets a timeout for marking a channel as inactive.',
+    // 'class' => \App\Jobs\ProcessSetInactiveJob::class,
+    // 'usage' => 'Usage: !set-inactive <channel-name|channel-id> <timeout>',
+    // 'example' => 'Example: !set-inactive general-voice 300',
+    // 'is_active' => true,
     private string $baseUrl;
-    private string $targetChannelId; // The actual Discord voice channel ID
-    private int $afkTimeout;         // Timeout duration in seconds
+    private ?string $targetChannelId = null; // The actual Discord voice channel ID
+    private ?int $afkTimeout = null;         // Timeout duration in seconds
 
     /**
      * Allowed AFK timeout values (in seconds).
@@ -39,21 +47,25 @@ final class ProcessSetInactiveJob implements ShouldQueue
         public string $guildId,
         public string $messageContent,
     ) {
+        $command = DB::table('native_commands')->where('slug', 'set-inactive')->first();
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
         $this->baseUrl = config('services.discord.rest_api_url');
 
         // Parse the message
         [$channelInput, $this->afkTimeout] = $this->parseMessage($this->messageContent);
 
-        // Resolve the voice channel ID (if input is a name)
-        $this->targetChannelId = $this->resolveVoiceChannelId($channelInput);
-
-        // Validate input
-        if (! $this->targetChannelId || ! in_array($this->afkTimeout, $this->allowedTimeouts, true)) {
+        // 🚨 **Validation: Show help message if no arguments are provided**
+        if ($channelInput === null || $this->afkTimeout === null) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => "❌ Invalid input.\n\n{$this->usageMessage}\n{$this->exampleMessage}\n\nAllowed timeout values: `60, 300, 900, 1800, 3600` seconds.",
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}\n\nAllowed timeout values: `60, 300, 900, 1800, 3600` seconds.",
             ]);
+            throw new Exception('Invalid input for !set-inactive. Expected a valid voice channel and timeout.');
         }
+
+        // Ensure `$channelInput` is a string before passing it to `resolveVoiceChannelId()`
+        $this->targetChannelId = $this->resolveVoiceChannelId((string) $channelInput);
     }
 
     /**

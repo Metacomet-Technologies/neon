@@ -9,17 +9,25 @@ use App\Helpers\Discord\SendMessage;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 final class ProcessPinMessagesJob implements ShouldQueue
 {
     use Queueable;
 
-    public string $usageMessage = 'Usage: !pin <message-id> or !pin this';
-    public string $exampleMessage = 'Example: !pin 123456789012345678 or !pin this';
+    public string $usageMessage;
+    public string $exampleMessage;
 
+    // 'slug' => 'pin',
+    // 'description' => 'Pins a specific message or the last message in the channel.',
+    // 'class' => \App\Jobs\ProcessPinMessagesJob::class,
+    // 'usage' => 'Usage: !pin <message-id> or !pin this',
+    // 'example' => 'Example: !pin 123456789012345678 or !pin this',
+    // 'is_active' => true,
     private string $baseUrl;
-    private string $messageId;
+    private string $messageId = ''; // ✅ Default to empty string to prevent null error
 
     private int $retryDelay = 2000;
     private int $maxRetries = 3;
@@ -30,21 +38,34 @@ final class ProcessPinMessagesJob implements ShouldQueue
         public string $guildId,       // The guild (server) ID
         public string $messageContent, // The raw message content
     ) {
-        $this->baseUrl = config('services.discord.rest_api_url');
-        $this->messageId = $this->parseMessage($this->messageContent);
+        // Fetch command details from the database
+        $command = DB::table('native_commands')->where('slug', 'pin')->first();
 
-        if (! $this->messageId) {
+        $this->usageMessage = $command->usage;
+        $this->exampleMessage = $command->example;
+        $this->baseUrl = config('services.discord.rest_api_url');
+        $this->messageId = $this->parseMessage($this->messageContent) ?? ''; // ✅ Ensures it's never null
+
+        // 🚨 **Validation: Prevent execution if no message ID is found**
+        if (empty($this->messageId)) {
+            Log::warning('Pin command used without specifying a message ID or "this".', [
+                'channel_id' => $this->channelId,
+                'user_id' => $this->discordUserId,
+                'message_content' => $this->messageContent,
+            ]);
+
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => "❌ Invalid input. Please provide a valid message ID or use 'this' to pin the last message.\n\n{$this->usageMessage}",
+                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
             ]);
+
             throw new Exception('Invalid input for !pin. Expected a valid message ID or the keyword "this".');
         }
     }
 
     public function handle(): void
     {
-        // 1️⃣ Check if user has permission to pin messages using the same helper methods as before
+        // 1️⃣ Check if user has permission to pin messages
         if ($this->userHasPermission($this->discordUserId)) {
             $this->pinMessage();
 
@@ -105,7 +126,7 @@ final class ProcessPinMessagesJob implements ShouldQueue
 
     private function userHasPermission(string $userId): bool
     {
-        // Check for both the ADMINISTRATOR and MANAGE_MESSAGES permissions using the helper
+        // Check for both the ADMINISTRATOR and MANAGE_MESSAGES permissions
         if (GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $userId) === 'success') {
             return true;
         }

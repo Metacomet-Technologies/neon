@@ -19,6 +19,13 @@ final class ProcessRemoveRoleJob implements ShouldQueue
     public string $usageMessage;
     public string $exampleMessage;
 
+    // 'slug' => 'remove-role',
+    // 'description' => 'Removes a role from one or more users.',
+    // 'class' => \App\Jobs\ProcessRemoveRoleJob::class,
+    // 'usage' => 'Usage: !remove-role <role-name> <@user1> <@user2> ...',
+    // 'example' => 'Example: !remove-role VIP 123456789012345678 123456789012345678',
+    // 'is_active' => true,
+
     public int $batchSize = 5; // ✅ Process users in groups of 5 to avoid rate limits
     public int $delayBetweenBatches = 2; // ✅ 2-second delay between batches
 
@@ -31,7 +38,7 @@ final class ProcessRemoveRoleJob implements ShouldQueue
         public string $guildId,
         public string $messageContent,
     ) {
-        $command = DB::table('native_commands')->where('slug', 'assign-role')->first();
+        $command = DB::table('native_commands')->where('slug', 'remove-role')->first();
         $this->usageMessage = $command->usage;
         $this->exampleMessage = $command->example;
     }
@@ -59,7 +66,7 @@ final class ProcessRemoveRoleJob implements ShouldQueue
         $parts = explode(' ', $this->messageContent);
 
         if (count($parts) < 3) {
-            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
+            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => "{$this->usageMessage}\n{$this->exampleMessage}"]);
 
             return;
         }
