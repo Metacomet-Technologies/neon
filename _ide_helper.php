@@ -24355,6 +24355,74 @@ namespace Illuminate\View {
             }
     }
 
+namespace Illuminate\Database\Eloquent\Relations {
+    /**
+     * 
+     *
+     * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+     * @template TDeclaringModel of \Illuminate\Database\Eloquent\Model
+     * @extends \Illuminate\Database\Eloquent\Relations\Relation<TRelatedModel, TDeclaringModel, \Illuminate\Database\Eloquent\Collection<int, TRelatedModel>>
+     */
+    class BelongsToMany {
+        /**
+         * 
+         *
+         * @see \Laravel\Nova\Query\Mixin\BelongsToMany::getDefaultPivotAttributes()
+         * @static 
+         */
+        public static function getDefaultPivotAttributes()
+        {
+            return \Illuminate\Database\Eloquent\Relations\BelongsToMany::getDefaultPivotAttributes();
+        }
+
+        /**
+         * 
+         *
+         * @see \Laravel\Nova\Query\Mixin\BelongsToMany::applyDefaultPivotQuery()
+         * @param mixed $query
+         * @static 
+         */
+        public static function applyDefaultPivotQuery($query)
+        {
+            return \Illuminate\Database\Eloquent\Relations\BelongsToMany::applyDefaultPivotQuery($query);
+        }
+
+            }
+    /**
+     * 
+     *
+     * @template TRelatedModel of \Illuminate\Database\Eloquent\Model
+     * @template TDeclaringModel of \Illuminate\Database\Eloquent\Model
+     * @template TResult
+     * @mixin \Illuminate\Database\Eloquent\Builder<TRelatedModel>
+     */
+    class Relation {
+        /**
+         * 
+         *
+         * @see \Laravel\Nova\Query\Mixin\BelongsToMany::getDefaultPivotAttributes()
+         * @static 
+         */
+        public static function getDefaultPivotAttributes()
+        {
+            return \Illuminate\Database\Eloquent\Relations\Relation::getDefaultPivotAttributes();
+        }
+
+        /**
+         * 
+         *
+         * @see \Laravel\Nova\Query\Mixin\BelongsToMany::applyDefaultPivotQuery()
+         * @param mixed $query
+         * @static 
+         */
+        public static function applyDefaultPivotQuery($query)
+        {
+            return \Illuminate\Database\Eloquent\Relations\Relation::applyDefaultPivotQuery($query);
+        }
+
+            }
+    }
+
 
 namespace  {
     class App extends \Illuminate\Support\Facades\App {}
@@ -28748,6 +28816,7 @@ namespace  {
     class Validator extends \Illuminate\Support\Facades\Validator {}
     class View extends \Illuminate\Support\Facades\View {}
     class Vite extends \Illuminate\Support\Facades\Vite {}
+    class Nova extends \Laravel\Nova\Nova {}
     class Pulse extends \Laravel\Pulse\Facades\Pulse {}
     class Socialite extends \Laravel\Socialite\Facades\Socialite {}
     class Livewire extends \Livewire\Livewire {}
