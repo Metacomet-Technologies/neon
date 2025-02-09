@@ -5,7 +5,6 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\CommandController;
 use App\Http\Controllers\JoinServerController;
-use App\Http\Controllers\NativeCommandController;
 use App\Http\Controllers\PrivacyPolicyController;
 use App\Http\Controllers\ServerController;
 use App\Http\Controllers\TermsOfServiceController;
@@ -26,11 +25,6 @@ Route::group(['middleware' => 'auth'], function () {
         Route::get('/', [ServerController::class, 'index'])->name('index');
         Route::get('{serverId}', [ServerController::class, 'show'])->name('show');
         Route::resource('{serverId}/command', CommandController::class)->except(['show']);
-    });
-
-    Route::prefix('admin')->name('admin.')->middleware('can:viewAdminPanel')->group(function () {
-        Route::inertia('/', 'Admin/Index')->name('index');
-        Route::resource('native-command', NativeCommandController::class);
     });
 });
 

@@ -94,11 +94,11 @@ final class ProcessColorJob implements ShouldQueue
     public function handle(): void
     {
         // dump('Starting ProcessColorJob', [
-            'User ID' => $this->discordUserId,
-            'Channel ID' => $this->channelId,
-            'Guild ID' => $this->guildId,
-            'Raw Message Content' => $this->messageContent,
-        ]);
+        //     'User ID' => $this->discordUserId,
+        //     'Channel ID' => $this->channelId,
+        //     'Guild ID' => $this->guildId,
+        //     'Raw Message Content' => $this->messageContent,
+        // ]);
 
         // Convert message content to lowercase and trim spaces
         $trimmedMessage = strtolower(trim($this->messageContent));
@@ -163,10 +163,10 @@ final class ProcessColorJob implements ShouldQueue
             $colorDecimal = hexdec(ltrim($hexCode, '#'));
 
             // dump('Final Embed Payload', [
-                'embed_title' => "🎨 {$colorName}",
-                'embed_description' => "Here is the hex code for **{$colorName}**.",
-                'embed_color' => $colorDecimal,
-            ]);
+            //     'embed_title' => "🎨 {$colorName}",
+            //     'embed_description' => "Here is the hex code for **{$colorName}**.",
+            //     'embed_color' => $colorDecimal,
+            // ]);
 
             // ✅ Use `embed_title`, `embed_description`, and `embed_color` for compatibility
             SendMessage::sendMessage($this->channelId, [
