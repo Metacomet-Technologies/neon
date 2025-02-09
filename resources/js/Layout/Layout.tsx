@@ -71,7 +71,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                     <NavbarLabel>{currentGuild?.name || 'Servers'}</NavbarLabel>
                                     <ChevronDownIcon />
                                 </DropdownButton>
-                                <ServerDropDownMenu guilds={auth.user?.guilds || []} />
+                                <ServerDropDownMenu
+                                    guilds={auth.user?.guilds || []}
+                                    currentGuildId={currentServerId || ''}
+                                />
                             </Dropdown>
                         )}
                     </NavbarSection>
@@ -149,7 +152,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                         <NavbarLabel>{currentGuild?.name || 'Servers'}</NavbarLabel>
                                         <ChevronDownIcon />
                                     </DropdownButton>
-                                    <ServerDropDownMenu guilds={auth.user?.guilds || []} />
+                                    <ServerDropDownMenu
+                                        guilds={auth.user?.guilds || []}
+                                        currentGuildId={currentServerId || ''}
+                                    />
                                 </Dropdown>
                             )}
                         </SidebarSection>
@@ -231,12 +237,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
  *
  * @param {Object} props - The component props.
  * @param {Guild[]} props.guilds - The list of guilds to be displayed in the dropdown menu.
+ * @param {string} [props.currentGuildId] - The ID of the currently selected guild.
  */
-function ServerDropDownMenu({ guilds }: { guilds: Guild[] }) {
+function ServerDropDownMenu({ guilds, currentGuildId }: { guilds: Guild[]; currentGuildId?: string }) {
+    const currentRoute: string = route().current() as string;
+    const currentRouteParams: { [key: string]: string } = route().params;
+
+    const replaceCurrentRoute = (guildId: string) => {
+        if (guildId === currentGuildId) {
+            return '#';
+        }
+        const newRouteParams = { ...currentRouteParams, serverId: guildId };
+        return route(currentRoute, newRouteParams);
+    };
+
     return (
         <DropdownMenu className="min-w-80 lg:min-w-64" anchor="bottom start">
             {guilds.map((guild) => (
-                <DropdownItem key={guild.id} href={route('server.show', guild.id)}>
+                <DropdownItem key={guild.id} href={replaceCurrentRoute(guild.id)}>
                     <DropdownLabel>{guild.name}</DropdownLabel>
                 </DropdownItem>
             ))}
