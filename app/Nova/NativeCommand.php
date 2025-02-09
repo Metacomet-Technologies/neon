@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Nova;
 
 use Laravel\Nova\Fields\Boolean;
@@ -9,7 +11,7 @@ use Laravel\Nova\Fields\Text;
 use Laravel\Nova\Fields\Textarea;
 use Laravel\Nova\Http\Requests\NovaRequest;
 
-class NativeCommand extends Resource
+final class NativeCommand extends Resource
 {
     /**
      * The model the resource corresponds to.

@@ -4,10 +4,11 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
-class ProcessPruneInactiveMembersJob
+class ProcessPruneInactiveMembersJob implements ShouldQueue
 {
     public string $usageMessage;
     public string $exampleMessage;
@@ -72,7 +73,7 @@ class ProcessPruneInactiveMembersJob
 
         // Call the Discord API to prune members
         $response = Http::withHeaders([
-            'Authorization' => 'Bot ' . env('DISCORD_BOT_TOKEN'),
+            'Authorization' => 'Bot ' . config('discord.token'),
             'Content-Type' => 'application/json',
         ])->post("https://discord.com/api/v10/guilds/{$this->guildId}/prune", [
             'days' => (int) $days,

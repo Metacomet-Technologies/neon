@@ -35,10 +35,10 @@ final class ProcessUserNicknameJob implements ShouldQueue
         public string $guildId,       // The guild (server) ID
         public string $messageContent // The raw message content
     ) {
-        dump("Processing !set-nickname command from {$this->discordUserId} in channel {$this->channelId}");
+        // dump("Processing !set-nickname command from {$this->discordUserId} in channel {$this->channelId}");
 
         $command = DB::table('native_commands')->where('slug', 'set-nickname')->first();
-        dump('Command Data:', $command);
+        // dump('Command Data:', $command);
 
         if (! $command) {
             throw new Exception('Command configuration missing from database.');
@@ -50,12 +50,12 @@ final class ProcessUserNicknameJob implements ShouldQueue
 
         // Parse message content
         [$parsedUserId, $parsedNickname] = $this->parseMessage($this->messageContent);
-        dump('Parsed User ID:', $parsedUserId);
-        dump('Parsed Nickname:', $parsedNickname);
+        // dump('Parsed User ID:', $parsedUserId);
+        // dump('Parsed Nickname:', $parsedNickname);
 
         // If parsing failed, send an error message and abort execution
         if (is_null($parsedUserId) || is_null($parsedNickname)) {
-            dump('❌ Invalid input detected, aborting job.');
+            // dump('❌ Invalid input detected, aborting job.');
 
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
@@ -72,11 +72,11 @@ final class ProcessUserNicknameJob implements ShouldQueue
 
     public function handle(): void
     {
-        dump("Handling nickname update for user {$this->targetUserId} in guild {$this->guildId}");
+        // dump("Handling nickname update for user {$this->targetUserId} in guild {$this->guildId}");
 
         // Check if the user has permission to change nicknames
         if (! GetGuildsByDiscordUserId::getIfUserCanManageNicknames($this->guildId, $this->discordUserId)) {
-            dump('❌ User does not have permission to change nicknames.');
+            // dump('❌ User does not have permission to change nicknames.');
 
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
@@ -88,7 +88,7 @@ final class ProcessUserNicknameJob implements ShouldQueue
 
         // Validate target user ID format
         if (! preg_match('/^\d{17,19}$/', $this->targetUserId)) {
-            dump("❌ Invalid user ID format: {$this->targetUserId}");
+            // dump("❌ Invalid user ID format: {$this->targetUserId}");
 
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
@@ -102,14 +102,14 @@ final class ProcessUserNicknameJob implements ShouldQueue
         $url = "{$this->baseUrl}/guilds/{$this->guildId}/members/{$this->targetUserId}";
         $payload = ['nick' => $this->newNickname];
 
-        dump('Sending API request to update nickname:', $url, $payload);
+        // dump('Sending API request to update nickname:', $url, $payload);
 
         try {
             $apiResponse = retry($this->maxRetries, function () use ($url, $payload) {
                 return Http::withToken(config('discord.token'), 'Bot')->patch($url, $payload);
             }, $this->retryDelay);
 
-            dump('API Response Status:', $apiResponse->status());
+            // dump('API Response Status:', $apiResponse->status());
 
             if ($apiResponse->failed()) {
                 $statusCode = $apiResponse->status();
@@ -122,7 +122,7 @@ final class ProcessUserNicknameJob implements ShouldQueue
                     $errorMessage = "❌ Failed to update nickname for <@{$this->targetUserId}>.";
                 }
 
-                dump("❌ API request failed. Status Code: {$statusCode}");
+                // dump("❌ API request failed. Status Code: {$statusCode}");
 
                 SendMessage::sendMessage($this->channelId, [
                     'is_embed' => false,
@@ -133,7 +133,7 @@ final class ProcessUserNicknameJob implements ShouldQueue
             }
 
             // Success message
-            dump("✅ Nickname updated successfully for <@{$this->targetUserId}>: {$this->newNickname}");
+            // dump("✅ Nickname updated successfully for <@{$this->targetUserId}>: {$this->newNickname}");
 
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => true,
@@ -143,7 +143,7 @@ final class ProcessUserNicknameJob implements ShouldQueue
             ]);
 
         } catch (Exception $e) {
-            dump('❌ Unexpected error updating nickname:', $e->getMessage());
+            // dump('❌ Unexpected error updating nickname:', $e->getMessage());
 
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
@@ -157,7 +157,7 @@ final class ProcessUserNicknameJob implements ShouldQueue
      */
     private function parseMessage(string $message): array
     {
-        dump('Parsing message:', $message);
+        // dump('Parsing message:', $message);
 
         // Normalize message format
         $message = trim(preg_replace('/\s+/', ' ', $message)); // Convert multiple spaces to a single space
@@ -166,12 +166,12 @@ final class ProcessUserNicknameJob implements ShouldQueue
         preg_match('/^!set-nickname\s+<@!?(\d{17,19})>\s+(.+)$/', $message, $matches);
 
         if (! isset($matches[1]) || ! isset($matches[2])) {
-            dump("❌ Failed to parse message: '{$message}'. Regex did not match.");
+            // dump("❌ Failed to parse message: '{$message}'. Regex did not match.");
 
             return [null, null];
         }
 
-        dump("✅ Successfully parsed user ID: {$matches[1]}, New Nickname: {$matches[2]}");
+        // dump("✅ Successfully parsed user ID: {$matches[1]}, New Nickname: {$matches[2]}");
 
         return [$matches[1], trim($matches[2])];
     }

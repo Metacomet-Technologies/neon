@@ -161,26 +161,26 @@ final class StartNeonCommand extends Command
         $dateTime = $date . ' ' . $time;
 
         // Debugging Information
-        dump('Scheduled Message Debug - Raw Input:', [
-            'full_message' => $messageContent,
-            'split_parts' => $parts,
-            'target_channel' => $targetChannelId,
-            'date' => $date,
-            'time' => $time,
-            'dateTime' => $dateTime,
-            'messageText' => $messageText,
-        ]);
+        // dump('Scheduled Message Debug - Raw Input:', [
+        //     'full_message' => $messageContent,
+        //     'split_parts' => $parts,
+        //     'target_channel' => $targetChannelId,
+        //     'date' => $date,
+        //     'time' => $time,
+        //     'dateTime' => $dateTime,
+        //     'messageText' => $messageText,
+        // ]);
 
         try {
             // Strictly enforce date-time parsing in UTC
             $scheduledTime = Carbon::createFromFormat('Y-m-d H:i', $dateTime, 'UTC')->setTimezone('UTC');
 
             // Dump parsed time
-            dump('Parsed Date-Time:', [
-                'input' => $dateTime,
-                'parsed' => $scheduledTime->toDateTimeString(),
-                'current_time' => Carbon::now('UTC')->toDateTimeString(),
-            ]);
+            // dump('Parsed Date-Time:', [
+            //     'input' => $dateTime,
+            //     'parsed' => $scheduledTime->toDateTimeString(),
+            //     'current_time' => Carbon::now('UTC')->toDateTimeString(),
+            // ]);
 
             // Ensure time is in the future
             if ($scheduledTime->isPast()) {
@@ -192,10 +192,10 @@ final class StartNeonCommand extends Command
                 return;
             }
         } catch (Exception $e) {
-            dump('Scheduled Message Parsing Error:', [
-                'error_message' => $e->getMessage(),
-                'input_time' => $dateTime,
-            ]);
+            // dump('Scheduled Message Parsing Error:', [
+            //     'error_message' => $e->getMessage(),
+            //     'input_time' => $dateTime,
+            // ]);
 
             SendMessage::sendMessage($channelId, [
                 'is_embed' => false,

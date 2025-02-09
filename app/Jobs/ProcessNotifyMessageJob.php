@@ -4,10 +4,11 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
-class ProcessNotifyMessageJob
+class ProcessNotifyMessageJob implements ShouldQueue
 {
     public string $usageMessage;
     public string $exampleMessage;
@@ -96,7 +97,7 @@ class ProcessNotifyMessageJob
 
         // Send the announcement message
         $response = Http::withHeaders([
-            'Authorization' => 'Bot ' . env('DISCORD_BOT_TOKEN'),
+            'Authorization' => 'Bot ' . config('discord.token'),
             'Content-Type' => 'application/json',
         ])->post("https://discord.com/api/v10/channels/{$targetChannelId}/messages", [
             'content' => $mention,

@@ -30,7 +30,7 @@ final class ProcessNewRoleJob implements ShouldQueue
         // Fetch command details from the database
         $command = FacadesDB::table('native_commands')->where('slug', 'new-role')->first();
 
-        dump('Command Data:', $command);
+        // dump('Command Data:', $command);
 
         if (! $command) {
             throw new Exception('Command configuration missing from database.');
@@ -51,11 +51,11 @@ final class ProcessNewRoleJob implements ShouldQueue
 
     public function handle(): void
     {
-        dump("Processing !new-role command from {$this->discordUserId} in guild {$this->guildId}");
+        // dump("Processing !new-role command from {$this->discordUserId} in guild {$this->guildId}");
 
         // Ensure the user has permission to manage roles
         if (! GetGuildsByDiscordUserId::getIfUserCanManageRoles($this->guildId, $this->discordUserId)) {
-            dump('❌ User does not have permission to manage roles.');
+            // dump('❌ User does not have permission to manage roles.');
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to manage roles in this server.',
@@ -67,11 +67,11 @@ final class ProcessNewRoleJob implements ShouldQueue
         // 1️⃣ Parse command arguments
         $parts = explode(' ', trim($this->messageContent));
 
-        dump('Parsed Command Parts:', $parts);
+        // dump('Parsed Command Parts:', $parts);
 
         // If not enough parameters, send usage message
         if (count($parts) < 2) {
-            dump('❌ Not enough parameters. Sending help message.');
+            // dump('❌ Not enough parameters. Sending help message.');
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
@@ -95,14 +95,14 @@ final class ProcessNewRoleJob implements ShouldQueue
             $roleHoist = true;
         }
 
-        dump('Final Role Color (Decimal)', $roleColor);
+        // dump('Final Role Color (Decimal)', $roleColor);
 
         // 5️⃣ Fetch existing roles
         $rolesResponse = Http::withToken(config('discord.token'), 'Bot')
             ->get("{$this->baseUrl}/guilds/{$this->guildId}/roles");
 
         if ($rolesResponse->failed()) {
-            dump("❌ Failed to fetch roles for guild {$this->guildId}");
+            // dump("❌ Failed to fetch roles for guild {$this->guildId}");
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ Failed to retrieve roles from the server.',
@@ -116,7 +116,7 @@ final class ProcessNewRoleJob implements ShouldQueue
         // 6️⃣ Check if the role exists
         foreach ($existingRoles as $role) {
             if (strcasecmp($role['name'], $roleName) === 0) { // Case-insensitive comparison
-                dump("❌ Role '{$roleName}' already exists.");
+                // dump("❌ Role '{$roleName}' already exists.");
                 SendMessage::sendMessage($this->channelId, [
                     'is_embed' => false,
                     'response' => "❌ Role '{$roleName}' already exists.",
@@ -138,7 +138,7 @@ final class ProcessNewRoleJob implements ShouldQueue
 
         // 8️⃣ Handle API Response
         if ($apiResponse->failed()) {
-            dump("❌ Failed to create role '{$roleName}' in guild {$this->guildId}", $apiResponse->json());
+            // dump("❌ Failed to create role '{$roleName}' in guild {$this->guildId}", $apiResponse->json());
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => "❌ Failed to create role '{$roleName}'.",
@@ -149,7 +149,7 @@ final class ProcessNewRoleJob implements ShouldQueue
 
         // ✅ Success! Send confirmation message
         $createdRole = $apiResponse->json();
-        dump('✅ Role Created Successfully:', $createdRole);
+        // dump('✅ Role Created Successfully:', $createdRole);
 
         SendMessage::sendMessage($this->channelId, [
             'is_embed' => true,

@@ -78,7 +78,7 @@ final class ProcessColorJob implements ShouldQueue
         // Fetch command details from the database
         $command = DB::table('native_commands')->where('slug', 'color')->first();
 
-        dump('Fetched command from database', $command);
+        // dump('Fetched command from database', $command);
 
         $this->usageMessage = $command->usage ?? 'Usage information not available.';
         $this->exampleMessage = $command->example ?? 'Example not available.';
@@ -93,7 +93,7 @@ final class ProcessColorJob implements ShouldQueue
 
     public function handle(): void
     {
-        dump('Starting ProcessColorJob', [
+        // dump('Starting ProcessColorJob', [
             'User ID' => $this->discordUserId,
             'Channel ID' => $this->channelId,
             'Guild ID' => $this->guildId,
@@ -102,15 +102,15 @@ final class ProcessColorJob implements ShouldQueue
 
         // Convert message content to lowercase and trim spaces
         $trimmedMessage = strtolower(trim($this->messageContent));
-        dump('Trimmed Message', $trimmedMessage);
+        // dump('Trimmed Message', $trimmedMessage);
 
         // Split message into parts based on spaces
         $parts = explode(' ', $trimmedMessage);
-        dump('Split Message Parts', $parts);
+        // dump('Split Message Parts', $parts);
 
         // If the user sends only "!color", return the usage and example message
         if (count($parts) < 2) {
-            dump('User only typed !color, returning usage message');
+            // dump('User only typed !color, returning usage message');
 
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
@@ -126,7 +126,7 @@ final class ProcessColorJob implements ShouldQueue
 
         // If the user requests "!color list"
         if ($parts[1] === 'list') {
-            dump('User requested color list');
+            // dump('User requested color list');
 
             $responseLines = [];
             foreach ($this->colors as $name => $hex) {
@@ -144,7 +144,7 @@ final class ProcessColorJob implements ShouldQueue
 
         // Get the requested color name
         $requestedColor = trim(strtolower(implode(' ', array_slice($parts, 1))));
-        dump('User requested color', $requestedColor);
+        // dump('User requested color', $requestedColor);
 
         // Search for the color
         $matchedColor = null;
@@ -155,14 +155,14 @@ final class ProcessColorJob implements ShouldQueue
             }
         }
 
-        dump('Matched color', $matchedColor);
+        // dump('Matched color', $matchedColor);
 
         if ($matchedColor) {
             $hexCode = $matchedColor['hex'];
             $colorName = $matchedColor['name'];
             $colorDecimal = hexdec(ltrim($hexCode, '#'));
 
-            dump('Final Embed Payload', [
+            // dump('Final Embed Payload', [
                 'embed_title' => "🎨 {$colorName}",
                 'embed_description' => "Here is the hex code for **{$colorName}**.",
                 'embed_color' => $colorDecimal,
@@ -179,7 +179,7 @@ final class ProcessColorJob implements ShouldQueue
             return;
         }
 
-        dump('Color not found', $requestedColor);
+        // dump('Color not found', $requestedColor);
 
         SendMessage::sendMessage($this->channelId, [
             'is_embed' => false,

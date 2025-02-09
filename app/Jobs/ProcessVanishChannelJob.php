@@ -4,10 +4,11 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
-class ProcessVanishChannelJob
+class ProcessVanishChannelJob implements ShouldQueue
 {
     public string $usageMessage;
     public string $exampleMessage;
@@ -74,7 +75,7 @@ class ProcessVanishChannelJob
 
         // Get @everyone role ID for the guild
         $guildRolesResponse = Http::withHeaders([
-            'Authorization' => 'Bot ' . env('DISCORD_BOT_TOKEN'),
+            'Authorization' => 'Bot ' . config('discord.token'),
             'Content-Type' => 'application/json',
         ])->get("https://discord.com/api/v10/guilds/{$this->guildId}/roles");
 
@@ -103,7 +104,7 @@ class ProcessVanishChannelJob
 
         // 🔹 THIS IS WHERE YOU REPLACE YOUR EXISTING API CALL WITH THE DEBUGGING CODE:
         $response = Http::withHeaders([
-            'Authorization' => 'Bot ' . env('DISCORD_BOT_TOKEN'),
+            'Authorization' => 'Bot ' . config('discord.token'),
             'Content-Type' => 'application/json',
         ])->put("https://discord.com/api/v10/channels/{$targetChannelId}/permissions/{$everyoneRoleId}", [
 
@@ -114,7 +115,7 @@ class ProcessVanishChannelJob
         ]);
 
         // Dump response for debugging
-        dump($response->json());
+        // dump($response->json());
 
         if ($response->successful()) {
             SendMessage::sendMessage($this->channelId, [
@@ -128,7 +129,7 @@ class ProcessVanishChannelJob
             ]);
 
             // Dump full error details for debugging
-            dump('❌ Discord API Response:', $response->json());
+            // dump('❌ Discord API Response:', $response->json());
         }
     }
 }
