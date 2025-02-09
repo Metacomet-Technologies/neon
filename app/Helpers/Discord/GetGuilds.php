@@ -78,7 +78,11 @@ final class GetGuilds
             if ($response->status() === 401 || $response->status() === 403) {
                 $newToken = (new DiscordRefreshToken($this->user))->refreshToken();
                 if (! $newToken) {
-                    return redirect()->route('login');
+                    Log::error('Failed to get user token', [
+                        'user_id' => $this->user->id,
+                    ]);
+
+                    return [];
                 }
                 $response = Http::withToken($newToken)->get($url);
             }
