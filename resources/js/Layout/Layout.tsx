@@ -23,7 +23,9 @@ import {
     ArrowRightStartOnRectangleIcon,
     ChevronDownIcon,
     ChevronUpIcon,
+    CpuChipIcon,
     ShieldCheckIcon,
+    TableCellsIcon,
     WindowIcon,
 } from '@heroicons/react/16/solid';
 import { usePage } from '@inertiajs/react';
@@ -47,11 +49,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
     const currentGuild = auth?.user?.guilds?.find((guild) => guild.id === currentServerId) || null;
 
-    /**
-     * Redirects the user to the login page.
-     */
-    const handleLogin = useCallback(() => {
-        window.location.href = route('login');
+    const handleExternalLinkClick = useCallback((routeName: string) => {
+        window.open(route(routeName), '_blank');
     }, []);
 
     return (
@@ -99,6 +98,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                 <Avatar src={auth.user.avatar} alt={auth.user.name} />
                             </DropdownButton>
                             <DropdownMenu>
+                                {auth.user.is_admin && (
+                                    <>
+                                        <DropdownItem onClick={() => handleExternalLinkClick('nova.pages.home')}>
+                                            <TableCellsIcon />
+                                            <DropdownLabel>Nova</DropdownLabel>
+                                        </DropdownItem>
+                                        <DropdownItem onClick={() => handleExternalLinkClick('pulse')}>
+                                            <CpuChipIcon />
+                                            <DropdownLabel>Pulse</DropdownLabel>
+                                        </DropdownItem>
+                                        <DropdownDivider />
+                                    </>
+                                )}
                                 <DropdownItem href={route('privacy-policy')}>
                                     <ShieldCheckIcon />
                                     <DropdownLabel>Privacy policy</DropdownLabel>
@@ -176,6 +188,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                 <ChevronUpIcon />
                             </DropdownButton>
                             <DropdownMenu className="min-w-64" anchor="top start">
+                                {auth.user.is_admin && (
+                                    <>
+                                        <DropdownItem onClick={() => handleExternalLinkClick('nova.pages.home')}>
+                                            <TableCellsIcon />
+                                            <DropdownLabel>Nova</DropdownLabel>
+                                        </DropdownItem>
+                                        <DropdownItem onClick={() => handleExternalLinkClick('pulse')}>
+                                            <CpuChipIcon />
+                                            <DropdownLabel>Pulse</DropdownLabel>
+                                        </DropdownItem>
+                                        <DropdownDivider />
+                                    </>
+                                )}
                                 <DropdownItem href={route('privacy-policy')}>
                                     <ShieldCheckIcon />
                                     <DropdownLabel>Privacy policy</DropdownLabel>
