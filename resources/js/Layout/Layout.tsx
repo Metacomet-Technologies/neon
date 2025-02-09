@@ -28,8 +28,9 @@ import {
     TableCellsIcon,
     WindowIcon,
 } from '@heroicons/react/16/solid';
-import { usePage } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 
+import axios from 'axios';
 import { useCallback } from 'react';
 import Flash from './Flash';
 import ThemeToggleButton from './ThemeToggleButton';
@@ -68,12 +69,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         {auth.user && (
                             <Dropdown>
                                 <DropdownButton as={NavbarItem} className="max-lg:hidden">
+                                    <Avatar
+                                        src={getGuildIcon(currentGuild)}
+                                        className="size-10"
+                                        alt={currentGuild?.name}
+                                    />
                                     <NavbarLabel>{currentGuild?.name || 'Servers'}</NavbarLabel>
                                     <ChevronDownIcon />
                                 </DropdownButton>
                                 <ServerDropDownMenu
                                     guilds={auth.user?.guilds || []}
                                     currentGuildId={currentServerId || ''}
+                                    userId={auth.user.id}
                                 />
                             </Dropdown>
                         )}
@@ -149,12 +156,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
                             {auth.user && (
                                 <Dropdown>
                                     <DropdownButton as={SidebarItem}>
+                                        <Avatar
+                                            src={getGuildIcon(currentGuild)}
+                                            className="size-10"
+                                            alt={currentGuild?.name}
+                                        />
                                         <NavbarLabel>{currentGuild?.name || 'Servers'}</NavbarLabel>
                                         <ChevronDownIcon />
                                     </DropdownButton>
                                     <ServerDropDownMenu
                                         guilds={auth.user?.guilds || []}
                                         currentGuildId={currentServerId || ''}
+                                        userId={auth.user.id}
                                     />
                                 </Dropdown>
                             )}
@@ -239,25 +252,55 @@ export function Layout({ children }: { children: React.ReactNode }) {
  * @param {Guild[]} props.guilds - The list of guilds to be displayed in the dropdown menu.
  * @param {string} [props.currentGuildId] - The ID of the currently selected guild.
  */
-function ServerDropDownMenu({ guilds, currentGuildId }: { guilds: Guild[]; currentGuildId?: string }) {
+function ServerDropDownMenu({
+    guilds,
+    currentGuildId,
+    userId,
+}: {
+    guilds: Guild[];
+    currentGuildId: string;
+    userId: number;
+}) {
     const currentRoute: string = route().current() as string;
     const currentRouteParams: { [key: string]: string } = route().params;
 
     const replaceCurrentRoute = (guildId: string) => {
-        if (guildId === currentGuildId) {
+        // if serverId is not in currentRouteParams then do nothing
+        if (!currentRouteParams.serverId) {
             return '#';
         }
+        // replace the serverId param with the selected guildId
         const newRouteParams = { ...currentRouteParams, serverId: guildId };
+        // return the new route with the updated params
         return route(currentRoute, newRouteParams);
+    };
+
+    const handleServerChange = (guildId: string) => {
+        axios.patch(route('user.current-server', { user: userId }), { server_id: guildId }).then(() => {
+            router.get(replaceCurrentRoute(guildId));
+        });
     };
 
     return (
         <DropdownMenu className="min-w-80 lg:min-w-64" anchor="bottom start">
             {guilds.map((guild) => (
-                <DropdownItem key={guild.id} href={replaceCurrentRoute(guild.id)}>
+                <DropdownItem
+                    key={guild.id}
+                    onClick={() => handleServerChange(guild.id)}
+                    disabled={guild.id === currentGuildId}
+                >
+                    <Avatar src={getGuildIcon(guild)} className="size-10" alt={guild.name} />
                     <DropdownLabel>{guild.name}</DropdownLabel>
                 </DropdownItem>
             ))}
         </DropdownMenu>
     );
+}
+
+function getGuildIcon(guild: Guild | null) {
+    if (guild?.icon) {
+        return `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`;
+    }
+
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(guild?.name || 'Unknown')}&background=random`;
 }
