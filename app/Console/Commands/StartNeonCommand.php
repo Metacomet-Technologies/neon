@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NeonDispatchHandler;
 use App\Jobs\ProcessGuildCommandJob;
 use App\Jobs\ProcessScheduledMessageJob;
 use App\Models\NativeCommand;
@@ -15,7 +16,6 @@ use Discord\WebSockets\Event;
 use Discord\WebSockets\Intents;
 use Exception;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Monolog\Handler\StreamHandler;
 use Monolog\Level;
@@ -95,7 +95,7 @@ final class StartNeonCommand extends Command
                             return;
                         }
 
-                        Bus::dispatch(new $command['class']($discordUserId, $channelId, $guildId, $messageContent));
+                        NeonDispatchHandler::dispatch($discordUserId, $channelId, $guildId, $messageContent, $command);
 
                         return;
                     }
