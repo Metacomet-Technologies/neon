@@ -1,5 +1,16 @@
+name: neon
+php: "8.3"
+secured: true
+aliases: {}
+services:
+  mysql:
+    version: 8.0.36
+    port: ${DB_PORT}
+  redis:
+    version: 7.0.0
+    port: ${REDIS_PORT}
 integrations:
   forge:
-    discord-bot.metacomet.tech:
-      site-id: 2594810
-      server-id: 847680
+    neon-bot.com:
+      site-id: 2600963
+      server-id: 881111
