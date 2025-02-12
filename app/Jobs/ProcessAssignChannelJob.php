@@ -6,9 +6,9 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -17,9 +17,11 @@ final class ProcessAssignChannelJob implements ShouldQueue
     use Queueable;
 
     public string $baseUrl;
-
-    public string $usageMessage;
-    public string $exampleMessage;
+    public string $discordUserId;
+    public string $channelId;
+    public string $guildId;
+    public string $messageContent;
+    public array $command;
 
     // 'slug' => 'assign-channel',
     // 'description' => 'Assigns a channel to a category.',
@@ -31,20 +33,16 @@ final class ProcessAssignChannelJob implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId,
-        public string $guildId,
-        public string $messageContent,
-    ) {
-        $this->baseUrl = config('services.discord.rest_api_url');
-
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
         // Fetch command details from the database
-        $command = DB::table('native_commands')->where('slug', 'assign-channel')->first();
+        $this->discordUserId = $nativeCommandRequest->discord_user_id;
+        $this->channelId = $nativeCommandRequest->channel_id;
+        $this->guildId = $nativeCommandRequest->guild_id;
+        $this->messageContent = $nativeCommandRequest->message_content;
+        $this->command = $nativeCommandRequest->command;
 
-        // Set usage and example messages dynamically
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
+        $this->baseUrl = config('services.discord.rest_api_url');
     }
 
     /**
@@ -61,6 +59,15 @@ final class ProcessAssignChannelJob implements ShouldQueue
                 'response' => '❌ You do not have permission to manage channels in this server.',
             ]);
 
+            $this->nativeCommandRequest->update([
+                'status' => 'unauthorized',
+                'failed_at' => now(),
+                'error_message' => [
+                    'message' => 'User does not have permission to manage channels.',
+                    'status_code' => 403,
+                ],
+            ]);
+
             return;
         }
 
@@ -70,7 +77,17 @@ final class ProcessAssignChannelJob implements ShouldQueue
         if (! $channelInput || ! $categoryInput) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
+                'response' => "{$this->command['usage']}\n{$this->command['example']}",
+            ]);
+
+            $this->nativeCommandRequest->update([
+                'status' => 'failed',
+                'failed_at' => now(),
+                'error_message' => [
+                    'message' => 'Missing required IDs.',
+                    'details' => 'Required Ids not found in the message.',
+                    'status_code' => 400,
+                ],
             ]);
 
             return;
@@ -90,6 +107,16 @@ final class ProcessAssignChannelJob implements ShouldQueue
                 'response' => '❌ Failed to retrieve channels from the server.',
             ]);
 
+            $this->nativeCommandRequest->update([
+                'status' => 'discord-api-error',
+                'failed_at' => now(),
+                'error_message' => [
+                    'message' => 'Failed to fetch channels from the server.',
+                    'status_code' => $channelsResponse->status(),
+                    'response' => $channelsResponse->json(),
+                ],
+            ]);
+
             return;
         }
 
@@ -102,6 +129,16 @@ final class ProcessAssignChannelJob implements ShouldQueue
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => "❌ Channel '{$channelInput}' not found.",
+            ]);
+
+            $this->nativeCommandRequest->update([
+                'status' => 'failed',
+                'failed_at' => now(),
+                'error_message' => [
+                    'message' => 'Channel not found.',
+                    'details' => "Channel '{$channelInput}' not found in the server.",
+                    'status_code' => 404,
+                ],
             ]);
 
             return;
@@ -117,6 +154,16 @@ final class ProcessAssignChannelJob implements ShouldQueue
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => "❌ Category '{$categoryInput}' not found.",
+            ]);
+
+            $this->nativeCommandRequest->update([
+                'status' => 'failed',
+                'failed_at' => now(),
+                'error_message' => [
+                    'message' => 'Category not found.',
+                    'details' => "Category '{$categoryInput}' not found in the server.",
+                    'status_code' => 404,
+                ],
             ]);
 
             return;
@@ -142,6 +189,16 @@ final class ProcessAssignChannelJob implements ShouldQueue
                 'response' => "❌ Failed to move channel '{$channelInput}' to category '{$categoryInput}'.",
             ]);
 
+            $this->nativeCommandRequest->update([
+                'status' => 'discord-api-error',
+                'failed_at' => now(),
+                'error_message' => [
+                    'message' => 'Failed to move channel to category.',
+                    'status_code' => $updateResponse->status(),
+                    'response' => $updateResponse->json(),
+                ],
+            ]);
+
             return;
         }
 
@@ -151,6 +208,12 @@ final class ProcessAssignChannelJob implements ShouldQueue
             'embed_title' => '✅ Channel Moved!',
             'embed_description' => "**Channel Name:** #{$channel['name']} (ID: `{$channelId}`)\n**New Category:** 📂 {$category['name']} (ID: `{$categoryId}`)",
             'embed_color' => 3066993, // Green embed
+        ]);
+
+        // 6️⃣ Update the status of the command request
+        $this->nativeCommandRequest->update([
+            'status' => 'executed',
+            'executed_at' => now(),
         ]);
     }
 

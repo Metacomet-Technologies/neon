@@ -6,9 +6,9 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -16,8 +16,16 @@ final class ProcessAssignRoleJob implements ShouldQueue
 {
     use Queueable;
 
-    public string $usageMessage;
-    public string $exampleMessage;
+    public string $baseUrl;
+    public string $discordUserId;
+    public string $channelId;
+    public string $guildId;
+    public string $messageContent;
+    public array $command;
+
+    public int $batchSize = 5;    // ✅ Process users in groups of 5 to avoid rate limits
+    public int $retryDelay = 2000; // ✅ 2-second delay before retrying
+    public int $maxRetries = 3;    // ✅ Max retries per request
 
     // 'slug' => 'assign-role',
     // 'description' => 'Assigns a role to one or more users.',
@@ -26,19 +34,16 @@ final class ProcessAssignRoleJob implements ShouldQueue
     // 'example' => 'Example: !assign-role VIP 987654321098765432',
     // 'is_active' => true,
 
-    public int $batchSize = 5; // ✅ Process users in groups of 5 to avoid rate limits
-    public int $retryDelay = 2000; // ✅ 2-second delay before retrying
-    public int $maxRetries = 3; // ✅ Max retries per request
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        // Fetch command details from the database
+        $this->discordUserId = $nativeCommandRequest->discord_user_id;
+        $this->channelId = $nativeCommandRequest->channel_id;
+        $this->guildId = $nativeCommandRequest->guild_id;
+        $this->messageContent = $nativeCommandRequest->message_content;
+        $this->command = $nativeCommandRequest->command;
 
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId,
-        public string $guildId,
-        public string $messageContent,
-    ) {
-        $command = DB::table('native_commands')->where('slug', 'assign-role')->first();
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
+        $this->baseUrl = config('services.discord.rest_api_url');
     }
 
     public function handle(): void
@@ -50,6 +55,15 @@ final class ProcessAssignRoleJob implements ShouldQueue
                 'response' => '❌ You do not have permission to manage roles in this server.',
             ]);
 
+            $this->nativeCommandRequest->update([
+                'status' => 'unauthorized',
+                'failed_at' => now(),
+                'error_message' => [
+                    'message' => 'User does not have permission to manage roles.',
+                    'status_code' => 403,
+                ],
+            ]);
+
             return;
         }
 
@@ -57,7 +71,7 @@ final class ProcessAssignRoleJob implements ShouldQueue
         if (count($parts) < 3) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
+                'response' => "{$this->command['usage']}\n{$this->command['example']}",
             ]);
 
             return;
@@ -72,6 +86,16 @@ final class ProcessAssignRoleJob implements ShouldQueue
                 SendMessage::sendMessage($this->channelId, [
                     'is_embed' => false,
                     'response' => "❌ Invalid user mention format: {$mention}",
+                ]);
+
+                $this->nativeCommandRequest->update([
+                    'status' => 'failed',
+                    'failed_at' => now(),
+                    'error_message' => [
+                        'message' => 'Invalid user mention format.',
+                        'details' => 'User mention format must be in the form of <@1234567890>.',
+                        'status_code' => 400,
+                    ],
                 ]);
 
                 return;
@@ -91,6 +115,15 @@ final class ProcessAssignRoleJob implements ShouldQueue
                 'response' => '❌ Failed to retrieve roles from the server.',
             ]);
 
+            $this->nativeCommandRequest->update([
+                'status' => 'failed',
+                'failed_at' => now(),
+                'error_message' => [
+                    'message' => 'Failed to retrieve roles from the server.',
+                    'status_code' => 500,
+                ],
+            ]);
+
             return;
         }
 
@@ -101,6 +134,15 @@ final class ProcessAssignRoleJob implements ShouldQueue
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => "❌ Role '{$roleName}' not found.",
+            ]);
+
+            $this->nativeCommandRequest->update([
+                'status' => 'failed',
+                'failed_at' => now(),
+                'error_message' => [
+                    'message' => "Role '{$roleName}' not found.",
+                    'status_code' => 404,
+                ],
             ]);
 
             return;
@@ -135,18 +177,23 @@ final class ProcessAssignRoleJob implements ShouldQueue
         }
 
         $successMessage = count($successfulUsers) > 0
-            ? "✅ Assigned role '{$roleName}' to: " . implode(', ', $successfulUsers)
-            : '';
+        ? "✅ Assigned role '{$roleName}' to: " . implode(', ', $successfulUsers)
+        : '';
 
         $errorMessage = count($failedUsers) > 0
-            ? "❌ Failed to assign role '{$roleName}' to: " . implode(', ', $failedUsers)
-            : '';
+        ? "❌ Failed to assign role '{$roleName}' to: " . implode(', ', $failedUsers)
+        : '';
 
         SendMessage::sendMessage($this->channelId, [
             'is_embed' => true,
             'embed_title' => '🔹 Role Assignment Results',
             'embed_description' => trim($successMessage . "\n" . $errorMessage),
             'embed_color' => count($successfulUsers) > 0 ? 3066993 : 15158332,
+        ]);
+
+        $this->nativeCommandRequest->update([
+            'status' => 'completed',
+            'executed_at' => now(),
         ]);
     }
 }
