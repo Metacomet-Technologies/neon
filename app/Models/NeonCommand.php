@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 /**
+ *
+ *
  * @property int $id
  * @property string $command
  * @property string|null $description
@@ -27,7 +29,6 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\User $createdByUser
  * @property-read \App\Models\User $updatedByUser
- *
  * @method static Builder<static>|NeonCommand aciveGuildCommands(string $guildId)
  * @method static Builder<static>|NeonCommand newModelQuery()
  * @method static Builder<static>|NeonCommand newQuery()
@@ -47,7 +48,6 @@ use Illuminate\Database\Eloquent\Model;
  * @method static Builder<static>|NeonCommand whereResponse($value)
  * @method static Builder<static>|NeonCommand whereUpdatedAt($value)
  * @method static Builder<static>|NeonCommand whereUpdatedBy($value)
- *
  * @mixin \Eloquent
  */
 #[ObservedBy(NeonCommandObserver::class)]

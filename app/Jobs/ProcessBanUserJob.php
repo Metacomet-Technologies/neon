@@ -6,58 +6,54 @@ namespace App\Jobs;
 
 use App\Enums\DiscordPermissionEnum;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
-final class ProcessBanUserJob implements ShouldQueue
+final class ProcessBanUserJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
-
-    public string $usageMessage;
-    public string $exampleMessage;
-
-    // 'slug' => 'ban',
-    // 'description' => 'Bans a user from the server.',
-    // 'class' => \App\Jobs\ProcessBanUserJob::class,
-    // 'usage' => 'Usage: !ban <user-id>',
-    // 'example' => 'Example: !ban 123456789012345678',
-    // 'is_active' => true,
-    private string $baseUrl;
     private ?string $targetUserId = null;
 
     private int $retryDelay = 2000;
     private int $maxRetries = 3;
 
-    public function __construct(
-        public string $discordUserId, // Command sender (user executing !ban)
-        public string $channelId,     // The channel where the command was sent
-        public string $guildId,
-        public string $messageContent,
-    ) {
-        $this->baseUrl = config('services.discord.rest_api_url');
-
-        // Fetch command details from the database
-        $command = DB::table('native_commands')->where('slug', 'ban')->first();
-
-        // Set usage and example messages dynamically
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
-
-        // Parse the message for target user ID
-        $this->targetUserId = $this->parseMessage($this->messageContent);
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
     }
 
     public function handle(): void
     {
-        // ✅ Validate Input - If no user ID is provided, send a usage message and exit
-        if (! $this->targetUserId) {
+        // Step 1️⃣: Check if the sender has BAN_MEMBERS permission
+        if (! $this->userHasBanPermission($this->discordUserId)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
+                'response' => '❌ You do not have permission to ban members.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to ban members.',
+                statusCode: 403,
+            );
 
+            return;
+        }
+
+        // Parse the message for target user ID
+        $this->targetUserId = $this->parseMessage();
+
+        // ✅ Validate Input - If no user ID is provided, send a usage message and exit
+        if (! $this->targetUserId) {
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No user ID provided.',
+                statusCode: 400,
+            );
             return;
         }
 
@@ -66,16 +62,12 @@ final class ProcessBanUserJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Invalid user ID format. Please provide a valid Discord user ID.',
             ]);
-
-            return;
-        }
-
-        // Step 1️⃣: Check if the sender has BAN_MEMBERS permission
-        if (! $this->userHasBanPermission($this->discordUserId)) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ You do not have permission to ban members.',
-            ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Invalid user ID format.',
+                details: $this->targetUserId,
+                statusCode: 400,
+            );
 
             return;
         }
@@ -89,6 +81,11 @@ final class ProcessBanUserJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You cannot ban this user. Their role is equal to or higher than yours.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to ban peer or higher members.',
+                statusCode: 403,
+            );
 
             return;
         }
@@ -105,6 +102,12 @@ final class ProcessBanUserJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to ban user. They may have already been banned.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord-api-error',
+                message: 'Failed to ban user.',
+                statusCode: $apiResponse->status(),
+                details: $apiResponse->json(),
+            );
 
             return;
         }
@@ -116,12 +119,12 @@ final class ProcessBanUserJob implements ShouldQueue
             'embed_description' => "✅ <@{$this->targetUserId}> has been permanently banned from the server.",
             'embed_color' => 15158332, // Red
         ]);
+        $this->updateNativeCommandRequestComplete();
     }
 
-    private function parseMessage(string $message): ?string
+    private function parseMessage(): ?string
     {
-        preg_match('/^!ban\s+(<@!?(\d{17,19})>|\d{17,19})$/', $message, $matches);
-
+        preg_match('/^!ban\s+(<@!?(\d{17,19})>|\d{17,19})$/', $this->messageContent, $matches);
         return $matches[2] ?? $matches[1] ?? null;
     }
 

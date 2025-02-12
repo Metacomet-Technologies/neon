@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Jobs;
+namespace App\Jobs\NativeCommand;
 
 use App\Helpers\Discord\SendMessage;
 use App\Models\NativeCommandRequest;
@@ -54,24 +54,31 @@ class ProcessBaseJob implements ShouldQueue
     {
         SendMessage::sendMessage($this->channelId, [
             'is_embed' => false,
-            'response' => "{$this->command['usage']}\n{$this->command['example']}",
+            'response' => $this->command['usage']."\n".$this->command['example'],
         ]);
     }
 
-    public function updateNativeCommandRequestFailed(string $status, string $message, string $details, int $statusCode = 500, bool $unicorn = false): void
+    public function updateNativeCommandRequestFailed(
+        string $status,
+        string $message,
+        mixed $details=null,
+        int $statusCode = 500,
+        bool $unicorn = false
+        ): void
     {
         $params = [
             'status' => $status,
             'failed_at' => now(),
             'error_message' => [
                 'message' => $message,
-                'details' => $details,
                 'status_code' => $statusCode,
             ],
         ];
-
+        if ($details) {
+            $params['error_message']['details'] = $details;
+        }
         if ($unicorn) {
-            $params['unicorn'] = '🦄';
+            $params['error_message']['unicorn'] = '🦄';
         }
 
         $this->nativeCommandRequest->update($params);

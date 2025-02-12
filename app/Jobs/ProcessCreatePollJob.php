@@ -6,29 +6,16 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
-final class ProcessCreatePollJob implements ShouldQueue
+final class ProcessCreatePollJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
-
-    /**
-     * User-friendly instruction messages dynamically fetched from the database.
-     */
-    public string $usageMessage;
-    public string $exampleMessage;
-
-    // 'slug' => 'poll',
-    // 'description' => 'Creates a poll with multiple voting options.',
-    // 'class' => \App\Jobs\ProcessCreatePollJob::class,
-    // 'usage' => 'Usage: !poll "Question" "Option 1" "Option 2" "Option 3"',
-    // 'example' => 'Example: !poll "What should we play?" "Minecraft" "Valorant" "Overwatch"',
-    // 'is_active' => true,
-
-    public string $baseUrl;
 
     private string $question;
     private array $options = [];
@@ -36,23 +23,9 @@ final class ProcessCreatePollJob implements ShouldQueue
     private int $maxRetries = 3;
     private int $retryDelay = 2000;
 
-    /**
-     * Create a new job instance.
-     */
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId,
-        public string $guildId,
-        public string $messageContent,
-    ) {
-        $this->baseUrl = config('services.discord.rest_api_url');
-
-        // Fetch command details from the database
-        $command = DB::table('native_commands')->where('slug', 'poll')->first();
-
-        // Set usage and example messages dynamically
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
     }
 
     //TODO: Add ability for emojis to be included in text
@@ -61,19 +34,6 @@ final class ProcessCreatePollJob implements ShouldQueue
      */
     public function handle(): void
     {
-        // Parse the poll question and options
-        [$this->question, $this->options] = $this->parseMessage($this->messageContent);
-
-        // Validate input: Must have a question and at least two options
-        if (! $this->question || count($this->options) < 2) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
-
-            return;
-        }
-
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanSendPolls($this->guildId, $this->discordUserId);
 
         if ($permissionCheck !== 'success') {
@@ -81,22 +41,40 @@ final class ProcessCreatePollJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to send polls in this server.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to send polls in this server.',
+                statusCode: 403,
+            );
 
             return;
         }
 
-        // Ensure we have at least 2 options and at most 10
-        if (count($this->options) > 10) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Polls can have a maximum of 10 options.',
-            ]);
+        // Parse the poll question and options
+        [$this->question, $this->options] = $this->parseMessage();
+
+        // Validate input: Must have a question and at least two options
+        if (! $this->question || count($this->options) < 2 || count($this->options) > 10) {
+            $this->sendUsageAndExample();
+            if (count($this->options) > 10) {
+                SendMessage::sendMessage($this->channelId, [
+                    'is_embed' => false,
+                    'response' => '❌ Polls can have a maximum of 10 options.',
+                ]);
+            }
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Invalid poll format. Poll did not have a question and/or at least two options.',
+                details: [
+                    'question' => $this->question ?? '',
+                    'options' => $this->options ?? [],
+                ],
+                statusCode: 400,
+            );
 
             return;
         }
-
-        // List of default number emojis for poll choices
-        // $defaultEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
 
         // Construct the poll payload
         $pollPayload = [
@@ -105,7 +83,7 @@ final class ProcessCreatePollJob implements ShouldQueue
                 'question' => [
                     'text' => $this->question,
                 ],
-                'answers' => array_map(fn ($index, $option) => [
+                'answers' => array_map(fn($index, $option) => [
                     'poll_media' => [
                         'text' => (string) $option,
                         // 'emoji' => [
@@ -121,26 +99,33 @@ final class ProcessCreatePollJob implements ShouldQueue
 
         // Send the poll message
         $pollUrl = "{$this->baseUrl}/channels/{$this->channelId}/messages";
-        $response = retry($this->maxRetries, function () use ($pollUrl, $pollPayload) {
+        $apiResponse = retry($this->maxRetries, function () use ($pollUrl, $pollPayload) {
             return Http::withToken(config('discord.token'), 'Bot')
                 ->post($pollUrl, $pollPayload);
         }, $this->retryDelay);
 
-        if ($response->failed()) {
+        if ($apiResponse->failed()) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ Failed to create the poll.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord-api-error',
+                message: 'Failed to ban user.',
+                statusCode: $apiResponse->status(),
+                details: $apiResponse->json(),
+            );
         }
+        $this->updateNativeCommandRequestComplete();
     }
 
     /**
      * Parses the message content for the poll question and options.
      */
-    private function parseMessage(string $message): array
+    private function parseMessage(): array
     {
         // Normalize curly quotes to straight quotes
-        $message = str_replace(['“', '”'], '"', $message);
+        $message = str_replace(['“', '”'], '"', $this->messageContent);
 
         preg_match_all('/"([^"]+)"/', $message, $matches);
 

@@ -159,7 +159,7 @@ final class ProcessNewCategoryJob implements ShouldQueue
                 'error_message' => [
                     'message' => 'Failed to create category.',
                     'status_code' => $apiResponse->status(),
-                    'response' => $apiResponse->json(),
+                    'details' => $apiResponse->json(),
                 ],
             ]);
             throw new Exception('Failed to create category.');

@@ -7,6 +7,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 
 /**
+ *
+ *
  * @property int $id
  * @property string $guild_id
  * @property string $channel_id
@@ -20,7 +22,6 @@ use Illuminate\Database\Eloquent\Model;
  * @property array<array-key, mixed>|null $error_message
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
- *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommandRequest newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommandRequest newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommandRequest query()
@@ -37,7 +38,6 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommandRequest whereMessageContent($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommandRequest whereStatus($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommandRequest whereUpdatedAt($value)
- *
  * @mixin \Eloquent
  */
 final class NativeCommandRequest extends Model
