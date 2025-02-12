@@ -54,18 +54,17 @@ class ProcessBaseJob implements ShouldQueue
     {
         SendMessage::sendMessage($this->channelId, [
             'is_embed' => false,
-            'response' => $this->command['usage']."\n".$this->command['example'],
+            'response' => $this->command['usage'] . "\n" . $this->command['example'],
         ]);
     }
 
     public function updateNativeCommandRequestFailed(
         string $status,
         string $message,
-        mixed $details=null,
+        mixed $details = null,
         int $statusCode = 500,
         bool $unicorn = false
-        ): void
-    {
+    ): void {
         $params = [
             'status' => $status,
             'failed_at' => now(),

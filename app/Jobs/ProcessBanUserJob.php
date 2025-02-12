@@ -54,6 +54,7 @@ final class ProcessBanUserJob extends ProcessBaseJob implements ShouldQueue
                 message: 'No user ID provided.',
                 statusCode: 400,
             );
+
             return;
         }
 
@@ -125,6 +126,7 @@ final class ProcessBanUserJob extends ProcessBaseJob implements ShouldQueue
     private function parseMessage(): ?string
     {
         preg_match('/^!ban\s+(<@!?(\d{17,19})>|\d{17,19})$/', $this->messageContent, $matches);
+
         return $matches[2] ?? $matches[1] ?? null;
     }
 

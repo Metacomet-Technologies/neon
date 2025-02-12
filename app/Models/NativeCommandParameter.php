@@ -5,8 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- *
- *
  * @property int $id
  * @property int $native_command_id
  * @property string $name
@@ -17,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\NativeCommand|null $command
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommandParameter newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommandParameter newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommandParameter query()
@@ -29,6 +28,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommandParameter whereNativeCommandId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommandParameter whereOrder($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommandParameter whereUpdatedAt($value)
+ *
  * @mixin \Eloquent
  */
 class NativeCommandParameter extends Model

@@ -10,7 +10,6 @@ use App\Jobs\NativeCommand\ProcessBaseJob;
 use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 final class ProcessCreatePollJob extends ProcessBaseJob implements ShouldQueue
@@ -83,7 +82,7 @@ final class ProcessCreatePollJob extends ProcessBaseJob implements ShouldQueue
                 'question' => [
                     'text' => $this->question,
                 ],
-                'answers' => array_map(fn($index, $option) => [
+                'answers' => array_map(fn ($index, $option) => [
                     'poll_media' => [
                         'text' => (string) $option,
                         // 'emoji' => [

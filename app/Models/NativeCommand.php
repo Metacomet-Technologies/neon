@@ -7,8 +7,6 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- *
- *
  * @property int $id
  * @property string $slug
  * @property string|null $description
@@ -20,6 +18,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\NativeCommandParameter> $parameters
  * @property-read int|null $parameters_count
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommand newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommand newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommand query()
@@ -32,6 +31,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommand whereSlug($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommand whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommand whereUsage($value)
+ *
  * @mixin \Eloquent
  */
 #[ObservedBy(NativeCommandObserver::class)]
