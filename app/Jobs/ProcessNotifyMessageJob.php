@@ -4,40 +4,53 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
-class ProcessNotifyMessageJob implements ShouldQueue
+class ProcessNotifyMessageJob extends ProcessBaseJob implements ShouldQueue
 {
-    public string $usageMessage;
-    public string $exampleMessage;
 
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId,
-        public string $guildId,
-        public string $messageContent
-    ) {
-        // Fetch command details from the database
-        $command = DB::table('native_commands')->where('slug', 'notify')->first();
-
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
     }
 
-    public function handle()
+    public function handle(): void
     {
+        // Check if the user has permission to send announcements
+        $permissionCheck = GetGuildsByDiscordUserId::getIfUserIsAdmin($this->guildId, $this->discordUserId);
+
+        if ($permissionCheck !== 'success') {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ You do not have permission to send announcements.',
+            ]);
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to send announcements.',
+                statusCode: 403,
+            );
+
+            return;
+        }
+
         // Extract target channel, mention, title, and message
         $matches = [];
         preg_match('/^!notify\s+(<#\d+>)\s+(<@!?&?\d+>|@everyone|@here)\s*(.*)$/', $this->messageContent, $matches);
 
         if (empty($matches)) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
+            $this->sendUsageAndExample();
 
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No user ID provided.',
+                statusCode: 400,
+            );
             return;
         }
 
@@ -51,8 +64,15 @@ class ProcessNotifyMessageJob implements ShouldQueue
         } else {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => "❌ Invalid channel format. Please mention a valid channel.\n{$this->usageMessage}\n{$this->exampleMessage}",
+                'response' => "❌ Invalid channel format. Please mention a valid channel.",
             ]);
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Invalid channel format.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -67,18 +87,6 @@ class ProcessNotifyMessageJob implements ShouldQueue
         if (! $message) {
             $message = $title;
             $title = '📢 Announcement';
-        }
-
-        // Check if the user has permission to send announcements
-        $permissionCheck = GetGuildsByDiscordUserId::getIfUserIsAdmin($this->guildId, $this->discordUserId);
-
-        if ($permissionCheck !== 'success') {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ You do not have permission to send announcements.',
-            ]);
-
-            return;
         }
 
         // Default color (blue) for embed
@@ -110,11 +118,17 @@ class ProcessNotifyMessageJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => "📢 Announcement sent successfully to <#{$targetChannelId}>!",
             ]);
+            $this->updateNativeCommandRequestComplete();
         } else {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ Failed to send announcement. Ensure the bot has the correct permissions.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Failed to send announcement.',
+                statusCode: 500,
+            );
         }
     }
 }
