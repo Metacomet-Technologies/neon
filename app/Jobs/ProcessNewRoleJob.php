@@ -8,10 +8,8 @@ use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use App\Jobs\NativeCommand\ProcessBaseJob;
 use App\Models\NativeCommandRequest;
-use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\DB as FacadesDB;
 use Illuminate\Support\Facades\Http;
 
 final class ProcessNewRoleJob extends ProcessBaseJob implements ShouldQueue
@@ -25,10 +23,10 @@ final class ProcessNewRoleJob extends ProcessBaseJob implements ShouldQueue
         parent::__construct($nativeCommandRequest);
 
         // Set default role settings
-                $this->defaultRoleSettings = [
-                    'color' => hexdec('FFFFFF'), // Default white color
-                    'hoist' => false,
-                ];
+        $this->defaultRoleSettings = [
+            'color' => hexdec('FFFFFF'), // Default white color
+            'hoist' => false,
+        ];
     }
 
     public function handle(): void
