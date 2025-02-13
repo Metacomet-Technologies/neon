@@ -170,10 +170,6 @@ final class ProcessAssignRoleJob extends ProcessBaseJob implements ShouldQueue
             'embed_description' => trim($successMessage . "\n" . $errorMessage),
             'embed_color' => count($successfulUsers) > 0 ? 3066993 : 15158332,
         ]);
-
-        $this->nativeCommandRequest->update([
-            'status' => 'completed',
-            'executed_at' => now(),
-        ]);
+        $this->updateNativeCommandRequestComplete();
     }
 }

@@ -6,63 +6,43 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-final class ProcessDisconnectUserJob implements ShouldQueue
+final class ProcessDisconnectUserJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
-
-    public string $usageMessage;
-    public string $exampleMessage;
-
-    // 'slug' => 'disconnect',
-    // 'description' => 'Disconnects one or more users from a voice channel.',
-    // 'class' => \App\Jobs\ProcessDisconnectUserJob::class,
-    // 'usage' => 'Usage: !disconnect <@user1> [@user2] ...',
-    // 'example' => 'Example: !disconnect @User1 @User2',
-    // 'is_active' => true,
-
-    public string $baseUrl;
 
     private array $targetUserIds = [];
 
     private int $retryDelay = 2000;
     private int $maxRetries = 3;
 
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId,
-        public string $guildId,
-        public string $messageContent,
-    ) {
-        // Fetch command details from the database
-        $command = DB::table('native_commands')->where('slug', 'disconnect')->first();
-
-        // Set usage and example messages dynamically
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
-
-        $this->baseUrl = config('services.discord.rest_api_url');
-
-        // Parse the message
-        $this->targetUserIds = $this->parseMessage($this->messageContent);
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
     }
 
     //TODO: May want to add logic to have channel id instead of user, which would disonnect all users in that channel.
     public function handle(): void
     {
+        // Parse the message
+        $this->targetUserIds = $this->parseMessage($this->messageContent);
+
         // 🚨 **Moved validation here to ensure job does not execute unnecessarily**
         if (empty($this->targetUserIds)) {
-            Log::warning('Disconnect command used without target users.');
+            $this->sendUsageAndExample();
 
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No user ID provided.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -75,6 +55,11 @@ final class ProcessDisconnectUserJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to disconnect users from voice channels in this server.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to manage channels.',
+                statusCode: 403,
+            );
 
             return;
         }
@@ -103,6 +88,11 @@ final class ProcessDisconnectUserJob implements ShouldQueue
                 'embed_description' => 'Failed to remove: ' . implode(', ', $failedUsers),
                 'embed_color' => 15158332, // Red
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Failed to disconnect users from voice channel.',
+                statusCode: 500,
+            );
         } else {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => true,
@@ -111,6 +101,7 @@ final class ProcessDisconnectUserJob implements ShouldQueue
                 'embed_color' => 3066993, // Green
             ]);
         }
+        $this->updateNativeCommandRequestComplete();
     }
 
     private function parseMessage(string $message): array

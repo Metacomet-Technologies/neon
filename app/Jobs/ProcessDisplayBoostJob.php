@@ -6,6 +6,8 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -13,63 +15,36 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-final class ProcessDisplayBoostJob implements ShouldQueue
+final class ProcessDisplayBoostJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
 
-    /**
-     * User-friendly instruction messages.
-     */
-    public string $usageMessage;
-    public string $exampleMessage;
-
-    // 'slug' => 'display-boost',
-    // 'description' => 'Displays Nitro boost bar status.',
-    // 'class' => \App\Jobs\ProcessDisplayBoostJob::class,
-    // 'usage' => 'Usage: !display-boost <true|false>',
-    // 'example' => 'Example: !display-boost true',
-    // 'is_active' => true,
-    private string $baseUrl;
     private ?bool $displayBoost = null; // Whether to enable or disable the boost bar
 
-    /**
-     * Create a new job instance.
-     */
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId,
-        public string $guildId,
-        public string $messageContent,
-    ) {
-        // Fetch command details from the database
-        $command = DB::table('native_commands')->where('slug', 'display-boost')->first();
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
+    }
 
-        // Set usage and example messages dynamically
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
-
-        $this->baseUrl = config('services.discord.rest_api_url');
-
+    public function handle(): void
+    {
         // Parse the message
         $this->displayBoost = $this->parseMessage($this->messageContent);
 
         // ❌ If parsing failed, send an error message and stop execution
         if ($this->displayBoost === null) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No user ID provided.',
+                statusCode: 400,
+            );
 
             // Stop job execution
             throw new Exception('Invalid input for !display-boost. Expected true or false.');
         }
-    }
 
-    /**
-     * Handles the job execution.
-     */
-    public function handle(): void
-    {
         // Ensure the user has permission to manage channels
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
 
@@ -78,6 +53,11 @@ final class ProcessDisplayBoostJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to manage boost display in this server.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to manage boost display.',
+                statusCode: 403,
+            );
 
             return;
         }
@@ -96,6 +76,11 @@ final class ProcessDisplayBoostJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to update boost progress bar.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord_api_error',
+                message: 'Failed to update boost progress bar.',
+                statusCode: 500,
+            );
 
             return;
         }
@@ -109,6 +94,7 @@ final class ProcessDisplayBoostJob implements ShouldQueue
                 : '❌ Server Boost Progress Bar is now **disabled**.',
             'embed_color' => $this->displayBoost ? 3447003 : 15158332, // Blue for enabled, Red for disabled
         ]);
+        $this->updateNativeCommandRequestComplete();
     }
 
     /**
