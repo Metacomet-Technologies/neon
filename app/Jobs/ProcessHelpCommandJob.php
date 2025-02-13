@@ -5,21 +5,21 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-final class ProcessHelpCommandJob implements ShouldQueue
+final class ProcessHelpCommandJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId,
-        public string $guildId,
-        public string $messageContent,
-    ) {}
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
+    }
 
     public function handle(): void
     {
@@ -28,6 +28,11 @@ final class ProcessHelpCommandJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Commands database is missing. Please contact an administrator.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Commands database is missing.',
+                statusCode: 500,
+            );
 
             return;
         }
@@ -42,12 +47,17 @@ final class ProcessHelpCommandJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ No commands are currently available.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No commands are currently available.',
+                statusCode: 404,
+            );
 
             return;
         }
 
         $helpChunks = [];
-        $currentMessage = "**For Syntax and Example type the command with no parameters.\n\nAvailable Commands:**\n\n";
+        $currentMessage = "**For Syntax and Example type a command with no parameters.\n\nAvailable Commands:**\n\n";
 
         foreach ($commands as $command) {
             $description = $command->description ?? '*No description available.*';
@@ -76,5 +86,6 @@ final class ProcessHelpCommandJob implements ShouldQueue
                 'response' => $chunk,
             ]);
         }
+        $this->updateNativeCommandRequestComplete();
     }
 }

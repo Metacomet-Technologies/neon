@@ -6,30 +6,18 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-final class ProcessLockVoiceChannelJob implements ShouldQueue
+//TODO: this job may not be locking vc's as expected. Something about the roles and permissions is off.
+final class ProcessLockVoiceChannelJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
-
-    /**
-     * User-friendly instruction messages.
-     */
-    public string $usageMessage;
-    public string $exampleMessage;
-
-    // 'slug' => 'lock-voice',
-    // 'description' => 'Locks or unlocks a voice channel.',
-    // 'class' => \App\Jobs\ProcessLockVoiceChannelJob::class,
-    // 'usage' => 'Usage: !lock-voice <channel-id> <true|false>',
-    // 'example' => 'Example: !lock-voice 123456789012345678 true',
-    // 'is_active' => true,
-
-    public string $baseUrl;
 
     private ?string $targetChannelId = null;
     private ?bool $lockStatus = null;
@@ -37,34 +25,38 @@ final class ProcessLockVoiceChannelJob implements ShouldQueue
     private int $retryDelay = 2000;
     private int $maxRetries = 3;
 
-    /**
-     * Create a new job instance.
-     */
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId,
-        public string $guildId,
-        public string $messageContent,
-    ) {
-        // Fetch command details from the database
-        $command = DB::table('native_commands')->where('slug', 'lock-voice')->first();
-
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
-        $this->baseUrl = config('services.discord.rest_api_url');
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
     }
 
-    /**
-     * Handles the job execution.
-     */
     public function handle(): void
     {
-        // Check if the user only typed "!lock-voice" with no arguments
-        if (trim($this->messageContent) === '!lock-voice') {
+        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
+
+        if ($permissionCheck !== 'success') {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
+                'response' => '❌ You do not have permission to lock/unlock voice channels in this server.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to manage channels',
+                statusCode: 403,
+            );
+
+            return;
+        }
+
+        // Check if the user only typed "!lock-voice" with no arguments
+        if (trim($this->messageContent) === '!lock-voice') {
+        $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No parameters provided.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -74,21 +66,13 @@ final class ProcessLockVoiceChannelJob implements ShouldQueue
 
         // If parsing fails, return early
         if (! $this->targetChannelId || ! is_bool($this->lockStatus)) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "❌ Invalid input.\n\n{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
+            $this->sendUsageAndExample();
 
-            return;
-        }
-
-        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
-
-        if ($permissionCheck !== 'success') {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ You do not have permission to lock/unlock voice channels in this server.',
-            ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Invalid parameters provided.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -106,7 +90,12 @@ final class ProcessLockVoiceChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to retrieve roles from the server.',
             ]);
-
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord_api_error',
+                message: 'Failed to rename channel.',
+                statusCode: $rolesResponse->status(),
+                details: $rolesResponse->json(),
+            );
             return;
         }
 
@@ -149,6 +138,7 @@ final class ProcessLockVoiceChannelJob implements ShouldQueue
                 'embed_color' => $this->lockStatus ? 15158332 : 3066993, // Red for lock, Green for unlock
             ]);
         }
+        $this->updateNativeCommandRequestComplete();
     }
 
     /**
