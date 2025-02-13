@@ -6,44 +6,21 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-final class ProcessDeleteEventJob implements ShouldQueue
+final class ProcessDeleteEventJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
 
-    public string $baseUrl;
-    public string $usageMessage;
-    public string $exampleMessage;
-
-    // 'slug' => 'delete-event',
-    // 'description' => 'Deletes a scheduled event.',
-    // 'class' => \App\Jobs\ProcessDeleteEventJob::class,
-    // 'usage' => 'Usage: !delete-event <event-id>',
-    // 'example' => 'Example: !delete-event 123456789012345678',
-    // 'is_active' => true,
-
-    /**
-     * Create a new job instance.
-     */
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId,
-        public string $guildId,
-        public string $messageContent,
-    ) {
-        // Fetch command details from the database
-        $command = DB::table('native_commands')->where('slug', 'delete-event')->first();
-
-        // Set usage and example messages dynamically
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
-
-        $this->baseUrl = config('services.discord.rest_api_url');
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
     }
 
     /**
@@ -59,6 +36,11 @@ final class ProcessDeleteEventJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to delete events in this server.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to delete events.',
+                statusCode: 403,
+            );
 
             return;
         }
@@ -67,10 +49,13 @@ final class ProcessDeleteEventJob implements ShouldQueue
         $eventId = $this->parseMessage($this->messageContent);
 
         if (! $eventId) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No user ID provided.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -92,6 +77,11 @@ final class ProcessDeleteEventJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => "❌ Failed to delete event (ID: `{$eventId}`).",
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord_api_error',
+                message: 'Failed to delete event.',
+                statusCode: 500,
+            );
 
             return;
         }
@@ -103,6 +93,7 @@ final class ProcessDeleteEventJob implements ShouldQueue
             'embed_description' => "**Event ID:** `{$eventId}` has been successfully removed.",
             'embed_color' => 15158332, // Red embed
         ]);
+        $this->updateNativeCommandRequestComplete();
     }
 
     /**

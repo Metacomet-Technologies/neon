@@ -6,6 +6,8 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use DateTime;
 use DateTimeZone;
 use Exception;
@@ -14,36 +16,13 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
-final class ProcessNewEventJob implements ShouldQueue
+final class ProcessNewEventJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
 
-    public string $baseUrl;
-    public string $usageMessage;
-    public string $exampleMessage;
-
-    // 'slug' => 'create-event',
-    // 'description' => 'Creates a new scheduled event.',
-    // 'class' => \App\Jobs\ProcessNewEventJob::class,
-    // 'usage' => 'Usage: !create-event <event-topic> | <start-date> | <start-time> | <event-frequency> | <location> | <description> | [cover-image-url]',
-    // 'example' => 'Example: !create-event "Weekly Meeting" | 2025-02-10 | 14:00 | weekly | #general | "Join us for our weekly team meeting" | https://example.com/cover.jpg',
-    // 'is_active' => true,
-
-    /**
-     * Create a new job instance.
-     */
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId,
-        public string $guildId,
-        public string $messageContent,
-    ) {
-        // Fetch command details from the database
-        $command = DB::table('native_commands')->where('slug', 'create-event')->first();
-
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
-        $this->baseUrl = config('services.discord.rest_api_url');
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
     }
 
     /**
@@ -58,6 +37,12 @@ final class ProcessNewEventJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You are not allowed to create events.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to create events.',
+                statusCode: 403,
+            );
+
 
             return;
         }
@@ -65,10 +50,13 @@ final class ProcessNewEventJob implements ShouldQueue
         // 2️⃣ Parse command input
         $parts = explode('|', $this->messageContent);
         if (count($parts) < 6) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No user ID provided.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -132,6 +120,12 @@ final class ProcessNewEventJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to encode event data.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Failed to encode event data.',
+                statusCode: 500,
+            );
+
             throw new Exception('Failed to encode event data.');
         }
 
@@ -145,6 +139,12 @@ final class ProcessNewEventJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to create event.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord_api_error',
+                message: 'Failed to create event.',
+                statusCode: 500,
+            );
+
             throw new Exception('Failed to create event. ' . json_encode($apiResponse->json()));
         }
 
@@ -158,5 +158,6 @@ final class ProcessNewEventJob implements ShouldQueue
             'embed_title' => '🎉 Event Created!',
             'embed_description' => "**Event:** {$eventTopic}\n**Start:** {$startDate} at {$startTime} UTC\n**Location:** " . ($isVoiceChannel ? '🔊 Voice Channel' : '🌍 External/Text Channel') . "\n**Event ID:** `{$eventId}`",
         ]);
+        $this->updateNativeCommandRequestComplete();
     }
 }
