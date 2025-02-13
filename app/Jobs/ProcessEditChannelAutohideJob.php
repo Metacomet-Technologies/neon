@@ -10,7 +10,6 @@ use App\Jobs\NativeCommand\ProcessBaseJob;
 use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -35,7 +34,7 @@ final class ProcessEditChannelAutohideJob extends ProcessBaseJob implements Shou
 
         // ✅ If the command was used without parameters, send the help message
         if (! $this->targetChannelId || ! $this->autoHideDuration) {
-            $this->sendUsageAndExample("Allowed values: `60, 1440, 4320, 10080` minutes.");
+            $this->sendUsageAndExample('Allowed values: `60, 1440, 4320, 10080` minutes.');
 
             $this->updateNativeCommandRequestFailed(
                 status: 'failed',

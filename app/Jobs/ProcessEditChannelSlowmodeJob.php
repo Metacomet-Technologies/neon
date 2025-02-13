@@ -10,7 +10,6 @@ use App\Jobs\NativeCommand\ProcessBaseJob;
 use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -59,9 +58,9 @@ final class ProcessEditChannelSlowmodeJob extends ProcessBaseJob implements Shou
                 message: 'No user ID provided.',
                 statusCode: 400,
             );
+
             return;
         }
-
 
         // Ensure the input is a valid Discord channel ID
         if (! preg_match('/^\d{17,19}$/', $this->targetChannelId)) {

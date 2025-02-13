@@ -10,7 +10,6 @@ use App\Jobs\NativeCommand\ProcessBaseJob;
 use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -20,7 +19,6 @@ final class ProcessEditChannelTopicJob extends ProcessBaseJob implements ShouldQ
 
     private ?string $targetChannelId = null; // The actual Discord channel ID to edit
     private ?string $newTopic = null;        // The new channel topic
-
 
     public function __construct(public NativeCommandRequest $nativeCommandRequest)
     {
