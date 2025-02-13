@@ -6,49 +6,23 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-final class ProcessDeleteChannelJob implements ShouldQueue
+final class ProcessDeleteChannelJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
 
-    public string $baseUrl;
-    public string $usageMessage;
-    public string $exampleMessage;
-
-    // 'slug' => 'delete-channel',
-    // 'description' => 'Deletes a channel.',
-    // 'class' => \App\Jobs\ProcessDeleteChannelJob::class,
-    // 'usage' => 'Usage: !delete-channel <channel-id|channel-name>',
-    // 'example' => 'Example: !delete-channel 123456789012345678 or !delete-channel #general',
-    // 'is_active' => true,
-
-    /**
-     * Create a new job instance.
-     */
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId,
-        public string $guildId,
-        public string $messageContent,
-    ) {
-        // Fetch command details from the database
-        $command = DB::table('native_commands')->where('slug', 'delete-channel')->first();
-
-        // Set usage and example messages dynamically
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
-
-        $this->baseUrl = config('services.discord.rest_api_url');
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
     }
 
-    /**
-     * Execute the job.
-     */
     public function handle(): void
     {
         // Ensure the user has permission to manage channels
@@ -59,6 +33,11 @@ final class ProcessDeleteChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to delete channels in this server.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to delete channels.',
+                statusCode: 403,
+            );
 
             return;
         }
@@ -67,18 +46,21 @@ final class ProcessDeleteChannelJob implements ShouldQueue
         $targetChannelId = $this->parseMessage($this->messageContent);
 
         if (! $targetChannelId) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No channel ID provided.',
+                statusCode: 400,
+            );
 
             return;
         }
 
-        // 3️⃣ Construct the delete API request
+        // Construct the delete API request
         $deleteUrl = $this->baseUrl . "/channels/{$targetChannelId}";
 
-        // 4️⃣ Make the delete request with retries
+        // Make the delete request with retries
         $deleteResponse = retry(3, function () use ($deleteUrl) {
             return Http::withToken(config('discord.token'), 'Bot')->delete($deleteUrl);
         }, 200);
@@ -92,6 +74,11 @@ final class ProcessDeleteChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => "❌ Failed to delete channel (ID: `{$targetChannelId}`).",
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord_api_error',
+                message: 'Failed to delete channel.',
+                statusCode: 500,
+            );
 
             return;
         }
@@ -103,6 +90,7 @@ final class ProcessDeleteChannelJob implements ShouldQueue
             'embed_description' => "**Channel ID:** `{$targetChannelId}` has been successfully removed.",
             'embed_color' => 15158332, // Red embed
         ]);
+        $this->updateNativeCommandRequestComplete();
     }
 
     /**
