@@ -6,81 +6,66 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-final class ProcessMoveUserJob implements ShouldQueue
+final class ProcessMoveUserJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
 
-    public string $usageMessage;
-    public string $exampleMessage;
+    public string $targetChannelId;
+    public string $userId;
     public int $retryDelay = 2000; // 2-second delay before retrying
     public int $maxRetries = 3; // Max retries per request
 
-    // 'slug' => 'move-user',
-    // 'description' => 'Moves a user to a different voice channel.',
-    // 'class' => \App\Jobs\ProcessMoveUserJob::class,
-    // 'usage' => 'Usage: !move-user <@userID | userID> <channelID>',
-    // 'example' => 'Example: !move-user 123456789012345678 123456789012345678',
-    // 'is_active' => true,
-
-    public string $baseUrl;
-    public string $userId;
-    public string $targetChannelId;
-
-    /**
-     * Create a new job instance.
-     */
-    public function __construct(
-        public string $discordUserId, // Command sender (user executing !move-user)
-        public string $channelId,     // The channel where the command was sent
-        public string $guildId,       // The guild (server) ID
-        public string $messageContent, // The raw message content
-    ) {
-        // Fetch command details from the database
-        $command = DB::table('native_commands')->where('slug', 'move-user')->first();
-
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
-        $this->baseUrl = config('services.discord.rest_api_url');
-
-        // Parse the message
-        [$this->userId, $this->targetChannelId] = $this->parseMessage($this->messageContent);
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
     }
 
     // TODO: Add the handle method to move the user to the target channel based on name and not ID only.
 
-    /**
-     * Execute the job.
-     */
+
     public function handle(): void
     {
-        // 1️⃣ Validate the user and channel IDs
-        if (! $this->userId || ! $this->targetChannelId) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
+        // Parse the message
+        [$this->userId, $this->targetChannelId] = $this->parseMessage($this->messageContent);
 
-            return;
-        }
-
-        // 2️⃣ Check if the user has permission to move members
+        // Check if the user has permission to move members
         $adminCheck = GetGuildsByDiscordUserId::getIfUserCanMoveMembers($this->guildId, $this->discordUserId);
         if ($adminCheck === 'failed') {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ You are not allowed to move users.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to move members',
+                statusCode: 403,
+            );
 
             return;
         }
 
-        // 3️⃣ Construct the API request to move the user
+        // Validate the user and channel IDs
+        if (! $this->userId || ! $this->targetChannelId) {
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No user ID provided.',
+                statusCode: 400,
+            );
+
+            return;
+        }
+
+        // Construct the API request to move the user
         $moveUrl = "{$this->baseUrl}/guilds/{$this->guildId}/members/{$this->userId}";
         $payload = ['channel_id' => $this->targetChannelId];
 
@@ -98,6 +83,12 @@ final class ProcessMoveUserJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to move user.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord_api_error',
+                message: 'Failed to move user.',
+                details: $apiResponse->json(),
+                statusCode: $apiResponse->status(),
+            );
 
             return;
         }
@@ -109,11 +100,9 @@ final class ProcessMoveUserJob implements ShouldQueue
             'embed_description' => "Successfully moved <@{$this->userId}> to the channel <#{$this->targetChannelId}>.",
             'embed_color' => 3066993, // Green
         ]);
+        $this->updateNativeCommandRequestComplete();
     }
 
-    /**
-     * Parses the message content for user ID and channel ID.
-     */
     private function parseMessage(string $message): array
     {
         // Remove extra spaces before processing
@@ -123,7 +112,7 @@ final class ProcessMoveUserJob implements ShouldQueue
         $parts = explode(' ', $message);
 
         if (count($parts) != 3) {
-            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
+            $this->sendUsageAndExample();
 
             return [null, null];
         }
@@ -137,6 +126,11 @@ final class ProcessMoveUserJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => "❌ Invalid channel ID format: {$channelId}",
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Invalid channel ID format.',
+                statusCode: 400,
+            );
 
             return [null, null]; // Invalid format
         }
@@ -149,6 +143,11 @@ final class ProcessMoveUserJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => "❌ Invalid user ID format: {$parts[1]}",
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Invalid user ID format.',
+                statusCode: 400,
+            );
 
             return [null, null]; // Invalid user ID format
         }

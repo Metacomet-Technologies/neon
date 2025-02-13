@@ -7,6 +7,8 @@ namespace App\Jobs;
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use App\Helpers\DiscordChannelValidator;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Discord\Parts\Channel\Channel;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -14,52 +16,15 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-final class ProcessNewChannelJob implements ShouldQueue
+final class ProcessNewChannelJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
 
-    public string $baseUrl;
-
-    public string $usageMessage;
-    public string $exampleMessage;
-
-    // 'slug' => 'new-channel',
-    // 'description' => 'Creates a new text or voice channel.',
-    // 'class' => \App\Jobs\ProcessNewChannelJob::class,
-    // 'usage' => 'Usage: !new-channel <channel-name> <channel-type> [category-id] [channel-topic]',
-    // 'example' => 'Example: !new-channel test-channel text 123456789012345678 "A fun chat for everyone!"',
-    // 'is_active' => true,
-
-    /**
-     * The types of channels that can be created.
-     *
-     * @var array<string>
-     */
     public array $channelTypes = ['text', 'voice'];
 
-    /**
-     * Create a new job instance.
-     */
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId,
-        public string $guildId,
-        public string $messageContent,
-    ) {
-        // Fetch command details from the database
-        $command = DB::table('native_commands')->where('slug', 'new-channel')->first();
-
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
-
-        // 'slug' => 'new-channel',
-        // 'description' => 'Creates a new text or voice channel.',
-        // 'class' => \App\Jobs\ProcessNewChannelJob::class,
-        // 'usage' => 'Usage: !new-channel <channel-name> <channel-type> [category-id] [channel-topic]',
-        // 'example' => 'Example: !new-channel test-channel text 123456789012345678 "A fun chat for everyone!"',
-        // 'is_active' => true,
-
-        $this->baseUrl = config('services.discord.rest_api_url');
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
     }
 
     /**
@@ -74,6 +39,11 @@ final class ProcessNewChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You are not allowed to create channels.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to manage channels',
+                statusCode: 403,
+            );
 
             return;
         }
@@ -82,8 +52,13 @@ final class ProcessNewChannelJob implements ShouldQueue
         preg_match('/^!new-channel\s+(\S+)\s+(\S+)(?:\s+(\d+))?(?:\s+(.+))?$/', $this->messageContent, $matches);
 
         if (! isset($matches[1], $matches[2])) {
-            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->usageMessage]);
-            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => $this->exampleMessage]);
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No user ID provided.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -99,6 +74,11 @@ final class ProcessNewChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Invalid channel name. Please use a different name.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Invalid channel name provided.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -109,6 +89,11 @@ final class ProcessNewChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => $validationResult['message'],
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Invalid channel name provided.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -119,6 +104,11 @@ final class ProcessNewChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Invalid channel type. Please use "text" or "voice".',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No channel type provided.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -154,6 +144,13 @@ final class ProcessNewChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => "❌ Failed to create channel '{$channelName}'.",
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord_api_error',
+                message: 'Failed to create channel.',
+                statusCode: $apiResponse->status(),
+                details: $apiResponse->json(),
+            );
+
 
             return;
         }
@@ -168,5 +165,6 @@ final class ProcessNewChannelJob implements ShouldQueue
             'embed_description' => "**Channel Name:** #{$channelName}\n**Type:** " . ($channelType === 'text' ? '💬 Text' : '🔊 Voice') . "\n{$categoryMessage}\n{$topicMessage}",
             'embed_color' => 3447003, // Blue embed
         ]);
+        $this->updateNativeCommandRequestComplete();
     }
 }

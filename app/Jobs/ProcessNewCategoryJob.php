@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
 use App\Models\NativeCommandRequest;
 use Discord\Parts\Channel\Channel;
 use Exception;
@@ -13,7 +14,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
 
-final class ProcessNewCategoryJob implements ShouldQueue
+final class ProcessNewCategoryJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
 
@@ -24,26 +25,9 @@ final class ProcessNewCategoryJob implements ShouldQueue
     public string $messageContent;
     public array $command;
 
-    // 'slug' => 'new-category',
-    // 'description' => 'Creates a new category in the server.',
-    // 'class' => \App\Jobs\ProcessNewCategoryJob::class,
-    // 'usage' => 'Usage: !new-category <category-name>',
-    // 'example' => 'Example: !new-category test-category',
-    // 'is_active' => true,
-
-    /**
-     * Create a new job instance.
-     */
     public function __construct(public NativeCommandRequest $nativeCommandRequest)
     {
-        // Fetch command details from the database
-        $this->discordUserId = $nativeCommandRequest->discord_user_id;
-        $this->channelId = $nativeCommandRequest->channel_id;
-        $this->guildId = $nativeCommandRequest->guild_id;
-        $this->messageContent = $nativeCommandRequest->message_content;
-        $this->command = $nativeCommandRequest->command;
-
-        $this->baseUrl = config('services.discord.rest_api_url');
+        parent::__construct($nativeCommandRequest);
     }
 
     /**

@@ -6,6 +6,8 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -13,73 +15,21 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-final class ProcessMuteUserJob implements ShouldQueue
+//TODO: this job may not be muting users as expected. Something about the roles and permissions is off.
+final class ProcessMuteUserJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
 
-    /**
-     * User-friendly instruction messages.
-     */
-    public string $usageMessage;
-    public string $exampleMessage;
-
-    // 'slug' => 'mute',
-    // 'description' => 'Mutes a user in the server.',
-    // 'class' => \App\Jobs\ProcessMuteUserJob::class,
-    // 'usage' => 'Usage: !mute <user-id>',
-    // 'example' => 'Example: !mute 123456789012345678',
-    // 'is_active' => true,
-    private string $baseUrl;
     private string $targetUserId; // The user being muted
 
     private int $retryDelay = 2000; // ✅ 2-second delay before retrying
     private int $maxRetries = 3;    // ✅ Max retries per request
 
-    /**
-     * Create a new job instance.
-     */
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId, // The channel where the command was sent
-        public string $guildId,
-        public string $messageContent,
-    ) {
-        // Fetch command details from the database
-        $command = DB::table('native_commands')->where('slug', 'mute')->first();
-
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
-
-        $this->baseUrl = config('services.discord.rest_api_url');
-
-        // Check if the command was sent without any arguments (only "!mute")
-        if (trim($this->messageContent) === '!mute') {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
-            // Stop further processing by throwing an exception
-            throw new Exception('No user ID provided for !mute command.');
-        }
-
-        // Parse the message for a valid user ID
-        $this->targetUserId = $this->parseMessage($this->messageContent);
-
-        // Validate input
-        if (! $this->targetUserId) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
-
-            // Stop execution
-            throw new Exception('Invalid input for !mute. Expected a valid user ID.');
-        }
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
     }
 
-    /**
-     * Handles the job execution.
-     */
     public function handle(): void
     {
         // Ensure the user has permission to manage channels
@@ -91,14 +41,55 @@ final class ProcessMuteUserJob implements ShouldQueue
                 'response' => '❌ You do not have permission to mute/unmute users in this server.',
             ]);
 
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to mute members',
+                statusCode: 403,
+            );
+
             return;
         }
+
+        // Check if the command was sent without any arguments (only "!mute")
+        if (trim($this->messageContent) === '!mute') {
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No parameters provided.',
+                statusCode: 400,
+            );
+            // Stop further processing by throwing an exception
+            throw new Exception('No user ID provided for !mute command.');
+        }
+
+        // Parse the message for a valid user ID
+        $this->targetUserId = $this->parseMessage($this->messageContent);
+
+        // Validate input
+        if (! $this->targetUserId) {
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Invalid parameters provided.',
+                statusCode: 400,
+            );
+            // Stop execution
+            throw new Exception('Invalid input for !mute. Expected a valid user ID.');
+        }
+
         // Ensure the input is a valid Discord user ID
         if (! preg_match('/^\d{17,19}$/', $this->targetUserId)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ Invalid user ID format. Please provide a valid Discord user ID.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Invalid user ID format.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -115,6 +106,12 @@ final class ProcessMuteUserJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to retrieve server channels.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord_api_error',
+                message: 'Failed to fetch channels.',
+                statusCode: $channelsResponse->status(),
+                details: $channelsResponse->json(),
+            );
 
             return;
         }
@@ -159,6 +156,7 @@ final class ProcessMuteUserJob implements ShouldQueue
                 'embed_color' => 3066993, // Green
             ]);
         }
+        $this->updateNativeCommandRequestComplete();
     }
 
     private function parseMessage(string $message): ?string
