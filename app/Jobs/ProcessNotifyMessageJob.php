@@ -7,12 +7,10 @@ use App\Helpers\Discord\SendMessage;
 use App\Jobs\NativeCommand\ProcessBaseJob;
 use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 class ProcessNotifyMessageJob extends ProcessBaseJob implements ShouldQueue
 {
-
     public function __construct(public NativeCommandRequest $nativeCommandRequest)
     {
         parent::__construct($nativeCommandRequest);
@@ -51,6 +49,7 @@ class ProcessNotifyMessageJob extends ProcessBaseJob implements ShouldQueue
                 message: 'No user ID provided.',
                 statusCode: 400,
             );
+
             return;
         }
 
@@ -64,7 +63,7 @@ class ProcessNotifyMessageJob extends ProcessBaseJob implements ShouldQueue
         } else {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => "❌ Invalid channel format. Please mention a valid channel.",
+                'response' => '❌ Invalid channel format. Please mention a valid channel.',
             ]);
             $this->sendUsageAndExample();
 
