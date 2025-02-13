@@ -6,44 +6,24 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
 use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-final class ProcessAssignRoleJob implements ShouldQueue
+final class ProcessAssignRoleJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
-
-    public string $baseUrl;
-    public string $discordUserId;
-    public string $channelId;
-    public string $guildId;
-    public string $messageContent;
-    public array $command;
 
     public int $batchSize = 5;    // ✅ Process users in groups of 5 to avoid rate limits
     public int $retryDelay = 2000; // ✅ 2-second delay before retrying
     public int $maxRetries = 3;    // ✅ Max retries per request
 
-    // 'slug' => 'assign-role',
-    // 'description' => 'Assigns a role to one or more users.',
-    // 'class' => \App\Jobs\ProcessAssignRoleJob::class,
-    // 'usage' => 'Usage: !assign-role <role-name> <@user1> <@user2> ...',
-    // 'example' => 'Example: !assign-role VIP 987654321098765432',
-    // 'is_active' => true,
-
     public function __construct(public NativeCommandRequest $nativeCommandRequest)
     {
-        // Fetch command details from the database
-        $this->discordUserId = $nativeCommandRequest->discord_user_id;
-        $this->channelId = $nativeCommandRequest->channel_id;
-        $this->guildId = $nativeCommandRequest->guild_id;
-        $this->messageContent = $nativeCommandRequest->message_content;
-        $this->command = $nativeCommandRequest->command;
-
-        $this->baseUrl = config('services.discord.rest_api_url');
+        parent::__construct($nativeCommandRequest);
     }
 
     public function handle(): void

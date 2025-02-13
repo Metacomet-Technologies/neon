@@ -6,114 +6,100 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB as FacadesDB;
 use Illuminate\Support\Facades\Http;
 
-final class ProcessNewRoleJob implements ShouldQueue
+final class ProcessNewRoleJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
 
-    public string $baseUrl;
-    public string $usageMessage;
-    public string $exampleMessage;
     public array $defaultRoleSettings;
 
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId,
-        public string $guildId,
-        public string $messageContent,
-    ) {
-        // Fetch command details from the database
-        $command = FacadesDB::table('native_commands')->where('slug', 'new-role')->first();
-
-        // dump('Command Data:', $command);
-
-        if (! $command) {
-            throw new Exception('Command configuration missing from database.');
-        }
-
-        // Set correct usage & example messages
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
 
         // Set default role settings
-        $this->defaultRoleSettings = [
-            'color' => hexdec('FFFFFF'), // Default white color
-            'hoist' => false,
-        ];
-
-        $this->baseUrl = config('services.discord.rest_api_url');
+                $this->defaultRoleSettings = [
+                    'color' => hexdec('FFFFFF'), // Default white color
+                    'hoist' => false,
+                ];
     }
 
     public function handle(): void
     {
-        // dump("Processing !new-role command from {$this->discordUserId} in guild {$this->guildId}");
-
         // Ensure the user has permission to manage roles
         if (! GetGuildsByDiscordUserId::getIfUserCanManageRoles($this->guildId, $this->discordUserId)) {
-            // dump('❌ User does not have permission to manage roles.');
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to manage roles in this server.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to manage roles.',
+                statusCode: 403,
+            );
 
             return;
         }
 
-        // 1️⃣ Parse command arguments
+        // Parse command arguments
         $parts = explode(' ', trim($this->messageContent));
-
-        // dump('Parsed Command Parts:', $parts);
 
         // If not enough parameters, send usage message
         if (count($parts) < 2) {
-            // dump('❌ Not enough parameters. Sending help message.');
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No user ID provided.',
+                statusCode: 400,
+            );
 
             return;
         }
 
-        // 2️⃣ Extract role details
+        // Extract role details
         $roleName = $parts[1];
         $roleColor = (int) $this->defaultRoleSettings['color']; // Convert to integer
         $roleHoist = $this->defaultRoleSettings['hoist'];
 
-        // 3️⃣ Handle optional color argument
+        // Handle optional color argument
         if (isset($parts[2]) && preg_match('/^#?([0-9a-fA-F]{6})$/', $parts[2], $matches)) {
             $roleColor = hexdec($matches[1]);
         }
 
-        // 4️⃣ Handle optional hoist argument
+        // Handle optional hoist argument
         if (isset($parts[3]) && strtolower($parts[3]) === 'yes') {
             $roleHoist = true;
         }
 
-        // dump('Final Role Color (Decimal)', $roleColor);
-
-        // 5️⃣ Fetch existing roles
+        // Fetch existing roles
         $rolesResponse = Http::withToken(config('discord.token'), 'Bot')
             ->get("{$this->baseUrl}/guilds/{$this->guildId}/roles");
 
         if ($rolesResponse->failed()) {
-            // dump("❌ Failed to fetch roles for guild {$this->guildId}");
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ Failed to retrieve roles from the server.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Failed to retrieve roles from the server.',
+                statusCode: 500,
+            );
 
             return;
         }
 
         $existingRoles = $rolesResponse->json();
 
-        // 6️⃣ Check if the role exists
+        // Check if the role exists
         foreach ($existingRoles as $role) {
             if (strcasecmp($role['name'], $roleName) === 0) { // Case-insensitive comparison
                 // dump("❌ Role '{$roleName}' already exists.");
@@ -121,12 +107,17 @@ final class ProcessNewRoleJob implements ShouldQueue
                     'is_embed' => false,
                     'response' => "❌ Role '{$roleName}' already exists.",
                 ]);
+                $this->updateNativeCommandRequestFailed(
+                    status: 'failed',
+                    message: 'Role already exists.',
+                    statusCode: 409,
+                );
 
                 return;
             }
         }
 
-        // 7️⃣ Create the role via Discord API
+        // Create the role via Discord API
         $url = "{$this->baseUrl}/guilds/{$this->guildId}/roles";
         $apiResponse = Http::withToken(config('discord.token'), 'Bot')
             ->post($url, [
@@ -136,13 +127,18 @@ final class ProcessNewRoleJob implements ShouldQueue
                 'mentionable' => false,
             ]);
 
-        // 8️⃣ Handle API Response
+        // Handle API Response
         if ($apiResponse->failed()) {
             // dump("❌ Failed to create role '{$roleName}' in guild {$this->guildId}", $apiResponse->json());
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => "❌ Failed to create role '{$roleName}'.",
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord_api_error',
+                message: 'Failed to create role.',
+                statusCode: 500,
+            );
 
             return;
         }
@@ -157,5 +153,6 @@ final class ProcessNewRoleJob implements ShouldQueue
             'embed_description' => "**Role Name:** {$createdRole['name']}\n**Color:** #" . strtoupper(str_pad(dechex($createdRole['color']), 6, '0', STR_PAD_LEFT)) . "\n**Displayed Separately:** " . ($createdRole['hoist'] ? '✅ Yes' : '❌ No'),
             'embed_color' => $createdRole['color'],
         ]);
+        $this->updateNativeCommandRequestComplete();
     }
 }

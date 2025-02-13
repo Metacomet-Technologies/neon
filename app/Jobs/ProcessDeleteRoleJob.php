@@ -6,41 +6,21 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-final class ProcessDeleteRoleJob implements ShouldQueue
+final class ProcessDeleteRoleJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
 
-    public string $usageMessage;
-    public string $exampleMessage;
-
-    // 'slug' => 'delete-role',
-    // 'description' => 'Deletes a role.',
-    // 'class' => \App\Jobs\ProcessDeleteRoleJob::class,
-    // 'usage' => 'Usage: !delete-role <role-name>',
-    // 'example' => 'Example: !delete-role VIP',
-    // 'is_active' => true,
-
-    /**
-     * Create a new job instance.
-     */
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId,
-        public string $guildId,
-        public string $messageContent,
-    ) {
-        // Fetch command details from the database
-        $command = DB::table('native_commands')->where('slug', 'delete-role')->first();
-
-        // Set usage and example messages dynamically
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
     }
 
     /**
@@ -56,6 +36,11 @@ final class ProcessDeleteRoleJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to manage roles in this server.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to manage roles.',
+                statusCode: 403,
+            );
 
             return;
         }
@@ -63,10 +48,13 @@ final class ProcessDeleteRoleJob implements ShouldQueue
         $parts = explode(' ', $this->messageContent);
 
         if (count($parts) < 2) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No user ID provided.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -87,6 +75,11 @@ final class ProcessDeleteRoleJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to retrieve roles from the server.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Failed to retrieve roles from the server.',
+                statusCode: 500,
+            );
 
             return;
         }
@@ -100,6 +93,11 @@ final class ProcessDeleteRoleJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => "❌ Role '{$roleName}' not found.",
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: "Role '{$roleName}' not found.",
+                statusCode: 404,
+            );
 
             return;
         }
@@ -122,6 +120,11 @@ final class ProcessDeleteRoleJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => "❌ Failed to delete role '{$roleName}'.",
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord_api_error',
+                message: "Failed to delete role '{$roleName}'.",
+                statusCode: 500,
+            );
 
             return;
         }
@@ -133,5 +136,6 @@ final class ProcessDeleteRoleJob implements ShouldQueue
             'embed_description' => "**Role Name:** {$roleName}\n**Successfully removed from server.**",
             'embed_color' => 15158332, // Red embed
         ]);
+        $this->updateNativeCommandRequestComplete();
     }
 }
