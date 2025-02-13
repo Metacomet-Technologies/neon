@@ -12,7 +12,6 @@ use App\Models\NativeCommandRequest;
 use Discord\Parts\Channel\Channel;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -150,7 +149,6 @@ final class ProcessNewChannelJob extends ProcessBaseJob implements ShouldQueue
                 statusCode: $apiResponse->status(),
                 details: $apiResponse->json(),
             );
-
 
             return;
         }
