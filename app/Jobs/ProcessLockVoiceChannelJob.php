@@ -10,7 +10,6 @@ use App\Jobs\NativeCommand\ProcessBaseJob;
 use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -50,7 +49,7 @@ final class ProcessLockVoiceChannelJob extends ProcessBaseJob implements ShouldQ
 
         // Check if the user only typed "!lock-voice" with no arguments
         if (trim($this->messageContent) === '!lock-voice') {
-        $this->sendUsageAndExample();
+            $this->sendUsageAndExample();
 
             $this->updateNativeCommandRequestFailed(
                 status: 'failed',
@@ -96,6 +95,7 @@ final class ProcessLockVoiceChannelJob extends ProcessBaseJob implements ShouldQ
                 statusCode: $rolesResponse->status(),
                 details: $rolesResponse->json(),
             );
+
             return;
         }
 
