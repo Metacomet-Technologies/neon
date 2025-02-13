@@ -13,7 +13,6 @@ use DateTimeZone;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 final class ProcessNewEventJob extends ProcessBaseJob implements ShouldQueue
@@ -42,7 +41,6 @@ final class ProcessNewEventJob extends ProcessBaseJob implements ShouldQueue
                 message: 'User does not have permission to create events.',
                 statusCode: 403,
             );
-
 
             return;
         }
