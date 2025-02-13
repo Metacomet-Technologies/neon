@@ -13,8 +13,6 @@ final class GetSecretsCommand extends Command
 {
     /**
      * The name of the secret to fetch.
-     *
-     * @var string
      */
     public string $secretName = 'prod/neon-bot/env';
 
@@ -53,6 +51,7 @@ final class GetSecretsCommand extends Command
         $secretString = json_decode($secret['SecretString'], true);
         if ($this->option('key')) {
             $this->line($secretString[$this->option('key')]);
+
             return 0;
         }
 
@@ -64,11 +63,11 @@ final class GetSecretsCommand extends Command
             // Display the secret as a table of key-value pairs in two columns.
             $this->table(
                 ['Key', 'Value'],
-                collect($secretString)->map(fn($value, $key) => [$key, $value])->toArray()
+                collect($secretString)->map(fn ($value, $key) => [$key, $value])->toArray()
             );
         } elseif ($output === 'env') {
             // Display the secret as a series of key-value pairs in the format of a .env file.
-            $this->line(collect($secretString)->map(fn($value, $key) => "$key=$value")->implode("\n"));
+            $this->line(collect($secretString)->map(fn ($value, $key) => "{$key}={$value}")->implode("\n"));
         }
 
         return 0;
