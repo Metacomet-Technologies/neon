@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\LoginCallbackController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LogoutController;
+use App\Http\Controllers\Auth\UserIntegrationController;
 use App\Http\Controllers\CommandController;
 use App\Http\Controllers\JoinServerController;
 use App\Http\Controllers\PrivacyPolicyController;
@@ -26,6 +27,9 @@ Route::group(['middleware' => 'auth'], function () {
         Route::get('{serverId}', [ServerController::class, 'show'])->name('show');
         Route::resource('{serverId}/command', CommandController::class)->except(['show']);
     });
+    Route::get('{provider}/callback', [UserIntegrationController::class, 'store'])->name('user-integration.store');
+    Route::delete('{provider}/disconnect', [UserIntegrationController::class, 'destroy'])->name('user-integration.destroy');
+    Route::get('{provider}/connect', [UserIntegrationController::class, 'create'])->name('user-integration.create');
 });
 
 Route::get('unsubscribe/{email}', [UnsubscribeController::class, 'update'])->name('unsubscribe.update');

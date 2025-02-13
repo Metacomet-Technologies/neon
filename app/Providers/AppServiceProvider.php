@@ -29,6 +29,7 @@ final class AppServiceProvider extends ServiceProvider
     {
         Event::listen(function (\SocialiteProviders\Manager\SocialiteWasCalled $event) {
             $event->extendSocialite('discord', \SocialiteProviders\Discord\Provider::class);
+            $event->extendSocialite('twitch', \SocialiteProviders\Twitch\Provider::class);
         });
 
         Gate::before(function (User $user) {

@@ -21,6 +21,7 @@
         "openai-php/laravel": "^0.10.2",
         "sentry/sentry-laravel": "*",
         "socialiteproviders/discord": "^4.2",
+        "socialiteproviders/twitch": "^5.4",
         "spatie/laravel-ignition": "^2.9",
         "symfony/http-client": "^7.2",
         "symfony/postmark-mailer": "^7.2",

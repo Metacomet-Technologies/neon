@@ -34,6 +34,8 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string|null $current_server_id
  * @property-read array<string, mixed> $guilds
  * @property-read \App\Models\TFactory|null $use_factory
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\UserIntegration> $integrations
+ * @property-read int|null $integrations_count
  * @property-read \Illuminate\Notifications\DatabaseNotificationCollection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
  * @property-read int|null $notifications_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \Laravel\Sanctum\PersonalAccessToken> $tokens
@@ -150,5 +152,10 @@ final class User extends Authenticatable
         });
 
         return $guilds;
+    }
+
+    public function integrations()
+    {
+        return $this->hasMany(UserIntegration::class);
     }
 }
