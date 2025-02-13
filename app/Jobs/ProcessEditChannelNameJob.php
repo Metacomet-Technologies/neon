@@ -6,69 +6,30 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-final class ProcessEditChannelNameJob implements ShouldQueue
+final class ProcessEditChannelNameJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
 
-    /**
-     * User-friendly instruction messages.
-     */
-    public string $usageMessage;
-    public string $exampleMessage;
-
-    // 'slug' => 'edit-channel-name',
-    // 'description' => 'Edits a channel name.',
-    // 'class' => \App\Jobs\ProcessEditChannelNameJob::class,
-    // 'usage' => 'Usage: !edit-channel-name <channel-id> <new-name>',
-    // 'example' => 'Example: !edit-channel-name 123456789012345678 new-channel-name',
-    // 'is_active' => true,
-
-    public string $baseUrl;
     public ?string $targetChannelId = null;
     public ?string $newName = null;
 
-    /**
-     * Create a new job instance.
-     */
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId, // The channel where the command was sent
-        public string $guildId,
-        public string $messageContent,
-    ) {
-        // Fetch command details from the database
-        $command = DB::table('native_commands')->where('slug', 'edit-channel-name')->first();
-
-        // Set usage and example messages dynamically
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
-
-        $this->baseUrl = config('services.discord.rest_api_url');
-
-        // Parse the message
-        [$this->targetChannelId, $this->newName] = $this->parseMessage($this->messageContent);
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
     }
 
-    /**
-     * Handles the job execution.
-     */
     public function handle(): void
     {
-        // ✅ If the command was used without parameters, send the help message
-        if (! $this->targetChannelId || ! $this->newName) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
-
-            return;
-        }
+        // Parse the message
+        [$this->targetChannelId, $this->newName] = $this->parseMessage($this->messageContent);
 
         // Ensure the user has permission to manage channels
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
@@ -78,6 +39,24 @@ final class ProcessEditChannelNameJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to edit channels in this server.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to manage channels.',
+                statusCode: 403,
+            );
+
+            return;
+        }
+
+        // ✅ If the command was used without parameters, send the help message
+        if (! $this->targetChannelId || ! $this->newName) {
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No user ID provided.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -88,6 +67,11 @@ final class ProcessEditChannelNameJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Invalid channel ID. Please use `#channel-name` to select a valid channel.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Invalid channel ID provided.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -107,6 +91,12 @@ final class ProcessEditChannelNameJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to rename channel.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord_api_error',
+                message: 'Failed to rename channel.',
+                statusCode: $apiResponse->status(),
+                details: $apiResponse->json(),
+            );
 
             return;
         }
@@ -118,6 +108,7 @@ final class ProcessEditChannelNameJob implements ShouldQueue
             'embed_description' => "**New Name:** #{$this->newName}",
             'embed_color' => 3447003,
         ]);
+        $this->updateNativeCommandRequestComplete();
     }
 
     /**

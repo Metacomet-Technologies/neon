@@ -6,73 +6,32 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-final class ProcessEditChannelNSFWJob implements ShouldQueue
+final class ProcessEditChannelNSFWJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
 
-    public string $baseUrl;
-    public string $usageMessage;
-    public string $exampleMessage;
-
-    // 'slug' => 'edit-channel-nsfw',
-    // 'description' => 'Edits a channel age-rating or "not suitable for work" NSFW.',
-    // 'class' => \App\Jobs\ProcessEditChannelNSFWJob::class,
-    // 'usage' => 'Usage: !edit-channel-nsfw <channel-id> <true|false>',
-    // 'example' => 'Example: !edit-channel-nsfw 123456789012345678 true',
-    // 'is_active' => true,
-
-    /**
-     * Valid NSFW settings.
-     *
-     * @var array<string>
-     */
     public array $validNSFWValues = ['true', 'false'];
 
     public ?string $targetChannelId = null;
     public ?bool $nsfwSetting = null;
 
-    /**
-     * Create a new job instance.
-     */
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId,
-        public string $guildId,
-        public string $messageContent,
-    ) {
-        // Fetch command details from the database
-        $command = DB::table('native_commands')->where('slug', 'edit-channel-nsfw')->first();
-
-        // Set usage and example messages dynamically
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
-
-        $this->baseUrl = config('services.discord.rest_api_url');
-
-        // Parse the message
-        [$this->targetChannelId, $this->nsfwSetting] = $this->parseMessage($this->messageContent);
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
     }
 
-    /**
-     * Handles the job execution.
-     */
     public function handle(): void
     {
-        // ✅ If the command was used without parameters, send the help message
-        if (! $this->targetChannelId || is_null($this->nsfwSetting)) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
-
-            return;
-        }
+        // Parse the message
+        [$this->targetChannelId, $this->nsfwSetting] = $this->parseMessage($this->messageContent);
 
         // Ensure the user has permission to manage channels
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
@@ -82,6 +41,24 @@ final class ProcessEditChannelNSFWJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to edit channels in this server.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to manage channels.',
+                statusCode: 403,
+            );
+
+            return;
+        }
+
+        // ✅ If the command was used without parameters, send the help message
+        if (! $this->targetChannelId || is_null($this->nsfwSetting)) {
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No user ID provided.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -92,6 +69,11 @@ final class ProcessEditChannelNSFWJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Invalid channel ID. Please use `#channel-name` to select a valid channel.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Invalid channel ID provided.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -111,6 +93,12 @@ final class ProcessEditChannelNSFWJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to update NSFW setting.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord_api_error',
+                message: 'Failed to update auto-hide setting.',
+                statusCode: $apiResponse->status(),
+                details: $apiResponse->json(),
+            );
 
             return;
         }
@@ -122,6 +110,7 @@ final class ProcessEditChannelNSFWJob implements ShouldQueue
             'embed_description' => '**NSFW Enabled:** ' . ($this->nsfwSetting ? 'Yes' : 'No'),
             'embed_color' => 3447003,
         ]);
+        $this->updateNativeCommandRequestComplete();
     }
 
     /**

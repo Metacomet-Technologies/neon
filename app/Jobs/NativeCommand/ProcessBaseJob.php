@@ -50,11 +50,15 @@ class ProcessBaseJob implements ShouldQueue
         ]);
     }
 
-    public function sendUsageAndExample(): void
+    public function sendUsageAndExample(?string $additionalInfo = null): void
     {
+        $response = $this->command['usage'] . "\n" . $this->command['example'];
+        if ($additionalInfo) {
+            $response .= "\n\n" . $additionalInfo;
+        }
         SendMessage::sendMessage($this->channelId, [
             'is_embed' => false,
-            'response' => $this->command['usage'] . "\n" . $this->command['example'],
+            'response' => $response,
         ]);
     }
 

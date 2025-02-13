@@ -6,71 +6,34 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-final class ProcessEditChannelTopicJob implements ShouldQueue
+final class ProcessEditChannelTopicJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
 
-    /**
-     * User-friendly instruction messages.
-     */
-    public string $usageMessage;
-    public string $exampleMessage;
-
-    // 'slug' => 'edit-channel-topic',
-    // 'description' => 'Edits a channel topic.',
-    // 'class' => \App\Jobs\ProcessEditChannelTopicJob::class,
-    // 'usage' => 'Usage: !edit-channel-topic <channel-id> <new-topic>',
-    // 'example' => 'Example: !edit-channel-topic 123456789012345678 New topic description',
-    // 'is_active' => true,
-    private string $baseUrl;
     private ?string $targetChannelId = null; // The actual Discord channel ID to edit
     private ?string $newTopic = null;        // The new channel topic
 
-    /**
-     * Create a new job instance.
-     */
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId,
-        public string $guildId,
-        public string $messageContent
-    ) {
-        // Fetch command details from the database
-        $command = DB::table('native_commands')->where('slug', 'edit-channel-topic')->first();
 
-        // Set usage and example messages dynamically
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
+    }
 
-        $this->baseUrl = config('services.discord.rest_api_url');
-
+    public function handle(): void
+    {
         // Normalize curly quotes to straight quotes for better parsing
         $normalizedMessage = str_replace(['“', '”'], '"', $this->messageContent);
 
         // Parse the message
         [$this->targetChannelId, $this->newTopic] = $this->parseMessage($normalizedMessage);
-    }
-
-    /**
-     * Handles the job execution.
-     */
-    public function handle(): void
-    {
-        // Validate input: If no channel/topic provided, send help message
-        if (! $this->targetChannelId || ! $this->newTopic) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
-
-            return;
-        }
 
         // Ensure the user has permission to manage channels
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
@@ -80,6 +43,24 @@ final class ProcessEditChannelTopicJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to edit channels in this server.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to manage channels.',
+                statusCode: 403,
+            );
+
+            return;
+        }
+
+        // Validate input: If no channel/topic provided, send help message
+        if (! $this->targetChannelId || ! $this->newTopic) {
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No user ID provided.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -90,6 +71,11 @@ final class ProcessEditChannelTopicJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Invalid channel ID. Please use `#channel-name` to select a valid channel.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Invalid channel ID provided.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -109,6 +95,12 @@ final class ProcessEditChannelTopicJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to update channel topic.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord_api_error',
+                message: 'Failed to update auto-hide setting.',
+                statusCode: $apiResponse->status(),
+                details: $apiResponse->json(),
+            );
 
             return;
         }
@@ -120,6 +112,7 @@ final class ProcessEditChannelTopicJob implements ShouldQueue
             'embed_description' => "**New Topic:** {$this->newTopic}",
             'embed_color' => 3447003,
         ]);
+        $this->updateNativeCommandRequestComplete();
     }
 
     private function parseMessage(string $message): array

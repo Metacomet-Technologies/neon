@@ -6,71 +6,32 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-final class ProcessEditChannelSlowmodeJob implements ShouldQueue
+final class ProcessEditChannelSlowmodeJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
-
-    public string $baseUrl;
-    public string $usageMessage;
-    public string $exampleMessage;
-
-    // 'slug' => 'edit-channel-slowmode',
-    // 'description' => 'Edits a channel to have slowmode.',
-    // 'class' => \App\Jobs\ProcessEditChannelSlowmodeJob::class,
-    // 'usage' => 'Usage: !edit-channel-slowmode <channel-id> <seconds [0 - 21600]>',
-    // 'example' => 'Example: !edit-channel-slowmode 123456789012345678 10',
-    // 'is_active' => true,
 
     public ?string $targetChannelId = null;
     public ?int $slowmodeSetting = null;
 
-    /**
-     * The minimum and maximum allowed slowmode durations in seconds.
-     */
     public array $slowmodeRange = [0, 21600]; // 0 - 6 hours
 
-    /**
-     * Create a new job instance.
-     */
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId,
-        public string $guildId,
-        public string $messageContent,
-    ) {
-        // Fetch command details from the database
-        $command = DB::table('native_commands')->where('slug', 'edit-channel-slowmode')->first();
-
-        // Set usage and example messages dynamically
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
-
-        $this->baseUrl = config('services.discord.rest_api_url');
-
-        // Parse the message
-        [$this->targetChannelId, $this->slowmodeSetting] = $this->parseMessage($this->messageContent);
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
     }
 
-    /**
-     * Handles the job execution.
-     */
     public function handle(): void
     {
-        // ✅ If the command was used without parameters, send the help message
-        if (! $this->targetChannelId || is_null($this->slowmodeSetting)) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
-
-            return;
-        }
+        // Parse the message
+        [$this->targetChannelId, $this->slowmodeSetting] = $this->parseMessage($this->messageContent);
 
         // Ensure the user has permission to manage channels
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
@@ -80,9 +41,27 @@ final class ProcessEditChannelSlowmodeJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to edit channels in this server.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to manage channels.',
+                statusCode: 403,
+            );
 
             return;
         }
+
+        // ✅ If the command was used without parameters, send the help message
+        if (! $this->targetChannelId || is_null($this->slowmodeSetting)) {
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No user ID provided.',
+                statusCode: 400,
+            );
+            return;
+        }
+
 
         // Ensure the input is a valid Discord channel ID
         if (! preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
@@ -90,6 +69,11 @@ final class ProcessEditChannelSlowmodeJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Invalid channel ID. Please use `#channel-name` to select a valid channel.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Invalid channel ID provided.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -100,6 +84,11 @@ final class ProcessEditChannelSlowmodeJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => "❌ Slowmode must be between {$this->slowmodeRange[0]} and {$this->slowmodeRange[1]} seconds (6 hours).",
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Invalid slowmode setting provided.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -119,6 +108,12 @@ final class ProcessEditChannelSlowmodeJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to update slowmode setting.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord_api_error',
+                message: 'Failed to update auto-hide setting.',
+                statusCode: $apiResponse->status(),
+                details: $apiResponse->json(),
+            );
 
             return;
         }
@@ -130,6 +125,7 @@ final class ProcessEditChannelSlowmodeJob implements ShouldQueue
             'embed_description' => "**Slowmode Duration:** {$this->slowmodeSetting} seconds",
             'embed_color' => 3447003,
         ]);
+        $this->updateNativeCommandRequestComplete();
     }
 
     /**
