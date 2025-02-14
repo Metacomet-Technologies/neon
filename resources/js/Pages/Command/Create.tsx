@@ -1,5 +1,4 @@
 import { Button } from '@/Components/button';
-import { Heading, Subheading } from '@/Components/heading';
 import { Layout } from '@/Layout/Layout';
 import { ArrowLeftIcon } from '@heroicons/react/16/solid';
 import { Head } from '@inertiajs/react';
@@ -10,17 +9,11 @@ export default function Create({ serverId }: { serverId: string }) {
         <>
             <Head title="Create Command" />
             <div className="max-w-2xl mx-auto flex flex-col gap-4">
-                <div className="flex flex-row justify-between items-center gap-4">
-                    <div>
-                        <Heading>Create a New Command</Heading>
-                        <Subheading>See what you can do with Neon.</Subheading>
-                    </div>
-                    <div className="flex flex-row gap-4">
-                        <Button plain href={route('server.command.index', { serverId: serverId })}>
-                            <ArrowLeftIcon />
-                            Go Back to Commands
-                        </Button>
-                    </div>
+                <div className="flex flex-row items-center gap-2">
+                    <Button plain href={route('server.command.index', { serverId: serverId })}>
+                        <ArrowLeftIcon />
+                        Go Back to Commands
+                    </Button>
                 </div>
 
                 <Form serverId={serverId} existingCommand={null} />

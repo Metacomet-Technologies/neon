@@ -1,6 +1,5 @@
 import { Button } from '@/Components/button';
 import { Dialog, DialogActions, DialogDescription, DialogTitle } from '@/Components/dialog';
-import { Heading } from '@/Components/heading';
 import { Strong } from '@/Components/text';
 import { Layout } from '@/Layout/Layout';
 import { ArrowLeftIcon, TrashIcon } from '@heroicons/react/16/solid';
@@ -12,16 +11,14 @@ import { Command } from './types';
 export default function Edit({ serverId, command }: { serverId: string; command: Command }) {
     return (
         <div className="max-w-2xl mx-auto flex flex-col gap-4">
-            <div className="flex flex-row justify-between items-center gap-4">
-                <Heading>Edit Command: !{command.command}</Heading>
-                <div className="flex flex-row gap-4">
-                    <Button plain href={route('server.command.index', { serverId: serverId })}>
-                        <ArrowLeftIcon />
-                        Go Back to Commands
-                    </Button>
-                    <DeleteDialog serverId={serverId} command={command} />
-                </div>
+            <div className="flex flex-row gap-4 justify-between">
+                <Button plain href={route('server.command.index', { serverId: serverId })}>
+                    <ArrowLeftIcon />
+                    Go Back to Commands
+                </Button>
+                <DeleteDialog serverId={serverId} command={command} />
             </div>
+
             <Form serverId={serverId} existingCommand={command} />
         </div>
     );

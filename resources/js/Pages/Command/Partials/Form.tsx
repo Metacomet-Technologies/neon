@@ -5,6 +5,7 @@ import { Divider } from '@/Components/divider';
 import { Description, ErrorMessage, Field, Fieldset, Label } from '@/Components/fieldset';
 import { Input } from '@/Components/input';
 import { Textarea } from '@/Components/textarea';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { useForm } from '@inertiajs/react';
 import React, { useCallback, useState } from 'react';
 import { ChromePicker, ColorResult } from 'react-color';
@@ -77,73 +78,81 @@ export default function Form({
     );
 
     return (
-        <form
-            onSubmit={handleSubmit}
-            className="bg-zinc-100 dark:bg-zinc-800 p-4 rounded-lg border border-zinc-200 dark:border-zinc-700 shadow"
-        >
-            <Fieldset className="space-y-4">
-                {!existingCommand && (
-                    <TextField
-                        label="Command"
-                        description="The ! prefix will automatically be appended."
-                        disabled={Boolean(existingCommand)}
-                        name="command"
-                        value={data.command}
-                        onChange={handleTextChange}
-                        error={errors.command}
-                        required
-                    />
-                )}
-                <TextField
-                    label="Response"
-                    description="What should Neon say when this command is triggered?"
-                    name="response"
-                    value={data.response}
-                    onChange={handleTextChange}
-                    error={errors.response}
-                    required={!data.is_embed}
-                    disabled={data.is_embed}
-                />
-                <TextAreaField
-                    label="Description"
-                    description="What does this command do?"
-                    name="description"
-                    value={data.description}
-                    onChange={handleTextChange}
-                    error={errors.description}
-                />
-                <CheckboxFieldWrapper
-                    label="Enabled"
-                    description="If disabled, Neon will ignore this command."
-                    name="is_enabled"
-                    checked={data.is_enabled}
-                    onChange={handleIsEnabledChange}
-                    error={errors.is_enabled}
-                />
-                <CheckboxFieldWrapper
-                    label="Public"
-                    description="If disabled, this command will only work for admins."
-                    name="is_public"
-                    checked={data.is_public}
-                    onChange={handleIsPublicChange}
-                    error={errors.is_public}
-                />
-                <CheckboxFieldWrapper
-                    label="Embed"
-                    description="Use an embedded message for this command."
-                    name="is_embed"
-                    checked={data.is_embed}
-                    onChange={handleIsEmbedChange}
-                    error={errors.is_embed}
-                />
-                {data.is_embed && <EmbedFields data={data} setData={setData} errors={errors} />}
-            </Fieldset>
-            <div className="flex flex-row-reverse items-center mt-4">
-                <Button type="submit" color="teal">
-                    Save
-                </Button>
-            </div>
-        </form>
+        <Card>
+            <CardHeader>
+                <CardTitle>{existingCommand ? 'Edit Command' : 'Create Command'}</CardTitle>
+                <CardDescription>
+                    {existingCommand
+                        ? 'Edit the command details below.'
+                        : 'Create a new command for Neon to respond to.'}
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <form onSubmit={handleSubmit}>
+                    <Fieldset className="space-y-4">
+                        <TextField
+                            label="Command"
+                            description=""
+                            disabled={Boolean(existingCommand)}
+                            name="command"
+                            value={'!' + data.command}
+                            onChange={handleTextChange}
+                            error={errors.command}
+                            required={!existingCommand}
+                        />
+
+                        <TextField
+                            label="Response"
+                            description="What should Neon say when this command is triggered?"
+                            name="response"
+                            value={data.response}
+                            onChange={handleTextChange}
+                            error={errors.response}
+                            required={!data.is_embed}
+                            disabled={data.is_embed}
+                        />
+                        <TextAreaField
+                            label="Description"
+                            description="What does this command do?"
+                            name="description"
+                            value={data.description}
+                            onChange={handleTextChange}
+                            error={errors.description}
+                        />
+                        <CheckboxFieldWrapper
+                            label="Enabled"
+                            description="If disabled, Neon will ignore this command."
+                            name="is_enabled"
+                            checked={data.is_enabled}
+                            onChange={handleIsEnabledChange}
+                            error={errors.is_enabled}
+                        />
+                        <CheckboxFieldWrapper
+                            label="Public"
+                            description="If disabled, this command will only work for admins."
+                            name="is_public"
+                            checked={data.is_public}
+                            onChange={handleIsPublicChange}
+                            error={errors.is_public}
+                        />
+                        <CheckboxFieldWrapper
+                            label="Embed"
+                            description="Use an embedded message for this command."
+                            name="is_embed"
+                            checked={data.is_embed}
+                            onChange={handleIsEmbedChange}
+                            error={errors.is_embed}
+                        />
+                        {data.is_embed && <EmbedFields data={data} setData={setData} errors={errors} />}
+                    </Fieldset>
+                    <div className="flex flex-row-reverse items-center mt-4">
+                        <Button type="submit" color="teal">
+                            Save
+                        </Button>
+                    </div>
+                </form>
+            </CardContent>
+        </Card>
     );
 }
 

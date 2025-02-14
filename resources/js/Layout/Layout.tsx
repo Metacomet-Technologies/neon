@@ -26,10 +26,12 @@ import {
     CpuChipIcon,
     ShieldCheckIcon,
     TableCellsIcon,
+    UserCircleIcon,
     WindowIcon,
 } from '@heroicons/react/16/solid';
 import { router, usePage } from '@inertiajs/react';
 
+import { Toaster } from '@/Components/ui/toaster';
 import axios from 'axios';
 import { useCallback } from 'react';
 import Flash from './Flash';
@@ -130,6 +132,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                     <DropdownLabel>Terms of Service</DropdownLabel>
                                 </DropdownItem>
                                 <DropdownDivider />
+                                <DropdownItem href={route('profile')}>
+                                    <UserCircleIcon />
+                                    <DropdownLabel>Profile</DropdownLabel>
+                                </DropdownItem>
                                 <DropdownItem href={route('logout')} method="post">
                                     <ArrowRightStartOnRectangleIcon />
                                     <DropdownLabel>Sign out</DropdownLabel>
@@ -229,6 +235,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                     <DropdownLabel>Terms of Service</DropdownLabel>
                                 </DropdownItem>
                                 <DropdownDivider />
+                                <DropdownItem href={route('profile')}>
+                                    <UserCircleIcon />
+                                    <DropdownLabel>Profile</DropdownLabel>
+                                </DropdownItem>
                                 <DropdownItem href={route('logout')} method="post">
                                     <ArrowRightStartOnRectangleIcon />
                                     <DropdownLabel>Sign out</DropdownLabel>
@@ -241,6 +251,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         >
             <Flash flash={flash} />
             {children}
+            <Toaster />
         </StackedLayout>
     );
 }
