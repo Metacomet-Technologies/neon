@@ -1,8 +1,11 @@
 <?php
 
+use App\Http\Controllers\Api\Twitch\EventSubWebhookController;
 use App\Http\Controllers\Api\UpdateUserCurrentServerController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+
+Route::post('twitch/eventsub/webhook', EventSubWebhookController::class)->name('twitch.eventsub.webhook');
 
 Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::get('user', function (Request $request) {

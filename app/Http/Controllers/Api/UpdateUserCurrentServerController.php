@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 
 final class UpdateUserCurrentServerController
 {
-    public function __invoke(Request $request, User $user)
+    public function __invoke(Request $request, User $user): \Illuminate\Http\JsonResponse
     {
         $user->current_server_id = $request->input('server_id');
         $user->save();
