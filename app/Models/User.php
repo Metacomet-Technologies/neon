@@ -146,7 +146,7 @@ final class User extends Authenticatable
      */
     public function getGuildsAttribute(): array
     {
-        $guilds = Cache::remember('user-guilds-' . $this->id, now()->addMinutes(5), function () {
+        $guilds = Cache::remember('user-guilds-' . $this->id, now()->addMinutes(1), function () {
             return (new GetGuilds($this))
                 ->getGuildsWhereUserHasPermission(DiscordPermissionEnum::ADMINISTRATOR);
         });

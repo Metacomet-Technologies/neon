@@ -1,9 +1,10 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace App\Nova;
 
+use Laravel\Nova\Actions\ExportAsCsv;
 use Laravel\Nova\Fields\Boolean;
 use Laravel\Nova\Fields\DateTime;
 use Laravel\Nova\Fields\ID;
@@ -88,6 +89,13 @@ final class NativeCommand extends Resource
                 ->sortable()
                 ->filterable()
                 ->exceptOnForms(),
+        ];
+    }
+
+    public function actions(NovaRequest $request)
+    {
+        return [
+            ExportAsCsv::make()->nameable(),
         ];
     }
 }
