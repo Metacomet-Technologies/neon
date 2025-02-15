@@ -22,7 +22,6 @@
         "sentry/sentry-laravel": "*",
         "socialiteproviders/discord": "^4.2",
         "socialiteproviders/twitch": "^5.4",
-        "spatie/laravel-ignition": "^2.9",
         "symfony/http-client": "^7.2",
         "symfony/postmark-mailer": "^7.2",
         "team-reflex/discord-php": "^10.3",
