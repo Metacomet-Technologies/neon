@@ -29,7 +29,7 @@ jobs:
               uses: supercharge/redis-github-action@1.4.0
 
             - name: Configure Composer for Private Repositories
-              run: composer config http-basic.nova.laravel.com "${{ NOVA_USERNAME }}" "${{ NOVA_LICENSE_KEY }}"
+              run: composer config http-basic.nova.laravel.com "${{ secrets.NOVA_USERNAME }}" "${{ secrets.NOVA_LICENSE_KEY }}"
 
             - name: Install Dependencies
               run: composer install --no-interaction --prefer-dist --optimize-autoloader
