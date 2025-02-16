@@ -4,61 +4,21 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
-class ProcessPruneInactiveMembersJob implements ShouldQueue
+class ProcessPruneInactiveMembersJob extends ProcessBaseJob implements ShouldQueue
 {
-    public string $usageMessage;
-    public string $exampleMessage;
-
-    // 'slug' => 'prune',
-    // 'description' => 'Kicks members inactive for the specified number of days.',
-    // 'class' => \App\Jobs\ProcessPruneInactiveMembersJob::class,
-    // 'usage' => 'Usage: !prune <days>',
-    // 'example' => 'Example: !prune 30',
-    // 'is_active' => true,
-
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId,
-        public string $guildId,
-        public string $messageContent
-    ) {
-        // Fetch command details from the database
-        $command = DB::table('native_commands')->where('slug', 'prune')->first();
-
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
     }
 
-    public function handle()
+    public function handle(): void
     {
-        // Extract number of days
-        $parts = explode(' ', trim($this->messageContent));
-        $days = $parts[1] ?? null;
-
-        // If no parameters are provided, send help message
-        if (! $days) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
-
-            return;
-        }
-
-        // Validate input
-        if (! ctype_digit($days) || (int) $days < 1) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "❌ Invalid number of days.\n{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
-
-            return;
-        }
-
         // Check if the user has permission to manage members
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanKickMembers($this->guildId, $this->discordUserId);
 
@@ -67,6 +27,45 @@ class ProcessPruneInactiveMembersJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to manage members in this server.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to manage members.',
+                statusCode: 403,
+            );
+
+            return;
+        }
+
+        // Extract number of days
+        $parts = explode(' ', trim($this->messageContent));
+        $days = $parts[1] ?? null;
+
+        // If no parameters are provided, send help message
+        if (! $days) {
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No number of days provided.',
+                statusCode: 400,
+            );
+
+            return;
+        }
+
+        // Validate input
+        if (! ctype_digit($days) || (int) $days < 1) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => "❌ Invalid number of days.",
+            ]);
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No number of days provided.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -89,11 +88,19 @@ class ProcessPruneInactiveMembersJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => "✅ Successfully pruned {$prunedCount} inactive members from the server.",
             ]);
+            $this->updateNativeCommandRequestComplete();
+
         } else {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ Failed to prune members. Ensure the bot has the correct permissions.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord_api_error',
+                message: 'Failed to prune members.',
+                statusCode: $response->status(),
+                details: $response->json(),
+            );
         }
     }
 }

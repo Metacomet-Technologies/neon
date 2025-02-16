@@ -6,6 +6,8 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -13,69 +15,53 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-final class ProcessPinMessagesJob implements ShouldQueue
+final class ProcessPinMessagesJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
 
-    public string $usageMessage;
-    public string $exampleMessage;
-
-    // 'slug' => 'pin',
-    // 'description' => 'Pins a specific message or the last message in the channel.',
-    // 'class' => \App\Jobs\ProcessPinMessagesJob::class,
-    // 'usage' => 'Usage: !pin <message-id> or !pin this',
-    // 'example' => 'Example: !pin 123456789012345678 or !pin this',
-    // 'is_active' => true,
-    private string $baseUrl;
     private string $messageId = ''; // ✅ Default to empty string to prevent null error
 
     private int $retryDelay = 2000;
     private int $maxRetries = 3;
 
-    public function __construct(
-        public string $discordUserId, // Command sender (user executing !pin)
-        public string $channelId,     // The channel where the command was sent
-        public string $guildId,       // The guild (server) ID
-        public string $messageContent, // The raw message content
-    ) {
-        // Fetch command details from the database
-        $command = DB::table('native_commands')->where('slug', 'pin')->first();
-
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
-        $this->baseUrl = config('services.discord.rest_api_url');
-        $this->messageId = $this->parseMessage($this->messageContent) ?? ''; // ✅ Ensures it's never null
-
-        // 🚨 **Validation: Prevent execution if no message ID is found**
-        if (empty($this->messageId)) {
-            Log::warning('Pin command used without specifying a message ID or "this".', [
-                'channel_id' => $this->channelId,
-                'user_id' => $this->discordUserId,
-                'message_content' => $this->messageContent,
-            ]);
-
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
-
-            throw new Exception('Invalid input for !pin. Expected a valid message ID or the keyword "this".');
-        }
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
     }
 
     public function handle(): void
     {
-        // 1️⃣ Check if user has permission to pin messages
-        if ($this->userHasPermission($this->discordUserId)) {
-            $this->pinMessage();
+        $this->messageId = $this->parseMessage($this->messageContent) ?? ''; // ✅ Ensures it's never null
+
+        // 🚨 **Validation: Prevent execution if no message ID is found**
+        if (empty($this->messageId)) {
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No message ID provided.',
+                statusCode: 400,
+            );
+            throw new Exception('Invalid input for !pin. Expected a valid message ID or the keyword "this".');
+        }
+
+        // 1️⃣ Ensure the user has permission to pin messages
+        $adminCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
+        if ($adminCheck === 'failed') {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ You are not allowed to pin messages.',
+            ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to manage channels',
+                statusCode: 403,
+            );
 
             return;
         }
 
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => false,
-            'response' => '❌ You do not have permission to pin messages.',
-        ]);
+        $this->pinMessage();
     }
 
     private function parseMessage(string $message): ?string
@@ -102,6 +88,11 @@ final class ProcessPinMessagesJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to fetch the last message. Please try again later.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord_api_error',
+                message: 'Failed to get the most recent messages.',
+                statusCode: 500,
+            );
 
             return null;
         }
@@ -115,6 +106,11 @@ final class ProcessPinMessagesJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ There is no previous message to pin.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No previous message to pin.',
+                statusCode: 400,
+            );
 
             return null;
         }
@@ -148,6 +144,11 @@ final class ProcessPinMessagesJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to pin the message. Please try again later.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord_api_error',
+                message: 'Failed to pin the message.',
+                statusCode: 500,
+            );
 
             return;
         }
@@ -159,5 +160,6 @@ final class ProcessPinMessagesJob implements ShouldQueue
             'embed_description' => "✅ Successfully pinned message ID `{$this->messageId}` in this channel.",
             'embed_color' => 3066993,
         ]);
+        $this->updateNativeCommandRequestComplete();
     }
 }
