@@ -18,6 +18,9 @@ jobs:
         with:
           php-version: '8.4'  # adjust to your PHP version
 
+      - name: Configure Composer for Private Repositories
+        run: composer config http-basic.nova.laravel.com "${{ NOVA_USERNAME }}" "${{ NOVA_LICENSE_KEY }}"
+
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
