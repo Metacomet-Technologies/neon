@@ -7,7 +7,6 @@ use App\Helpers\Discord\SendMessage;
 use App\Jobs\NativeCommand\ProcessBaseJob;
 use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 class ProcessPruneInactiveMembersJob extends ProcessBaseJob implements ShouldQueue
@@ -57,7 +56,7 @@ class ProcessPruneInactiveMembersJob extends ProcessBaseJob implements ShouldQue
         if (! ctype_digit($days) || (int) $days < 1) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => "❌ Invalid number of days.",
+                'response' => '❌ Invalid number of days.',
             ]);
             $this->sendUsageAndExample();
 

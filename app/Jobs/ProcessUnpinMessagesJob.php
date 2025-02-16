@@ -11,7 +11,6 @@ use App\Models\NativeCommandRequest;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 final class ProcessUnpinMessagesJob extends ProcessBaseJob implements ShouldQueue
