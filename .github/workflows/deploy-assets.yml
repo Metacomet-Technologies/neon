@@ -1,0 +1,39 @@
+name: Build and Deploy Assets
+
+on:
+  push:
+    branches:
+      - main  # or your deployment branch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22'  # or your desired Node version
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build assets with Vite
+        run: npm run build
+
+      - name: Configure AWS CLI for DigitalOcean Spaces
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.DO_SPACES_KEY }}
+          aws configure set aws_secret_access_key ${{ secrets.DO_SPACES_SECRET }}
+          aws configure set default.region us-east-1  # Dummy region; not used by DO Spaces
+        env:
+          DO_SPACES_KEY: ${{ secrets.DO_SPACES_KEY }}
+          DO_SPACES_SECRET: ${{ secrets.DO_SPACES_SECRET }}
+
+      - name: Sync assets to DigitalOcean Spaces
+        run: |
+          aws s3 sync ./dist s3://${{ vars.DO_SPACES_BUCKET }}/assets \
+            --endpoint-url https://${{ vars.DO_SPACES_ENDPOINT }} \
+            --acl public-read
