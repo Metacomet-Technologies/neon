@@ -1,6 +1,6 @@
 import { Heading, Subheading } from '@/Components/heading';
 import { Text } from '@/Components/text';
-import { Layout } from '@/Layout/Layout';
+import ServerScopedLayout from '@/Layout/ServerScopedLayout';
 import { PageProps } from '@/types';
 import { Head, usePage } from '@inertiajs/react';
 import React from 'react';
@@ -29,4 +29,4 @@ export default function Show(): React.JSX.Element {
     );
 }
 
-Show.layout = (page: React.ReactNode) => <Layout>{page}</Layout>;
+Show.layout = (page: React.ReactNode) => <ServerScopedLayout>{page}</ServerScopedLayout>;

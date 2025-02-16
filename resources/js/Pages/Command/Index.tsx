@@ -2,8 +2,8 @@ import { Button } from '@/Components/button';
 import { Heading } from '@/Components/heading';
 import { Link } from '@/Components/link';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/table';
-import { Layout } from '@/Layout/Layout';
 import PaginationRow from '@/Layout/PaginationRow';
+import ServerScopedLayout from '@/Layout/ServerScopedLayout';
 import { Pagination } from '@/types';
 import { booleanToIconForTables, formatDateTime } from '@/utils';
 import { TrashIcon } from '@heroicons/react/16/solid';
@@ -59,7 +59,7 @@ function EmptyState({ serverId }: { serverId: string }): React.JSX.Element {
     );
 }
 
-Index.layout = (page: React.ReactNode) => <Layout>{page}</Layout>;
+Index.layout = (page: React.ReactNode) => <ServerScopedLayout>{page}</ServerScopedLayout>;
 
 /**
  * CommandTable component for displaying a table of commands.

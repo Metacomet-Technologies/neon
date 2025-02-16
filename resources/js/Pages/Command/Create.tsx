@@ -1,5 +1,5 @@
 import { Button } from '@/Components/button';
-import { Layout } from '@/Layout/Layout';
+import ServerScopedLayout from '@/Layout/ServerScopedLayout';
 import { ArrowLeftIcon } from '@heroicons/react/16/solid';
 import { Head } from '@inertiajs/react';
 import Form from './Partials/Form';
@@ -22,4 +22,4 @@ export default function Create({ serverId }: { serverId: string }) {
     );
 }
 
-Create.layout = (page: React.ReactNode) => <Layout>{page}</Layout>;
+Create.layout = (page: React.ReactNode) => <ServerScopedLayout>{page}</ServerScopedLayout>;

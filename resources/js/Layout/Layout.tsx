@@ -7,7 +7,7 @@ import {
     DropdownLabel,
     DropdownMenu,
 } from '@/Components/dropdown';
-import { Navbar, NavbarDivider, NavbarItem, NavbarLabel, NavbarSection, NavbarSpacer } from '@/Components/navbar';
+import { Navbar, NavbarDivider, NavbarItem, NavbarSection, NavbarSpacer } from '@/Components/navbar';
 import {
     Sidebar,
     SidebarBody,
@@ -18,10 +18,9 @@ import {
     SidebarSection,
 } from '@/Components/sidebar';
 import { StackedLayout } from '@/Components/stacked-layout';
-import { Guild, PageProps } from '@/types';
+import { PageProps } from '@/types';
 import {
     ArrowRightStartOnRectangleIcon,
-    ChevronDownIcon,
     ChevronUpIcon,
     CpuChipIcon,
     ShieldCheckIcon,
@@ -29,10 +28,9 @@ import {
     UserCircleIcon,
     WindowIcon,
 } from '@heroicons/react/16/solid';
-import { router, usePage } from '@inertiajs/react';
+import { usePage } from '@inertiajs/react';
 
 import { Toaster } from '@/Components/ui/toaster';
-import axios from 'axios';
 import { useCallback } from 'react';
 import Flash from './Flash';
 import ThemeToggleButton from './ThemeToggleButton';
@@ -44,13 +42,17 @@ import ThemeToggleButton from './ThemeToggleButton';
  * @param {Object} props - The component props.
  * @param {React.ReactNode} props.children - The children components to be rendered within the layout.
  */
-export function Layout({ children }: { children: React.ReactNode }) {
+export function Layout({
+    children,
+    scopeDropDown = null,
+}: {
+    children: React.ReactNode;
+    scopeDropDown?: React.ReactNode | null;
+}) {
     const { component, props } = usePage<PageProps>();
     const { auth, flash } = props;
 
     const currentServerId = auth?.user?.current_server_id || null;
-
-    const currentGuild = auth?.user?.guilds?.find((guild) => guild.id === currentServerId) || null;
 
     const handleExternalLinkClick = useCallback((routeName: string) => {
         window.open(route(routeName), '_blank');
@@ -60,7 +62,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <StackedLayout
             navbar={
                 <Navbar>
-                    <NavbarSection className="max-lg:hidden">
+                    <NavbarSection>
                         <NavbarItem href={route('home')}>
                             <img
                                 alt="Neon"
@@ -68,24 +70,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                 className="size-8"
                             />
                         </NavbarItem>
-                        {auth.user && (
-                            <Dropdown>
-                                <DropdownButton as={NavbarItem} className="max-lg:hidden">
-                                    <Avatar
-                                        src={getGuildIcon(currentGuild)}
-                                        className="size-10"
-                                        alt={currentGuild?.name}
-                                    />
-                                    <NavbarLabel>{currentGuild?.name || 'Servers'}</NavbarLabel>
-                                    <ChevronDownIcon />
-                                </DropdownButton>
-                                <ServerDropDownMenu
-                                    guilds={auth.user?.guilds || []}
-                                    currentGuildId={currentServerId || ''}
-                                    userId={auth.user.id}
-                                />
-                            </Dropdown>
-                        )}
+                        {scopeDropDown}
                     </NavbarSection>
                     <NavbarDivider className="max-lg:hidden" />
                     <NavbarSection className="max-lg:hidden">
@@ -159,24 +144,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
                                 />
                                 <SidebarLabel>Discord Bot</SidebarLabel>
                             </SidebarItem>
-                            {auth.user && (
-                                <Dropdown>
-                                    <DropdownButton as={SidebarItem}>
-                                        <Avatar
-                                            src={getGuildIcon(currentGuild)}
-                                            className="size-10"
-                                            alt={currentGuild?.name}
-                                        />
-                                        <NavbarLabel>{currentGuild?.name || 'Servers'}</NavbarLabel>
-                                        <ChevronDownIcon />
-                                    </DropdownButton>
-                                    <ServerDropDownMenu
-                                        guilds={auth.user?.guilds || []}
-                                        currentGuildId={currentServerId || ''}
-                                        userId={auth.user.id}
-                                    />
-                                </Dropdown>
-                            )}
                         </SidebarSection>
                     </SidebarHeader>
                     <SidebarBody>
@@ -254,64 +221,4 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Toaster />
         </StackedLayout>
     );
-}
-
-/**
- * ServerDropDownMenu component that renders a dropdown menu with a list of guilds.
- *
- * @param {Object} props - The component props.
- * @param {Guild[]} props.guilds - The list of guilds to be displayed in the dropdown menu.
- * @param {string} [props.currentGuildId] - The ID of the currently selected guild.
- */
-function ServerDropDownMenu({
-    guilds,
-    currentGuildId,
-    userId,
-}: {
-    guilds: Guild[];
-    currentGuildId: string;
-    userId: number;
-}) {
-    const currentRoute: string = route().current() as string;
-    const currentRouteParams: { [key: string]: string } = route().params;
-
-    const replaceCurrentRoute = (guildId: string) => {
-        // if serverId is not in currentRouteParams then do nothing
-        if (!currentRouteParams.serverId) {
-            return '#';
-        }
-        // replace the serverId param with the selected guildId
-        const newRouteParams = { ...currentRouteParams, serverId: guildId };
-        // return the new route with the updated params
-        return route(currentRoute, newRouteParams);
-    };
-
-    const handleServerChange = (guildId: string) => {
-        axios.patch(route('user.current-server', { user: userId }), { server_id: guildId }).then(() => {
-            router.get(replaceCurrentRoute(guildId));
-        });
-    };
-
-    return (
-        <DropdownMenu className="min-w-80 lg:min-w-64" anchor="bottom start">
-            {guilds.map((guild) => (
-                <DropdownItem
-                    key={guild.id}
-                    onClick={() => handleServerChange(guild.id)}
-                    disabled={guild.id === currentGuildId}
-                >
-                    <Avatar src={getGuildIcon(guild)} className="size-10" alt={guild.name} />
-                    <DropdownLabel>{guild.name}</DropdownLabel>
-                </DropdownItem>
-            ))}
-        </DropdownMenu>
-    );
-}
-
-function getGuildIcon(guild: Guild | null) {
-    if (guild?.icon) {
-        return `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`;
-    }
-
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(guild?.name || 'Unknown')}&background=random`;
 }

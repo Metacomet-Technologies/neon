@@ -1,7 +1,7 @@
 import { Button } from '@/Components/button';
 import { Dialog, DialogActions, DialogDescription, DialogTitle } from '@/Components/dialog';
 import { Strong } from '@/Components/text';
-import { Layout } from '@/Layout/Layout';
+import ServerScopedLayout from '@/Layout/ServerScopedLayout';
 import { ArrowLeftIcon, TrashIcon } from '@heroicons/react/16/solid';
 import { Head } from '@inertiajs/react';
 import { useState } from 'react';
@@ -58,4 +58,4 @@ function DeleteDialog({ serverId, command }: { serverId: string; command: Comman
     );
 }
 
-Edit.layout = (page: React.ReactNode) => <Layout>{page}</Layout>;
+Edit.layout = (page: React.ReactNode) => <ServerScopedLayout>{page}</ServerScopedLayout>;
