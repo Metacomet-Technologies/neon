@@ -23,7 +23,7 @@ final class UserIntegrationController
             'data' => json_decode(json_encode($socialiteUser), true),
         ]);
 
-        return redirect()->intended();
+        return redirect()->route('profile');
     }
 
     public function destroy(Request $request, string $provider)
@@ -32,7 +32,7 @@ final class UserIntegrationController
             ->where('provider', $provider)
             ->delete();
 
-        return redirect()->intended();
+        return redirect()->route('profile');
     }
 
     public function create(Request $request, string $provider)

@@ -1,4 +1,6 @@
+import { Alert, AlertActions, AlertDescription, AlertTitle } from '@/Components/alert';
 import { Avatar } from '@/Components/avatar';
+import { Button } from '@/Components/button';
 import { Heading } from '@/Components/heading';
 import { Link } from '@/Components/link';
 import { Strong, Text } from '@/Components/text';
@@ -8,15 +10,30 @@ import { PageProps } from '@/types';
 import { faTwitch } from '@fortawesome/free-brands-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Head, usePage } from '@inertiajs/react';
+import { useCallback, useState } from 'react';
 
-export default function Profile() {
+interface Integration {
+    id: number;
+    user_id: number;
+    provider: string;
+    provider_id: string;
+    data: any;
+    created_at: string;
+    updated_at: string;
+}
+
+export default function Profile({ integrations }: { integrations: Integration[] }) {
     const { auth } = usePage<PageProps>().props;
+
+    const handleClick = useCallback((provider: string) => {
+        window.location.href = route('user-integration.create', provider);
+    }, []);
 
     return (
         <>
             <Head title="Profile" />
             <Heading level={1}>Profile</Heading>
-            <div className="flex flex-col gap-4 mt-4">
+            <div className="flex flex-col gap-4 mt-4 max-w-2xl mx-auto">
                 <div className="flex flex-row justify-between items-center">
                     <div className="flex shrink-0">
                         <div className="flex gap-4 items-center p-4 bg-zinc-100 rounded-lg border border-zinc-200 shadow dark:bg-zinc-800 dark:border-zinc-700">
@@ -37,8 +54,18 @@ export default function Profile() {
                         <CardDescription>Connect your accounts to access more features.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="flex flex-col gap-4">
-                            <FontAwesomeIcon icon={faTwitch} />
+                        <div className="grid grid-cols-2 items-center gap-6">
+                            <div className="flex flex-row gap-2">
+                                <FontAwesomeIcon icon={faTwitch} className="fa-xl text-[#6441a5]" />
+                                <Text>Twitch</Text>
+                            </div>
+                            {integrations.find((integration: Integration) => integration.provider === 'twitch') ? (
+                                <DisconnectAlert provider="twitch" />
+                            ) : (
+                                <Button onClick={() => handleClick('twitch')} color="sky">
+                                    Connect
+                                </Button>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
@@ -48,3 +75,25 @@ export default function Profile() {
 }
 
 Profile.layout = (page: React.ReactNode) => <Layout>{page}</Layout>;
+
+function DisconnectAlert({ provider }: { provider: string }) {
+    const [isOpen, setIsOpen] = useState<boolean>(false);
+
+    return (
+        <>
+            <Button color="red" onClick={() => setIsOpen(true)}>
+                Disconnect
+            </Button>
+            <Alert open={isOpen} onClose={setIsOpen}>
+                <AlertTitle>Disconnect {provider}</AlertTitle>
+                <AlertDescription>Are you sure you want to disconnect your {provider} account?</AlertDescription>
+                <AlertActions>
+                    <Button color="red" href={route('user-integration.destroy', provider)} method="delete">
+                        Disconnect
+                    </Button>
+                    <Button onClick={() => setIsOpen(false)}>Cancel</Button>
+                </AlertActions>
+            </Alert>
+        </>
+    );
+}

@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\UserIntegrationController;
 use App\Http\Controllers\CommandController;
 use App\Http\Controllers\JoinServerController;
 use App\Http\Controllers\PrivacyPolicyController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ServerController;
 use App\Http\Controllers\TermsOfServiceController;
 use App\Http\Controllers\UnsubscribeController;
@@ -20,7 +21,7 @@ Route::get('discord/callback', LoginCallbackController::class)->name('discord.ca
 
 Route::group(['middleware' => 'auth'], function () {
     Route::post('logout', LogoutController::class)->name('logout');
-    Route::inertia('profile', 'Profile')->name('profile');
+    Route::get('profile', ProfileController::class)->name('profile');
     Route::get('join-server', JoinServerController::class)->name('join-server');
     Route::prefix('server')->name('server.')->group(function () {
         Route::get('/', [ServerController::class, 'index'])->name('index');
