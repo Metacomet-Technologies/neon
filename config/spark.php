@@ -138,10 +138,10 @@ return [
 
             'plans' => [
                 [
-                    'name' => 'Standard',
-                    'short_description' => 'This is a short, human friendly description of the plan.',
-                    'monthly_id' => env('SPARK_STANDARD_MONTHLY_PLAN', 'price_id'),
-                    'yearly_id' => env('SPARK_STANDARD_YEARLY_PLAN', 'price_id'),
+                    'name' => 'Neon Basic',
+                    'short_description' => 'Basic plan for Neon',
+                    'monthly_id' => 'price_1QteVZHSbCCl70iIoppjlXqM',
+                    'yearly_id' => 'price_1QteafHSbCCl70iIpsLIMILg',
                     'features' => [
                         'Feature 1',
                         'Feature 2',
