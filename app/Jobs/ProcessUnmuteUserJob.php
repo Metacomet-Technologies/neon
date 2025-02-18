@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
+//TODO: this may be impacted by the mute user job issue. If a role-based mute is overriding your individual mute, the bot won’t be able to enforce the mute at the individual level. Consider creating a "Muted" role that denies SPEAK and STREAM permissions across all channels, and assign it instead.
 final class ProcessUnmuteUserJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;

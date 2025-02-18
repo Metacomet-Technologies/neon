@@ -14,7 +14,7 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-//TODO: this job may not be muting users as expected. Something about the roles and permissions is off.
+//TODO: this job may not be muting users as expected. Something about the roles and permissions is off. If a role-based mute is overriding your individual mute, the bot won’t be able to enforce the mute at the individual level. Consider creating a "Muted" role that denies SPEAK and STREAM permissions across all channels, and assign it instead.
 final class ProcessMuteUserJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
@@ -126,8 +126,8 @@ final class ProcessMuteUserJob extends ProcessBaseJob implements ShouldQueue
             $permissionsUrl = "{$this->baseUrl}/channels/{$channelId}/permissions/{$this->targetUserId}";
 
             $payload = [
-                'deny' => (1 << 11), // Deny SPEAK permission
-                'type' => 1, // Member override (not role)
+                'deny' => (1 << 11) | (1 << 23), // Deny SPEAK and STREAM permissions
+                'type' => 1, // Member override
             ];
 
             $permissionsResponse = retry($this->maxRetries, function () use ($permissionsUrl, $payload) {

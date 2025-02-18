@@ -27,7 +27,6 @@ final class ProcessSupportCommandJob implements ShouldQueue
         $this->baseUrl = config('services.discord.rest_api_url');
     }
 
-    //TODO: This may or may not work, needs testing. Currently set isactive to false.
     public function handle(): void
     {
         // Remove the command itself from the message

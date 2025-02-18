@@ -24,12 +24,7 @@ final class ProcessArchiveChannelJob implements ShouldQueue
     public string $usageMessage;
     public string $exampleMessage;
 
-    // 'slug' => 'archive-channel',
-    // 'description' => 'Archives or unarchives a channel.',
-    // 'class' => \App\Jobs\ProcessArchiveChannelJob::class,
-    // 'usage' => 'Usage: !archive-channel <channel-id> <true|false>',
-    // 'example' => 'Example: !archive-channel 123456789012345678 true',
-    // 'is_active' => false,
+
 
     public ?string $targetChannelId = null; // The actual Discord channel ID
     public ?bool $archiveStatus = null; // Archive (true) or unarchive (false)
