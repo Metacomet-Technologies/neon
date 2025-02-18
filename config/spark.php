@@ -43,10 +43,10 @@ return [
     |
     */
 
-    // 'brand' =>  [
-    //     'logo' => realpath(__DIR__.'/../public/svg/billing-logo.svg'),
-    //     'color' => 'bg-gray-800',
-    // ],
+    'brand' => [
+        'logo' => resource_path('/img/neon.svg'),
+        'color' => 'bg-pink-600',
+    ],
 
     /*
     |--------------------------------------------------------------------------
@@ -89,7 +89,7 @@ return [
         // Features::billingAddressCollection(['required' => true]),
         // Features::mustAcceptTerms(),
         // Features::euVatCollection(['home-country' => 'BE']),
-        // Features::invoiceEmails(['custom-addresses' => true]),
+        Features::invoiceEmails(['custom-addresses' => true]),
         Features::paymentNotificationEmails(),
     ],
 
@@ -105,11 +105,10 @@ return [
     */
 
     'invoice_data' => [
-        'vendor' => 'Your Product',
-        'product' => 'Your Product',
-        'street' => '111 Example St.',
-        'location' => 'Los Angeles, CA',
-        'phone' => '555-555-5555',
+        'vendor' => 'Metacomet Technologies, LLC',
+        'product' => 'Neon Bot Subscription',
+        'street' => '2389 Main St., Suite 100',
+        'location' => 'Glastonbury, CT 06033',
     ],
 
     /*
@@ -129,12 +128,13 @@ return [
 
     'billables' => [
 
-        'user' => [
+        'neon' => [
             'model' => User::class,
 
-            'trial_days' => 5,
+            // Use this option if the trial doesn't require a credit card up front
+            // 'trial_days' => 10,
 
-            'default_interval' => 'monthly',
+            'default_interval' => 'yearly',
 
             'plans' => [
                 [
@@ -142,10 +142,30 @@ return [
                     'short_description' => 'Basic plan for Neon',
                     'monthly_id' => 'price_1QteVZHSbCCl70iIoppjlXqM',
                     'yearly_id' => 'price_1QteafHSbCCl70iIpsLIMILg',
+                    'yearly_incentive' => '1 Month Free!',
+                    // Use this option if the trial requires a credit card up front
+                    // 'trial_days' => 30,
                     'features' => [
-                        'Feature 1',
-                        'Feature 2',
-                        'Feature 3',
+                        'Send Welcome Messages',
+                        '1 Live Stream Notification (Twitch only)',
+                        '4 Custom Commands',
+                        '-- AI Commands',
+                        '-- Unlimited Custom Commands',
+                    ],
+                ],
+                [
+                    'name' => 'Neon Premium',
+                    'short_description' => 'Premium plan for Neon',
+                    'monthly_id' => 'price_1QterDHSbCCl70iIyXOVbdor',
+                    'yearly_id' => 'price_1QtfAlHSbCCl70iIreWQP8L8',
+                    'yearly_incentive' => '1 Month Free!',
+                    // Use this option if the trial requires a credit card up front
+                    // 'trial_days' => 30,
+                    'features' => [
+                        'Everything in Basic +',
+                        'Live Stream Notifications',
+                        'Unlimited Custom Commands',
+                        'AI Commands',
                     ],
                 ],
             ],
