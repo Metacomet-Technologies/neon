@@ -6,6 +6,8 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -13,23 +15,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-final class ProcessUnmuteUserJob implements ShouldQueue
+final class ProcessUnmuteUserJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
 
-    /**
-     * User-friendly instruction messages.
-     */
-    public string $usageMessage;
-    public string $exampleMessage;
-
-    // 'slug' => 'unmute',
-    // 'description' => 'Unmutes a user in the server.',
-    // 'class' => \App\Jobs\ProcessUnmuteUserJob::class,
-    // 'usage' => 'Usage: !unmute <user-id>',
-    // 'example' => 'Example: !unmute 123456789012345678',
-    // 'is_active' => true,
-    private string $baseUrl;
     private ?string $targetUserId = null; // The user being unmuted
 
     private int $retryDelay = 2000; // ✅ 2-second delay before retrying
@@ -38,28 +27,9 @@ final class ProcessUnmuteUserJob implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId, // The channel where the command was sent
-        public string $guildId,
-        public string $messageContent,
-    ) {
-        $command = DB::table('native_commands')->where('slug', 'unmute')->first();
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
-        $this->baseUrl = config('services.discord.rest_api_url');
-
-        // Parse the message
-        $this->targetUserId = $this->parseMessage($this->messageContent);
-
-        // 🚨 **Validation: Show help message if no arguments are provided**
-        if (empty(trim($this->messageContent)) || $this->targetUserId === null) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->usageMessage}}\n{$this->exampleMessage}",
-            ]);
-            throw new Exception('Invalid input for !unmute. Expected a valid user ID.');
-        }
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
     }
 
     /**
@@ -67,6 +37,20 @@ final class ProcessUnmuteUserJob implements ShouldQueue
      */
     public function handle(): void
     {
+        // Parse the message
+        $this->targetUserId = $this->parseMessage($this->messageContent);
+
+        // 🚨 **Validation: Show help message if no arguments are provided**
+        if (empty(trim($this->messageContent)) || $this->targetUserId === null) {
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No arguments provided.',
+                statusCode: 400,
+            );
+        }
+
         // Ensure the user has permission to manage channels
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanMuteMembers($this->guildId, $this->discordUserId);
 
@@ -75,6 +59,11 @@ final class ProcessUnmuteUserJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to mute/unmute users in this server.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'Insufficient permissions.',
+                statusCode: 403,
+            );
 
             return;
         }
@@ -84,6 +73,11 @@ final class ProcessUnmuteUserJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Invalid user ID format. Please provide a valid Discord user ID.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Invalid user ID format.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -100,6 +94,12 @@ final class ProcessUnmuteUserJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to retrieve server channels.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord_api_error',
+                message: 'Failed to unban user.',
+                statusCode: $channelsResponse->status(),
+                details: $channelsResponse->json(),
+            );
 
             return;
         }
@@ -143,6 +143,7 @@ final class ProcessUnmuteUserJob implements ShouldQueue
                 'embed_description' => "✅ <@{$this->targetUserId}> has been unmuted in **all voice channels**.",
                 'embed_color' => 3066993, // Green
             ]);
+            $this->updateNativeCommandRequestComplete();
         }
     }
 

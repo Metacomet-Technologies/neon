@@ -6,60 +6,53 @@ namespace App\Jobs;
 
 use App\Enums\DiscordPermissionEnum;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
-final class ProcessUnbanUserJob implements ShouldQueue
+final class ProcessUnbanUserJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
 
-    public string $usageMessage;
-    public string $exampleMessage;
-
-    // 'slug' => 'unban',
-    // 'description' => 'Unbans a user from the server.',
-    // 'class' => \App\Jobs\ProcessUnbanUserJob::class,
-    // 'usage' => 'Usage: !unban <user-id>',
-    // 'example' => 'Example: !unban 1335401202648748064',
-    // 'is_active' => true,
-    private string $baseUrl;
     private ?string $targetUserId = null;
 
     private int $retryDelay = 2000;
     private int $maxRetries = 3;
 
-    public function __construct(
-        public string $discordUserId, // Command sender (user executing !unban)
-        public string $channelId,     // The channel where the command was sent
-        public string $guildId,
-        public string $messageContent,
-    ) {
-        $command = DB::table('native_commands')->where('slug', 'unban')->first();
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
-        $this->baseUrl = config('services.discord.rest_api_url');
-        $this->targetUserId = $this->parseMessage($this->messageContent);
-
-        // 🚨 **Validation: Show help message if no arguments are provided**
-        if (empty(trim($this->messageContent)) || $this->targetUserId === null) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
-            throw new Exception('Invalid input for !unban. Expected a valid user ID.');
-        }
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
     }
 
     public function handle(): void
     {
+        $this->targetUserId = $this->parseMessage($this->messageContent);
+
+        // 🚨 **Validation: Show help message if no arguments are provided**
+        if (empty(trim($this->messageContent)) || $this->targetUserId === null) {
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No arguments provided.',
+                statusCode: 400,
+            );
+        }
+
         if (! preg_match('/^\d{17,19}$/', $this->targetUserId)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ Invalid user ID format. Please provide a valid Discord user ID.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Invalid user ID format.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -70,6 +63,11 @@ final class ProcessUnbanUserJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to unban members.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to unban members.',
+                statusCode: 403,
+            );
 
             return;
         }
@@ -80,6 +78,11 @@ final class ProcessUnbanUserJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ This user is not currently banned.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'User is not currently banned.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -96,6 +99,12 @@ final class ProcessUnbanUserJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to unban user. They may have already been unbanned.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord_api_error',
+                message: 'Failed to unban user.',
+                statusCode: $apiResponse->status(),
+                details: $apiResponse->json(),
+            );
 
             return;
         }
@@ -107,6 +116,7 @@ final class ProcessUnbanUserJob implements ShouldQueue
             'embed_description' => "✅ <@{$this->targetUserId}> has been unbanned from the server.",
             'embed_color' => 3066993, // Green
         ]);
+        $this->updateNativeCommandRequestComplete();
     }
 
     private function parseMessage(string $message): ?string

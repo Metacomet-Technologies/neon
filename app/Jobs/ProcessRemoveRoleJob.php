@@ -6,41 +6,23 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-final class ProcessRemoveRoleJob implements ShouldQueue
+final class ProcessRemoveRoleJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
-
-    public string $usageMessage;
-    public string $exampleMessage;
-
-    // 'slug' => 'remove-role',
-    // 'description' => 'Removes a role from one or more users.',
-    // 'class' => \App\Jobs\ProcessRemoveRoleJob::class,
-    // 'usage' => 'Usage: !remove-role <role-name> <@user1> <@user2> ...',
-    // 'example' => 'Example: !remove-role VIP 123456789012345678 123456789012345678',
-    // 'is_active' => true,
-
     public int $batchSize = 5; // ✅ Process users in groups of 5 to avoid rate limits
     public int $delayBetweenBatches = 2; // ✅ 2-second delay between batches
 
-    /**
-     * Create a new job instance.
-     */
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId,
-        public string $guildId,
-        public string $messageContent,
-    ) {
-        $command = DB::table('native_commands')->where('slug', 'remove-role')->first();
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
     }
 
     // TODO: Check if the user is the owner and send owner access token for elevated permissions. This whole job may need permission checks.
@@ -58,6 +40,11 @@ final class ProcessRemoveRoleJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to manage roles in this server.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to manage roles in this server.',
+                statusCode: 403,
+            );
 
             return;
         }
@@ -66,8 +53,13 @@ final class ProcessRemoveRoleJob implements ShouldQueue
         $parts = explode(' ', $this->messageContent);
 
         if (count($parts) < 3) {
-            SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => "{$this->usageMessage}\n{$this->exampleMessage}"]);
+            $this->sendUsageAndExample();
 
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No user ID provided.',
+                statusCode: 400,
+            );
             return;
         }
 
@@ -83,6 +75,11 @@ final class ProcessRemoveRoleJob implements ShouldQueue
                     'is_embed' => false,
                     'response' => "❌ Invalid user mention format: {$mention}",
                 ]);
+                $this->updateNativeCommandRequestFailed(
+                    status: 'failed',
+                    message: 'Invalid user mention format.',
+                    statusCode: 400,
+                );
 
                 return;
             }
@@ -98,6 +95,11 @@ final class ProcessRemoveRoleJob implements ShouldQueue
         if ($rolesResponse->failed()) {
             Log::error("Failed to fetch roles for guild {$this->guildId}", ['response' => $rolesResponse->json()]);
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => '❌ Failed to retrieve roles from the server.']);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Failed to retrieve roles from the server.',
+                statusCode: 500,
+            );
 
             return;
         }
@@ -108,6 +110,11 @@ final class ProcessRemoveRoleJob implements ShouldQueue
 
         if (! $role) {
             SendMessage::sendMessage($this->channelId, ['is_embed' => false, 'response' => "❌ Role '{$roleName}' not found."]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Role not found.',
+                statusCode: 404,
+            );
 
             return;
         }
@@ -158,5 +165,6 @@ final class ProcessRemoveRoleJob implements ShouldQueue
             'embed_description' => trim($successMessage . "\n" . $errorMessage),
             'embed_color' => count($successfulUsers) > 0 ? 3066993 : 15158332, // Green if success, Red if failure
         ]);
+        $this->updateNativeCommandRequestComplete();
     }
 }

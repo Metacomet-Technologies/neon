@@ -6,6 +6,8 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -13,23 +15,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-final class ProcessSetInactiveJob implements ShouldQueue
+//TODO: This job has logic for discovering voice channels based on name without mentioning them. This could be added to other jobs that interface with voice channels.
+
+final class ProcessSetInactiveJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;
 
-    /**
-     * User-friendly instruction messages.
-     */
-    public string $usageMessage;
-    public string $exampleMessage;
 
-    // 'slug' => 'set-inactive',
-    // 'description' => 'Sets a timeout for marking a channel as inactive.',
-    // 'class' => \App\Jobs\ProcessSetInactiveJob::class,
-    // 'usage' => 'Usage: !set-inactive <channel-name|channel-id> <timeout>',
-    // 'example' => 'Example: !set-inactive general-voice 300',
-    // 'is_active' => true,
-    private string $baseUrl;
     private ?string $targetChannelId = null; // The actual Discord voice channel ID
     private ?int $afkTimeout = null;         // Timeout duration in seconds
 
@@ -41,31 +33,9 @@ final class ProcessSetInactiveJob implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId, // The channel where the command was sent
-        public string $guildId,
-        public string $messageContent,
-    ) {
-        $command = DB::table('native_commands')->where('slug', 'set-inactive')->first();
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
-        $this->baseUrl = config('services.discord.rest_api_url');
-
-        // Parse the message
-        [$channelInput, $this->afkTimeout] = $this->parseMessage($this->messageContent);
-
-        // 🚨 **Validation: Show help message if no arguments are provided**
-        if ($channelInput === null || $this->afkTimeout === null) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}\n\nAllowed timeout values: `60, 300, 900, 1800, 3600` seconds.",
-            ]);
-            throw new Exception('Invalid input for !set-inactive. Expected a valid voice channel and timeout.');
-        }
-
-        // Ensure `$channelInput` is a string before passing it to `resolveVoiceChannelId()`
-        $this->targetChannelId = $this->resolveVoiceChannelId((string) $channelInput);
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
     }
 
     /**
@@ -73,6 +43,23 @@ final class ProcessSetInactiveJob implements ShouldQueue
      */
     public function handle(): void
     {
+        // Parse the message
+        [$channelInput, $this->afkTimeout] = $this->parseMessage($this->messageContent);
+
+        // 🚨 **Validation: Show help message if no arguments are provided**
+        if ($channelInput === null || $this->afkTimeout === null) {
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No arguments provided.',
+                statusCode: 400,
+            );
+        }
+
+        // Ensure `$channelInput` is a string before passing it to `resolveVoiceChannelId()`
+        $this->targetChannelId = $this->resolveVoiceChannelId((string) $channelInput);
+
         // Ensure the user has permission to manage channels
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
 
@@ -81,6 +68,11 @@ final class ProcessSetInactiveJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to manage channels in this server.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to manage channels.',
+                statusCode: 403,
+            );
 
             return;
         }
@@ -90,6 +82,11 @@ final class ProcessSetInactiveJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Invalid channel ID. Please use a valid voice channel.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Invalid channel ID provided.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -112,6 +109,12 @@ final class ProcessSetInactiveJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to set inactive voice channel.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord_api_error',
+                message: 'Failed to set inactive voice channel.',
+                details: $apiResponse->json(),
+                statusCode: $apiResponse->status(),
+            );
 
             return;
         }
@@ -123,6 +126,7 @@ final class ProcessSetInactiveJob implements ShouldQueue
             'embed_description' => "**AFK Channel:** <#{$this->targetChannelId}>\n**Timeout:** ⏳ `{$this->afkTimeout} sec`",
             'embed_color' => 3447003,
         ]);
+        $this->updateNativeCommandRequestComplete();
     }
 
     /**

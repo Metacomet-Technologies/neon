@@ -4,47 +4,51 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
-class ProcessUnvanishChannelJob implements ShouldQueue
+class ProcessUnvanishChannelJob extends ProcessBaseJob implements ShouldQueue
 {
-    public string $usageMessage;
-    public string $exampleMessage;
-
-    // 'slug' => 'unvanish',
-    // 'description' => 'Restores visibility to a previously vanished channel for everyone.',
-    // 'class' => \App\Jobs\ProcessUnvanishChannelJob::class,
-    // 'usage' => 'Usage: !unvanish <channel>',
-    // 'example' => 'Example: !unvanish #general',
-    // 'is_active' => true,
-
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId,
-        public string $guildId,
-        public string $messageContent
-    ) {
-        // Fetch command details from the database
-        $command = DB::table('native_commands')->where('slug', 'unvanish')->first();
-
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
     }
 
-    public function handle()
+    public function handle(): void
     {
+        // Check if the user has permission to manage channels
+        $permissionCheck = GetGuildsByDiscordUserId::getIfUserIsAdmin($this->guildId, $this->discordUserId);
+
+        if ($permissionCheck !== 'success') {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ You do not have permission to manage this channel.',
+            ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'You do not have permission to manage this channel.',
+                statusCode: 403,
+            );
+
+            return;
+        }
+
         // Extract channel mention
         $parts = explode(' ', trim($this->messageContent));
         $mentionedChannel = $parts[1] ?? null;
 
         // If no channel is mentioned, show help message
         if (! $mentionedChannel) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No channel mentioned.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -55,20 +59,15 @@ class ProcessUnvanishChannelJob implements ShouldQueue
         } else {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => "❌ Invalid channel format. Please mention a channel.\n{$this->usageMessage}\n{$this->exampleMessage}",
+                'response' => "❌ Invalid channel format. Please mention a channel.",
             ]);
+            $this->sendUsageAndExample();
 
-            return;
-        }
-
-        // Check if the user has permission to manage channels
-        $permissionCheck = GetGuildsByDiscordUserId::getIfUserIsAdmin($this->guildId, $this->discordUserId);
-
-        if ($permissionCheck !== 'success') {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ You do not have permission to manage this channel.',
-            ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: ' Invalid channel format. Please mention a channel.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -84,6 +83,11 @@ class ProcessUnvanishChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to fetch server roles.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Failed to fetch server roles.',
+                statusCode: 500,
+            );
 
             return;
         }
@@ -96,6 +100,11 @@ class ProcessUnvanishChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Could not find the @everyone role in this server.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Could not find the @everyone role in this server.',
+                statusCode: 404,
+            );
 
             return;
         }
@@ -115,14 +124,25 @@ class ProcessUnvanishChannelJob implements ShouldQueue
 
         if ($response->successful()) {
             SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "✅ The channel <#{$targetChannelId}> is now visible to everyone.",
+                'is_embed' => true,
+                'embed_title' => 'Channel Unvanished',
+                'embed_description' => "✅ The channel <#{$targetChannelId}> is now visible to everyone.",
+                'color' => 0x00FF00,
             ]);
+            $this->updateNativeCommandRequestComplete();
         } else {
             SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Failed to unvanish the channel. Ensure the bot has the correct permissions.',
+                'is_embed' => true,
+                'embed_title' => 'Unvanish Failed',
+                'embed_description' => '❌ Failed to unvanish the channel. Ensure the bot has the correct permissions.',
+                'color' => 0xFF0000,
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord_api_error',
+                message: 'Failed to unvanish the channel. Ensure the bot has the correct permissions.',
+                details: $response->json(),
+                statusCode: $response->status(),
+            );
         }
     }
 }

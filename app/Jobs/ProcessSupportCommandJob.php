@@ -9,6 +9,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
 
+//TODO: this may not work, needs testing. Currently set isactive to false. not updateded with processbasejob
 final class ProcessSupportCommandJob implements ShouldQueue
 {
     use Queueable;

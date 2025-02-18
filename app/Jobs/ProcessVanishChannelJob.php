@@ -4,47 +4,52 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
-class ProcessVanishChannelJob implements ShouldQueue
+class ProcessVanishChannelJob extends ProcessBaseJob implements ShouldQueue
 {
-    public string $usageMessage;
-    public string $exampleMessage;
-
-    // 'slug' => 'vanish',
-    // 'description' => 'Hides a text channel for everyone but admins.',
-    // 'class' => \App\Jobs\ProcessVanishChannelJob::class,
-    // 'usage' => 'Usage: !vanish <channel>',
-    // 'example' => 'Example: !vanish #general',
-    // 'is_active' => true,
-
-    public function __construct(
-        public string $discordUserId,
-        public string $channelId,
-        public string $guildId,
-        public string $messageContent
-    ) {
-        // Fetch command details from the database
-        $command = DB::table('native_commands')->where('slug', 'vanish')->first();
-
-        $this->usageMessage = $command->usage;
-        $this->exampleMessage = $command->example;
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    {
+        parent::__construct($nativeCommandRequest);
     }
 
-    public function handle()
+    public function handle(): void
+
     {
+        // Check if the user has permission to manage channels
+        $permissionCheck = GetGuildsByDiscordUserId::getIfUserIsAdmin($this->guildId, $this->discordUserId);
+
+        if ($permissionCheck !== 'success') {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ You do not have permission to manage this channel.',
+            ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'unauthorized',
+                message: 'User does not have permission to manage channels.',
+                statusCode: 403,
+            );
+
+            return;
+        }
+
         // Extract channel mention
         $parts = explode(' ', trim($this->messageContent));
         $mentionedChannel = $parts[1] ?? null;
 
         // If no channel is mentioned, show help message
         if (! $mentionedChannel) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->usageMessage}\n{$this->exampleMessage}",
-            ]);
+            $this->sendUsageAndExample();
+
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'No arguments provided.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -55,20 +60,15 @@ class ProcessVanishChannelJob implements ShouldQueue
         } else {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => "❌ Invalid channel format. Please mention a channel.\n{$this->usageMessage}\n{$this->exampleMessage}",
+                'response' => "❌ Invalid channel format. Please mention a channel.",
             ]);
+            $this->sendUsageAndExample();
 
-            return;
-        }
-
-        // Check if the user has permission to manage channels
-        $permissionCheck = GetGuildsByDiscordUserId::getIfUserIsAdmin($this->guildId, $this->discordUserId);
-
-        if ($permissionCheck !== 'success') {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ You do not have permission to manage this channel.',
-            ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Invalid channel format.',
+                statusCode: 400,
+            );
 
             return;
         }
@@ -84,6 +84,12 @@ class ProcessVanishChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to fetch server roles.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord_api_error',
+                message: 'Failed to fetch server roles.',
+                statusCode: $guildRolesResponse->status(),
+                details: $guildRolesResponse->json(),
+            );
 
             return;
         }
@@ -96,13 +102,17 @@ class ProcessVanishChannelJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Could not find the @everyone role in this server.',
             ]);
+            $this->updateNativeCommandRequestFailed(
+                status: 'failed',
+                message: 'Could not find the @everyone role in this server.',
+                statusCode: 404,
+            );
 
             return;
         }
 
         $everyoneRoleId = $everyoneRole['id'];
 
-        // 🔹 THIS IS WHERE YOU REPLACE YOUR EXISTING API CALL WITH THE DEBUGGING CODE:
         $response = Http::withHeaders([
             'Authorization' => 'Bot ' . config('discord.token'),
             'Content-Type' => 'application/json',
@@ -114,22 +124,27 @@ class ProcessVanishChannelJob implements ShouldQueue
             'allow' => '0',
         ]);
 
-        // Dump response for debugging
-        // dump($response->json());
-
         if ($response->successful()) {
             SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "✅ The channel <#{$targetChannelId}> is now hidden from everyone except admins.",
+                'is_embed' => true,
+                'embed_title' => 'Channel Vanished',
+                'embed_description' => "✅ The channel <#{$targetChannelId}> is now hidden from everyone except admins.",
+                'color' => 0x00FF00,
             ]);
+            $this->updateNativeCommandRequestComplete();
         } else {
             SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Failed to hide the channel. Ensure the bot has the correct permissions.',
+                'is_embed' => true,
+                'embed_title' => 'Failed to Vanish Channel',
+                'embed_description' => '❌ Failed to hide the channel. Ensure the bot has the correct permissions.',
+                'color' => 0xFF0000,
             ]);
-
-            // Dump full error details for debugging
-            // dump('❌ Discord API Response:', $response->json());
+            $this->updateNativeCommandRequestFailed(
+                status: 'discord_api_error',
+                message: 'Failed to hide the channel.',
+                statusCode: $response->status(),
+                details: $response->json(),
+            );
         }
     }
 }
