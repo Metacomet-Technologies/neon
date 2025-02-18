@@ -18,8 +18,11 @@ jobs:
         with:
           php-version: '8.4'  # adjust to your PHP version
 
-      - name: Configure Composer for Private Repositories
+      - name: Configure Composer for Nova Private Repository
         run: composer config http-basic.nova.laravel.com "${{ secrets.NOVA_USERNAME }}" "${{ secrets.NOVA_LICENSE_KEY }}"
+
+      - name: Configure Composer for Spark Private Repository
+        run: composer config http-basic.spark.laravel.com "${{ secrets.SPARK_USERNAME }}" "${{ secrets.SPARK_LICENSE_KEY }}"
 
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader

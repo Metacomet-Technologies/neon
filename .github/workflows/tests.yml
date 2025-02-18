@@ -28,8 +28,11 @@ jobs:
             - name: Setup Redis
               uses: supercharge/redis-github-action@1.4.0
 
-            - name: Configure Composer for Private Repositories
+            - name: Configure Composer for Nova Private Repository
               run: composer config http-basic.nova.laravel.com "${{ secrets.NOVA_USERNAME }}" "${{ secrets.NOVA_LICENSE_KEY }}"
+
+            - name: Configure Composer for Spark Private Repository
+              run: composer config http-basic.spark.laravel.com "${{ secrets.SPARK_USERNAME }}" "${{ secrets.SPARK_LICENSE_KEY }}"
 
             - name: Install Dependencies
               run: composer install --no-interaction --prefer-dist --optimize-autoloader
