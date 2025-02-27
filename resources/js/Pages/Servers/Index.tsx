@@ -24,7 +24,7 @@ export default function Index() {
                             </CardHeader>
                             <CardContent>
                                 <div className="flex items-center justify-center">
-                                   <Avatar src={getGuildIcon(guild)} alt={guild.name} />
+                                    <Avatar src={getGuildIcon(guild)} alt={guild.name} />
                                 </div>
                             </CardContent>
                             <CardFooter>

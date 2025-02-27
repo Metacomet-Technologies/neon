@@ -17,11 +17,11 @@ final class ProcessAssignChannelJob extends ProcessBaseJob implements ShouldQueu
 {
     use Queueable;
 
-
-            public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    public function __construct(public NativeCommandRequest $nativeCommandRequest)
     {
         parent::__construct($nativeCommandRequest);
     }
+
     /**
      * Execute the job.
      */

@@ -8,10 +8,8 @@ use App\Enums\DiscordPermissionEnum;
 use App\Helpers\Discord\SendMessage;
 use App\Jobs\NativeCommand\ProcessBaseJob;
 use App\Models\NativeCommandRequest;
-use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 final class ProcessUnbanUserJob extends ProcessBaseJob implements ShouldQueue

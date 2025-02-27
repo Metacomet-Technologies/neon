@@ -10,7 +10,6 @@ use App\Jobs\NativeCommand\ProcessBaseJob;
 use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -60,6 +59,7 @@ final class ProcessRemoveRoleJob extends ProcessBaseJob implements ShouldQueue
                 message: 'No user ID provided.',
                 statusCode: 400,
             );
+
             return;
         }
 

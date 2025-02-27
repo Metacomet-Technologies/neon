@@ -24,8 +24,6 @@ final class ProcessArchiveChannelJob implements ShouldQueue
     public string $usageMessage;
     public string $exampleMessage;
 
-
-
     public ?string $targetChannelId = null; // The actual Discord channel ID
     public ?bool $archiveStatus = null; // Archive (true) or unarchive (false)
 

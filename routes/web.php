@@ -38,17 +38,6 @@ Route::get('unsubscribe/{email}/confirm', [UnsubscribeController::class, 'show']
 Route::get('terms-of-service', TermsOfServiceController::class)->name('terms-of-service');
 Route::get('privacy-policy', PrivacyPolicyController::class)->name('privacy-policy');
 
-// Route::get('test', function () {
-//     $result = OpenAI::chat()->create([
-//         'model' => 'gpt-3.5-turbo',
-//         'messages' => [
-//             ['role' => 'user', 'content' => 'Hello!'],
-//         ],
-//     ]);
-
-//     return $result->choices[0]->message->content;
-// });
-
 Route::fallback(function () {
     return abort(404, 'Page not found');
 });

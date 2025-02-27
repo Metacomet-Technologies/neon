@@ -7,7 +7,6 @@ use App\Helpers\Discord\SendMessage;
 use App\Jobs\NativeCommand\ProcessBaseJob;
 use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 class ProcessVanishChannelJob extends ProcessBaseJob implements ShouldQueue
@@ -18,7 +17,6 @@ class ProcessVanishChannelJob extends ProcessBaseJob implements ShouldQueue
     }
 
     public function handle(): void
-
     {
         // Check if the user has permission to manage channels
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserIsAdmin($this->guildId, $this->discordUserId);
@@ -60,7 +58,7 @@ class ProcessVanishChannelJob extends ProcessBaseJob implements ShouldQueue
         } else {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => "❌ Invalid channel format. Please mention a channel.",
+                'response' => '❌ Invalid channel format. Please mention a channel.',
             ]);
             $this->sendUsageAndExample();
 
