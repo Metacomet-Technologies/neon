@@ -214,16 +214,16 @@
         },
         {
             "name": "brick/math",
-            "version": "0.12.2",
+            "version": "0.12.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/brick/math.git",
-                "reference": "901eddb1e45a8e0f689302e40af871c181ecbe40"
+                "reference": "866551da34e9a618e64a819ee1e01c20d8a588ba"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/brick/math/zipball/901eddb1e45a8e0f689302e40af871c181ecbe40",
-                "reference": "901eddb1e45a8e0f689302e40af871c181ecbe40",
+                "url": "https://api.github.com/repos/brick/math/zipball/866551da34e9a618e64a819ee1e01c20d8a588ba",
+                "reference": "866551da34e9a618e64a819ee1e01c20d8a588ba",
                 "shasum": ""
             },
             "require": {
@@ -262,7 +262,7 @@
             ],
             "support": {
                 "issues": "https://github.com/brick/math/issues",
-                "source": "https://github.com/brick/math/tree/0.12.2"
+                "source": "https://github.com/brick/math/tree/0.12.3"
             },
             "funding": [
                 {
@@ -270,7 +270,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-02-26T10:21:45+00:00"
+            "time": "2025-02-28T13:11:00+00:00"
         },
         {
             "name": "brick/money",
@@ -2503,17 +2503,17 @@
         },
         {
             "name": "laravel/nova",
-            "version": "5.2.6",
+            "version": "5.2.7",
             "source": {
                 "type": "git",
                 "url": "git@github.com:laravel/nova.git",
-                "reference": "36dc6b56a303a411e6be1b55f0fc44d66c252a67"
+                "reference": "75b3eea58fc6b05aaebb928eca736dafe39006f5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://nova.laravel.com/dist/laravel/nova/laravel-nova-36dc6b56a303a411e6be1b55f0fc44d66c252a67-zip-d7772f.zip",
-                "reference": "36dc6b56a303a411e6be1b55f0fc44d66c252a67",
-                "shasum": "730791f7cd2a37d590f9a63a5e5e4543dc773b9d"
+                "url": "https://nova.laravel.com/dist/laravel/nova/laravel-nova-75b3eea58fc6b05aaebb928eca736dafe39006f5-zip-5c63db.zip",
+                "reference": "75b3eea58fc6b05aaebb928eca736dafe39006f5",
+                "shasum": "1b393a74111efe6add6e9e04854b132352a84796"
             },
             "require": {
                 "brick/money": "^0.8|^0.9|^0.10",
@@ -2668,10 +2668,10 @@
                 "laravel"
             ],
             "support": {
-                "source": "https://github.com/laravel/nova/tree/v5.2.6",
+                "source": "https://github.com/laravel/nova/tree/v5.2.7",
                 "issues": "https://github.com/laravel/nova/issues"
             },
-            "time": "2025-02-26T07:50:38+00:00"
+            "time": "2025-03-01T01:04:28+00:00"
         },
         {
             "name": "laravel/prompts",
@@ -4294,16 +4294,16 @@
         },
         {
             "name": "mpociot/vat-calculator",
-            "version": "3.19.0",
+            "version": "3.20.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/driesvints/vat-calculator.git",
-                "reference": "e974299aba96cc7b224667f57319f3e2b8f412ce"
+                "reference": "dc7f6da8ba3b1e53d47df0399affbf82748d3f82"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/driesvints/vat-calculator/zipball/e974299aba96cc7b224667f57319f3e2b8f412ce",
-                "reference": "e974299aba96cc7b224667f57319f3e2b8f412ce",
+                "url": "https://api.github.com/repos/driesvints/vat-calculator/zipball/dc7f6da8ba3b1e53d47df0399affbf82748d3f82",
+                "reference": "dc7f6da8ba3b1e53d47df0399affbf82748d3f82",
                 "shasum": ""
             },
             "require": {
@@ -4362,7 +4362,7 @@
             ],
             "support": {
                 "issues": "https://github.com/driesvints/vat-calculator/issues",
-                "source": "https://github.com/driesvints/vat-calculator/tree/3.19.0"
+                "source": "https://github.com/driesvints/vat-calculator/tree/3.20.0"
             },
             "funding": [
                 {
@@ -4374,7 +4374,7 @@
                     "type": "paypal"
                 }
             ],
-            "time": "2025-02-13T21:09:06+00:00"
+            "time": "2025-02-28T10:43:14+00:00"
         },
         {
             "name": "mtdowling/jmespath.php",
@@ -6145,16 +6145,16 @@
         },
         {
             "name": "ramsey/collection",
-            "version": "2.0.0",
+            "version": "2.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ramsey/collection.git",
-                "reference": "a4b48764bfbb8f3a6a4d1aeb1a35bb5e9ecac4a5"
+                "reference": "3c5990b8a5e0b79cd1cf11c2dc1229e58e93f109"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ramsey/collection/zipball/a4b48764bfbb8f3a6a4d1aeb1a35bb5e9ecac4a5",
-                "reference": "a4b48764bfbb8f3a6a4d1aeb1a35bb5e9ecac4a5",
+                "url": "https://api.github.com/repos/ramsey/collection/zipball/3c5990b8a5e0b79cd1cf11c2dc1229e58e93f109",
+                "reference": "3c5990b8a5e0b79cd1cf11c2dc1229e58e93f109",
                 "shasum": ""
             },
             "require": {
@@ -6162,25 +6162,22 @@
             },
             "require-dev": {
                 "captainhook/plugin-composer": "^5.3",
-                "ergebnis/composer-normalize": "^2.28.3",
-                "fakerphp/faker": "^1.21",
+                "ergebnis/composer-normalize": "^2.45",
+                "fakerphp/faker": "^1.24",
                 "hamcrest/hamcrest-php": "^2.0",
-                "jangregor/phpstan-prophecy": "^1.0",
-                "mockery/mockery": "^1.5",
+                "jangregor/phpstan-prophecy": "^2.1",
+                "mockery/mockery": "^1.6",
                 "php-parallel-lint/php-console-highlighter": "^1.0",
-                "php-parallel-lint/php-parallel-lint": "^1.3",
-                "phpcsstandards/phpcsutils": "^1.0.0-rc1",
-                "phpspec/prophecy-phpunit": "^2.0",
-                "phpstan/extension-installer": "^1.2",
-                "phpstan/phpstan": "^1.9",
-                "phpstan/phpstan-mockery": "^1.1",
-                "phpstan/phpstan-phpunit": "^1.3",
-                "phpunit/phpunit": "^9.5",
-                "psalm/plugin-mockery": "^1.1",
-                "psalm/plugin-phpunit": "^0.18.4",
-                "ramsey/coding-standard": "^2.0.3",
-                "ramsey/conventional-commits": "^1.3",
-                "vimeo/psalm": "^5.4"
+                "php-parallel-lint/php-parallel-lint": "^1.4",
+                "phpspec/prophecy-phpunit": "^2.3",
+                "phpstan/extension-installer": "^1.4",
+                "phpstan/phpstan": "^2.1",
+                "phpstan/phpstan-mockery": "^2.0",
+                "phpstan/phpstan-phpunit": "^2.0",
+                "phpunit/phpunit": "^10.5",
+                "ramsey/coding-standard": "^2.3",
+                "ramsey/conventional-commits": "^1.6",
+                "roave/security-advisories": "dev-latest"
             },
             "type": "library",
             "extra": {
@@ -6218,19 +6215,9 @@
             ],
             "support": {
                 "issues": "https://github.com/ramsey/collection/issues",
-                "source": "https://github.com/ramsey/collection/tree/2.0.0"
+                "source": "https://github.com/ramsey/collection/tree/2.1.0"
             },
-            "funding": [
-                {
-                    "url": "https://github.com/ramsey",
-                    "type": "github"
-                },
-                {
-                    "url": "https://tidelift.com/funding/github/packagist/ramsey/collection",
-                    "type": "tidelift"
-                }
-            ],
-            "time": "2022-12-31T21:50:55+00:00"
+            "time": "2025-03-02T04:48:29+00:00"
         },
         {
             "name": "ramsey/uuid",
@@ -10505,16 +10492,16 @@
         },
         {
             "name": "team-reflex/discord-php",
-            "version": "v10.3.8",
+            "version": "v10.4.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/discord-php/DiscordPHP.git",
-                "reference": "d97dc708000437ae4b1fd69db9e8c371f894e678"
+                "reference": "7e4c5a280cf61e02840d69b7970b4622902a5d2f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/discord-php/DiscordPHP/zipball/d97dc708000437ae4b1fd69db9e8c371f894e678",
-                "reference": "d97dc708000437ae4b1fd69db9e8c371f894e678",
+                "url": "https://api.github.com/repos/discord-php/DiscordPHP/zipball/7e4c5a280cf61e02840d69b7970b4622902a5d2f",
+                "reference": "7e4c5a280cf61e02840d69b7970b4622902a5d2f",
                 "shasum": ""
             },
             "require": {
@@ -10576,7 +10563,7 @@
                 "chat": "https://discord.gg/dphp",
                 "docs": "https://discord-php.github.io/DiscordPHP/",
                 "issues": "https://github.com/discord-php/DiscordPHP/issues",
-                "source": "https://github.com/discord-php/DiscordPHP/tree/v10.3.8",
+                "source": "https://github.com/discord-php/DiscordPHP/tree/v10.4.0",
                 "wiki": "https://github.com/discord-php/DiscordPHP/wiki"
             },
             "funding": [
@@ -10593,7 +10580,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2025-02-12T18:51:00+00:00"
+            "time": "2025-03-03T19:34:03+00:00"
         },
         {
             "name": "tightenco/ziggy",

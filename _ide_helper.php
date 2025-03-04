@@ -23771,19 +23771,6 @@ namespace Mpociot\VatCalculator\Facades {
             return $instance->setSoapClient($soapClient);
         }
 
-        /**
-         * 
-         *
-         * @return \Mpociot\VatCalculator\VatCalculator 
-         * @internal This method is not covered by our BC policy.
-         * @static 
-         */
-        public static function testing()
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            return $instance->testing();
-        }
-
             }
     }
 

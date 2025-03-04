@@ -5,7 +5,7 @@ import { createInertiaApp } from '@inertiajs/react';
 import * as Sentry from '@sentry/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { StrictMode } from 'react';
-import { createRoot, hydrateRoot } from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 
 import { ThemeProvider } from './Layout/ThemeContext';
 
@@ -29,12 +29,6 @@ createInertiaApp({
     resolve: (name) => resolvePageComponent(`./Pages/${name}.tsx`, import.meta.glob('./Pages/**/*.tsx')),
     setup({ el, App, props }) {
         el.style.visibility = 'hidden';
-        if (import.meta.env.SSR) {
-            hydrateRoot(el, <App {...props} />);
-            el.style.visibility = 'visible';
-            return;
-        }
-
         createRoot(el).render(
             <StrictMode>
                 <ThemeProvider initialTheme={props.initialPage.props.theme}>
