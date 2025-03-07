@@ -8,8 +8,10 @@ use App\Helpers\Discord\SendMessage;
 use App\Jobs\NeonDispatchHandler;
 use App\Jobs\ProcessGuildCommandJob;
 use App\Jobs\ProcessScheduledMessageJob;
+use App\Jobs\ProcessWelcomeMessageJob;
 use App\Models\NativeCommand;
 use App\Models\NeonCommand;
+use App\Models\WelcomeSetting;
 use Carbon\Carbon;
 use Discord\Discord;
 use Discord\WebSockets\Event;
@@ -50,7 +52,7 @@ final class StartNeonCommand extends Command
 
         $discord = new Discord([
             'token' => $token,
-            'intents' => Intents::getDefaultIntents() | Intents::MESSAGE_CONTENT,
+            'intents' => Intents::getDefaultIntents() | Intents::MESSAGE_CONTENT | Intents::GUILD_MEMBERS,
             'logger' => $log,
         ]);
 
@@ -101,6 +103,18 @@ final class StartNeonCommand extends Command
                     }
                 }
             });
+
+            $discord->on(Event::GUILD_MEMBER_ADD, function ($member, $discord) {
+                $guildId = $member->guild_id;
+                // check if guild has welcome message enabled
+                $welcomeSettings = $this->getGuildsWithWelcomeSettings();
+                if (! in_array($guildId, $welcomeSettings)) {
+                    return;
+                }
+                $newMemberId = $member->user->id;
+                ProcessWelcomeMessageJob::dispatch($newMemberId, $guildId);
+
+            });
         });
 
         $discord->run();
@@ -119,6 +133,20 @@ final class StartNeonCommand extends Command
                 ->where('guild_id', $guildId)
                 ->where('is_enabled', true)
                 ->get()
+                ->toArray();
+        });
+    }
+
+    public function getGuildsWithWelcomeSettings(): array
+    {
+        $key = 'welcome-settings';
+
+        return Cache::rememberForever($key, function () {
+            return WelcomeSetting::query()
+                ->select(['guild_id'])
+                ->where('is_active', true)
+                ->get()
+                ->pluck('guild_id')
                 ->toArray();
         });
     }

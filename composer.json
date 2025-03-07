@@ -68,7 +68,7 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently -c \"#FF2D20,#38BDF8,#5865F2,#38BDF8\" \"nodemon --config nodemon-queue.json\" \"npm run dev\" \"nodemon --config nodemon-neon.json\" \"php artisan inertia:start-ssr\" --names=queue,vite,neon,ssr"
+            "npx concurrently -c \"#FF2D20,#38BDF8,#5865F2\" \"nodemon --config nodemon-queue.json\" \"npm run dev\" \"nodemon --config nodemon-neon.json\" --names=queue,vite,neon"
         ]
     },
     "extra": {
