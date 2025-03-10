@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Helpers\Discord\GetGuildChannels;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -49,6 +50,10 @@ final class ServerController
         $user->current_server_id = $serverId;
         $user->save();
 
-        return Inertia::render('Servers/Show');
+        $channels = (new GetGuildChannels($serverId))->getChannels();
+
+        return Inertia::render('Servers/Show',[
+            'channels' => $channels,
+        ]);
     }
 }
