@@ -52,7 +52,7 @@ final class ServerController
 
         $channels = (new GetGuildChannels($serverId))->getTextChannels();
 
-        return Inertia::render('Servers/Show',[
+        return Inertia::render('Servers/Show', [
             'channels' => $channels,
         ]);
     }
