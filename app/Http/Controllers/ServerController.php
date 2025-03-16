@@ -50,7 +50,7 @@ final class ServerController
         $user->current_server_id = $serverId;
         $user->save();
 
-        $channels = (new GetGuildChannels($serverId))->getChannels();
+        $channels = (new GetGuildChannels($serverId))->getTextChannels();
 
         return Inertia::render('Servers/Show',[
             'channels' => $channels,
