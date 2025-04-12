@@ -10,7 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
 
-//TODO: check this file to make sure it is still functional as intended
+// TODO: check this file to make sure it is still functional as intended
 
 final class ProcessGuildCommandJob implements ShouldQueue
 {

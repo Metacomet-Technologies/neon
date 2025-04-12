@@ -1,6 +1,6 @@
 <?php
 
-//TODO: Check backoff strategy and retry logic. doesnt seem to be in parity with number stated in message
+// TODO: Check backoff strategy and retry logic. doesnt seem to be in parity with number stated in message
 declare(strict_types=1);
 
 namespace App\Jobs;

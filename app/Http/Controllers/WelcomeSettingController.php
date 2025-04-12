@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\WelcomeSetting;
 use Illuminate\Http\Request;
 
-class WelcomeSettingController extends Controller
+class WelcomeSettingController
 {
     /**
      * Display a listing of the resource.

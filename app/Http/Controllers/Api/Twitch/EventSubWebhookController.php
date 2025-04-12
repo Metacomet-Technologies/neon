@@ -85,7 +85,7 @@ final class EventSubWebhookController
             'is_processed' => false,
         ]);
 
-        //TODO: Dispatch the event to a queue for processing
+        // TODO: Dispatch the event to a queue for processing
 
         Log::info('Event saved', [
             'message_id' => $twitchMessageId,

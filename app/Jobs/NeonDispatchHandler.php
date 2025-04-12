@@ -34,7 +34,7 @@ class NeonDispatchHandler implements ShouldQueue
             'discord_user_id' => $this->discordUserId,
             'message_content' => $this->messageContent,
             'command' => $this->command,
-            //TODO: Add additional parameters here
+            // TODO: Add additional parameters here
             // 'additional_parameters' => $this->additionalParameters,
             'status' => 'pending',
             'executed_at' => null,

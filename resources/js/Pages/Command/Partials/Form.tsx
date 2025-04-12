@@ -26,7 +26,7 @@ export default function Form({
     serverId: string;
     existingCommand?: Command | null;
 }): React.JSX.Element {
-    const { data, setData, post, put, errors } = useForm<CommandStore>({
+    const { data, setData, post, put, errors } = useForm({
         command: existingCommand?.command || '',
         description: existingCommand?.description || '',
         response: existingCommand?.response || '',
@@ -52,13 +52,37 @@ export default function Form({
 
     const handleTextChange = useCallback(
         (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-            setData(e.target.name, e.target.value);
+            setData(
+                e.target.name as
+                    | 'command'
+                    | 'description'
+                    | 'response'
+                    | 'is_enabled'
+                    | 'is_public'
+                    | 'is_embed'
+                    | 'embed_color'
+                    | 'embed_title'
+                    | 'embed_description',
+                e.target.value
+            );
         },
         [setData]
     );
 
     const handleCheckboxChange = useCallback(
-        (name: string, checked: boolean) => {
+        (
+            name:
+                | 'command'
+                | 'description'
+                | 'response'
+                | 'is_enabled'
+                | 'is_public'
+                | 'is_embed'
+                | 'embed_color'
+                | 'embed_title'
+                | 'embed_description',
+            checked: boolean
+        ) => {
             setData(name, checked);
         },
         [setData]
