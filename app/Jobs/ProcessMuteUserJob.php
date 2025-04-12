@@ -14,7 +14,7 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-//TODO: this job may not be muting users as expected. Something about the roles and permissions is off. If a role-based mute is overriding your individual mute, the bot won’t be able to enforce the mute at the individual level. Consider creating a "Muted" role that denies SPEAK and STREAM permissions across all channels, and assign it instead.
+// TODO: this job may not be muting users as expected. Something about the roles and permissions is off. If a role-based mute is overriding your individual mute, the bot won’t be able to enforce the mute at the individual level. Consider creating a "Muted" role that denies SPEAK and STREAM permissions across all channels, and assign it instead.
 final class ProcessMuteUserJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;

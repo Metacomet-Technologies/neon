@@ -1,6 +1,6 @@
 <?php
 
-//TODO: check permissions for elevation.
+// TODO: check permissions for elevation.
 declare(strict_types=1);
 
 namespace App\Jobs;

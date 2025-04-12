@@ -13,7 +13,7 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-//TODO: this job may not be locking vc's as expected. Something about the roles and permissions is off.
+// TODO: this job may not be locking vc's as expected. Something about the roles and permissions is off.
 final class ProcessLockVoiceChannelJob extends ProcessBaseJob implements ShouldQueue
 {
     use Queueable;

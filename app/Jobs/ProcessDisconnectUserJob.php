@@ -27,7 +27,7 @@ final class ProcessDisconnectUserJob extends ProcessBaseJob implements ShouldQue
         parent::__construct($nativeCommandRequest);
     }
 
-    //TODO: May want to add logic to have channel id instead of user, which would disonnect all users in that channel.
+    // TODO: May want to add logic to have channel id instead of user, which would disonnect all users in that channel.
     public function handle(): void
     {
         // Parse the message

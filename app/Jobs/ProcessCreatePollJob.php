@@ -27,7 +27,7 @@ final class ProcessCreatePollJob extends ProcessBaseJob implements ShouldQueue
         parent::__construct($nativeCommandRequest);
     }
 
-    //TODO: Add ability for emojis to be included in text
+    // TODO: Add ability for emojis to be included in text
     /**
      * Handles the job execution.
      */

@@ -10,7 +10,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-//TODO: check permissions for elevation. this may not work anymore. not updated with processbasejob
+// TODO: check permissions for elevation. this may not work anymore. not updated with processbasejob
 
 class ProcessScheduledMessageJob implements ShouldQueue
 {

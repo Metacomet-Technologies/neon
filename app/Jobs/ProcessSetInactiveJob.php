@@ -13,7 +13,7 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-//TODO: This job has logic for discovering voice channels based on name without mentioning them. This could be added to other jobs that interface with voice channels.
+// TODO: This job has logic for discovering voice channels based on name without mentioning them. This could be added to other jobs that interface with voice channels.
 
 final class ProcessSetInactiveJob extends ProcessBaseJob implements ShouldQueue
 {
