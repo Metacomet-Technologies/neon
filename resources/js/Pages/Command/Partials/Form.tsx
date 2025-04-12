@@ -49,11 +49,13 @@ export default function Form({
         },
         [post, put]
     );
-
     const handleTextChange = useCallback(
         (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+            const { name, value } = e.target;
+            const sanitizedValue = name === 'command' && value.startsWith('!') ? value.slice(1) : value;
+
             setData(
-                e.target.name as
+                name as
                     | 'command'
                     | 'description'
                     | 'response'
@@ -63,7 +65,7 @@ export default function Form({
                     | 'embed_color'
                     | 'embed_title'
                     | 'embed_description',
-                e.target.value
+                sanitizedValue
             );
         },
         [setData]
