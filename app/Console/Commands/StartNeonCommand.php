@@ -9,6 +9,7 @@ use App\Jobs\NeonDispatchHandler;
 use App\Jobs\ProcessGuildCommandJob;
 use App\Jobs\ProcessScheduledMessageJob;
 use App\Jobs\ProcessWelcomeMessageJob;
+use App\Jobs\RefreshNeonGuildsJob;
 use App\Models\NativeCommand;
 use App\Models\NeonCommand;
 use App\Models\WelcomeSetting;
@@ -114,6 +115,14 @@ final class StartNeonCommand extends Command
                 $newMemberId = $member->user->id;
                 ProcessWelcomeMessageJob::dispatch($newMemberId, $guildId);
 
+            });
+
+            $discord->on(Event::GUILD_DELETE, function ($guild, $discord) {
+                return RefreshNeonGuildsJob::dispatch();
+            });
+
+            $discord->on(Event::GUILD_CREATE, function ($guild, $discord) {
+                return RefreshNeonGuildsJob::dispatch();
             });
         });
 
