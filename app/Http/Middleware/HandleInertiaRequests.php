@@ -39,8 +39,6 @@ final class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        dump($request->session());
-
         return [
             ...parent::share($request),
             'auth' => [
