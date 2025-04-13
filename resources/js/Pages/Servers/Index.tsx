@@ -1,15 +1,23 @@
 import { Avatar } from '@/Components/avatar';
+import { Button } from '@/Components/button';
 import { Heading } from '@/Components/heading';
-import { Text } from '@/Components/text';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Layout } from '@/Layout/Layout';
 import { getGuildIcon } from '@/lib/utils';
 import { PageProps } from '@/types';
 import { ArrowRightIcon } from '@heroicons/react/16/solid';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 
-export default function Index() {
+export default function Index({ botGuilds }: { botGuilds: string[] }) {
     const { auth } = usePage<PageProps>().props;
+
+    const botInGuild = (guildId: string) => {
+        return botGuilds.includes(guildId);
+    };
+
+    const handleClick = () => {
+        window.open(route('join-server'), '_blank');
+    };
 
     return (
         <>
@@ -17,26 +25,31 @@ export default function Index() {
             <Heading>Choose a Server to get Started</Heading>
             <div className="mx-auto grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {auth.user?.guilds.map((guild) => (
-                    <Link href={route('server.show', guild.id)} key={guild.id} className="w-full group">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>{guild.name}</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="flex items-center justify-center">
-                                    <Avatar src={getGuildIcon(guild)} alt={guild.name} />
-                                </div>
-                            </CardContent>
-                            <CardFooter>
-                                <div className="w-full flex items-center justify-end">
-                                    <Text className="flex items-center space-x-1 group-hover:underline">
-                                        View Server
-                                        <ArrowRightIcon className="w-4 h-4" />
-                                    </Text>
-                                </div>
-                            </CardFooter>
-                        </Card>
-                    </Link>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>{guild.name}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex items-center justify-center">
+                                <Avatar src={getGuildIcon(guild)} alt={guild.name} />
+                            </div>
+                        </CardContent>
+                        <CardFooter>
+                            <div className="w-full flex items-center justify-end">
+                                {botInGuild(guild.id) ? (
+                                    <Button color="green" href={route('server.show', guild.id)}>
+                                        Manage
+                                        <ArrowRightIcon />
+                                    </Button>
+                                ) : (
+                                    <Button color="blue" onClick={handleClick}>
+                                        Invite
+                                        <ArrowRightIcon />
+                                    </Button>
+                                )}
+                            </div>
+                        </CardFooter>
+                    </Card>
                 ))}
             </div>
         </>

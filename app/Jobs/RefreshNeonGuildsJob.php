@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Jobs;
 
 use App\Helpers\Discord\GetBotGuilds;
@@ -18,7 +19,7 @@ class RefreshNeonGuildsJob implements ShouldQueue
         $key = 'neon:guilds';
         $ttl = 300;
 
-        $guilds = new GetBotGuilds();
+        $guilds = new GetBotGuilds;
 
         Cache::put($key, $guilds->getGuildIds(), $ttl);
     }

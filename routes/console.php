@@ -9,4 +9,4 @@ Artisan::command('ping', function () {
 })->everyFiveMinutes()
     ->thenPing('http://beats.envoyer.io/heartbeat/fsRbxXpU82GSTaF');
 
-Schedule::job(new RefreshNeonGuildsJob())->everyTwoMinutes();
+Schedule::job(new RefreshNeonGuildsJob)->everyTwoMinutes();

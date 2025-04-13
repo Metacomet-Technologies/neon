@@ -24356,6 +24356,29 @@ namespace Illuminate\Console\Scheduling {
         }
 
             }
+    /**
+     * 
+     *
+     */
+    class CallbackEvent {
+        /**
+         * 
+         *
+         * @see \Sentry\Laravel\Features\ConsoleSchedulingIntegration::register()
+         * @param string|null $monitorSlug
+         * @param int|null $checkInMargin
+         * @param int|null $maxRuntime
+         * @param bool $updateMonitorConfig
+         * @param int|null $failureIssueThreshold
+         * @param int|null $recoveryThreshold
+         * @static 
+         */
+        public static function sentryMonitor($monitorSlug = null, $checkInMargin = null, $maxRuntime = null, $updateMonitorConfig = true, $failureIssueThreshold = null, $recoveryThreshold = null)
+        {
+            return \Illuminate\Console\Scheduling\CallbackEvent::sentryMonitor($monitorSlug, $checkInMargin, $maxRuntime, $updateMonitorConfig, $failureIssueThreshold, $recoveryThreshold);
+        }
+
+            }
     }
 
 namespace Illuminate\View {

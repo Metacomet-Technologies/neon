@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Helpers\Discord\GetBotGuilds;
 use App\Helpers\Discord\GetGuildChannels;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -21,11 +22,8 @@ final class ServerController
             abort(403, 'You are not authorized to view this page.');
         }
 
-        /** @var list<array<string, mixed>> $guilds */
-        $guilds = $user->guilds;
-
         return Inertia::render('Servers/Index', [
-            'guilds' => $guilds,
+            'botGuilds' => GetBotGuilds::make(),
         ]);
     }
 
