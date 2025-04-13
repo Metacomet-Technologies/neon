@@ -6,7 +6,6 @@ use App\Observers\WelcomeSettingObserver;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model;
 
-#[ObservedBy(WelcomeSettingObserver::class)]
 /**
  * @property int $id
  * @property string $guild_id
@@ -29,6 +28,7 @@ use Illuminate\Database\Eloquent\Model;
  *
  * @mixin \Eloquent
  */
+#[ObservedBy(WelcomeSettingObserver::class)]
 class WelcomeSetting extends Model
 {
     protected $guarded = [];

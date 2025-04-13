@@ -2,36 +2,16 @@
 
 declare(strict_types=1);
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Server;
 
-use App\Helpers\Discord\GetBotGuilds;
 use App\Helpers\Discord\GetGuildChannels;
 use App\Models\WelcomeSetting;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
-final class ServerController
+class WelcomeSettingController
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index(Request $request): \Inertia\Response
-    {
-        $user = $request->user();
-
-        if (! $user) {
-            abort(403, 'You are not authorized to view this page.');
-        }
-
-        return Inertia::render('Servers/Index', [
-            'botGuilds' => GetBotGuilds::make(),
-        ]);
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Request $request, string $serverId): \Inertia\Response
+    public function index(Request $request, string $serverId)
     {
         $user = $request->user();
 
@@ -76,5 +56,26 @@ final class ServerController
             'channels' => $channels,
             'existingSetting' => $existingSetting,
         ]);
+    }
+
+    public function store(Request $request, string $serverId)
+    {
+        $request->validate([
+            'channel.id' => 'required|string',
+            'message' => 'required|string|max:2000',
+            'is_active' => 'required|boolean',
+        ]);
+
+        $welcomeSetting = WelcomeSetting::updateOrCreate(
+            ['guild_id' => $serverId],
+            [
+                'channel_id' => $request->input('channel.id'),
+                'message' => $request->input('message'),
+                'is_active' => $request->input('is_active'),
+            ]
+        );
+
+        return redirect()->route('server.settings.welcome', ['serverId' => $serverId])
+            ->with(['type' => 'success', 'message' => 'Welcome settings updated successfully']);
     }
 }

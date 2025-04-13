@@ -61,3 +61,13 @@ export interface Guild {
     permissions: string;
     features: string[];
 }
+
+export interface WelcomeSetting {
+    id: number;
+    guild_id: string;
+    channel_id: string;
+    message: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}

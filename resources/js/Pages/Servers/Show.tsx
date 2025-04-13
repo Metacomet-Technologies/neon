@@ -1,6 +1,7 @@
 import { Heading, Subheading } from '@/Components/heading';
 import { Text } from '@/Components/text';
 import ServerScopedLayout from '@/Layout/ServerScopedLayout';
+import type { WelcomeSetting as WelcomeSettingProp } from '@/types';
 import { PageProps } from '@/types';
 import { Head, usePage } from '@inertiajs/react';
 import React from 'react';
@@ -11,12 +12,16 @@ import WelcomeSetting from './Partials/WelcomeSetting';
  *
  * @returns {React.JSX.Element} The JSX element to render.
  */
-export default function Show({ channels }: { channels: any }): React.JSX.Element {
+export default function Show({
+    channels,
+    existingSetting,
+}: {
+    channels: { id: string; name: string }[];
+    existingSetting: WelcomeSettingProp;
+}): React.JSX.Element {
     const { auth } = usePage<PageProps>().props;
 
     const guild = auth.user?.guilds.find((guild) => guild.id === auth.user.current_server_id);
-
-    console.log(channels);
 
     return (
         <>
@@ -27,7 +32,7 @@ export default function Show({ channels }: { channels: any }): React.JSX.Element
                 <Subheading>Server Information</Subheading>
                 <Text>Server ID: {guild?.id}</Text>
                 <Text>Server Name: {guild?.name}</Text>
-                <WelcomeSetting />
+                <WelcomeSetting channels={channels} existingSetting={existingSetting} />
             </div>
         </>
     );

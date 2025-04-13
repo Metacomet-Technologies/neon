@@ -39,14 +39,16 @@ final class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        dump($request->session());
+
         return [
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
             ],
             'flash' => [
-                'type' => $request->session()->get('flash.type'),
-                'message' => $request->session()->get('flash.message'),
+                'type' => $request->session()->get('type'),
+                'message' => $request->session()->get('message'),
             ],
             'ziggy' => fn () => [
                 ...(new Ziggy)->toArray(),

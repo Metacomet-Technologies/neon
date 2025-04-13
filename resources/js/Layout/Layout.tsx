@@ -51,6 +51,7 @@ export function Layout({
 }) {
     const { component, props } = usePage<PageProps>();
     const { auth, flash } = props;
+    console.log(flash);
 
     const currentServerId = auth?.user?.current_server_id || null;
 

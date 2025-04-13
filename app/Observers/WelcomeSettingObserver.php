@@ -10,9 +10,27 @@ class WelcomeSettingObserver
     /**
      * Handle the WelcomeSetting "created" event.
      */
+    public function creating(WelcomeSetting $welcomeSetting): void
+    {
+        $now = now();
+        $welcomeSetting->created_at = $now;
+        $welcomeSetting->updated_at = $now;
+    }
+
+    /**
+     * Handle the WelcomeSetting "created" event.
+     */
     public function created(WelcomeSetting $welcomeSetting): void
     {
         CacheWelcomeSettingsJob::dispatch();
+    }
+
+    /**
+     * Handle the WelcomeSetting "updated" event.
+     */
+    public function updating(WelcomeSetting $welcomeSetting): void
+    {
+        $welcomeSetting->updated_at = now();
     }
 
     /**
