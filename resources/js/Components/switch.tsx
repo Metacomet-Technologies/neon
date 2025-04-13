@@ -29,11 +29,11 @@ export function SwitchField({
             className={clsx(
                 className,
                 // Base layout
-                'grid grid-cols-[1fr_auto] items-center gap-x-8 gap-y-1 sm:grid-cols-[1fr_auto]',
+                'grid grid-cols-[1fr_auto] gap-x-8 gap-y-1 sm:grid-cols-[1fr_auto]',
                 // Control layout
-                '*:data-[slot=control]:col-start-2 *:data-[slot=control]:self-center',
+                '*:data-[slot=control]:col-start-2 *:data-[slot=control]:self-start sm:*:data-[slot=control]:mt-0.5',
                 // Label layout
-                '*:data-[slot=label]:col-start-1 *:data-[slot=label]:row-start-1 *:data-[slot=label]:justify-self-start',
+                '*:data-[slot=label]:col-start-1 *:data-[slot=label]:row-start-1',
                 // Description layout
                 '*:data-[slot=description]:col-start-1 *:data-[slot=description]:row-start-2',
                 // With description
@@ -157,16 +157,16 @@ export function Switch({
                 // Outline and background color in forced-colors mode so switch is still visible
                 'forced-colors:outline forced-colors:[--switch-bg:Highlight] dark:forced-colors:[--switch-bg:Highlight]',
                 // Unchecked
-                'bg-zinc-200 ring-1 ring-inset ring-black/5 dark:bg-white/5 dark:ring-white/15',
+                'bg-zinc-200 ring-1 ring-black/5 ring-inset dark:bg-white/5 dark:ring-white/15',
                 // Checked
                 'data-checked:bg-(--switch-bg) data-checked:ring-(--switch-bg-ring) dark:data-checked:bg-(--switch-bg) dark:data-checked:ring-(--switch-bg-ring)',
                 // Focus
-                'focus:outline-hidden data-focus:outline data-focus:outline-2 data-focus:outline-offset-2 data-focus:outline-blue-500',
+                'focus:outline-hidden data-focus:outline-2 data-focus:outline-offset-2 data-focus:outline-blue-500',
                 // Hover
-                'data-hover:data-checked:ring-(--switch-bg-ring) data-hover:ring-black/15',
-                'dark:data-hover:data-checked:ring-(--switch-bg-ring) dark:data-hover:ring-white/25',
+                'data-hover:ring-black/15 data-hover:data-checked:ring-(--switch-bg-ring)',
+                'dark:data-hover:ring-white/25 dark:data-hover:data-checked:ring-(--switch-bg-ring)',
                 // Disabled
-                'data-disabled:bg-zinc-200 data-disabled:data-checked:bg-zinc-200 data-disabled:opacity-50 data-disabled:data-checked:ring-black/5',
+                'data-disabled:bg-zinc-200 data-disabled:opacity-50 data-disabled:data-checked:bg-zinc-200 data-disabled:data-checked:ring-black/5',
                 'dark:data-disabled:bg-white/15 dark:data-disabled:data-checked:bg-white/15 dark:data-disabled:data-checked:ring-white/15',
                 // Color specific styles
                 colors[color]

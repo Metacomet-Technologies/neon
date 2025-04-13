@@ -3,7 +3,6 @@
 import clsx from 'clsx';
 import type React from 'react';
 import { createContext, useContext, useState } from 'react';
-
 import { Link } from './link';
 
 const TableContext = createContext<{ bleed: boolean; dense: boolean; grid: boolean; striped: boolean }>({
@@ -67,7 +66,7 @@ export function TableRow({
                 className={clsx(
                     className,
                     href &&
-                        'has-[[data-row-link][data-focus]]:outline has-[[data-row-link][data-focus]]:outline-2 has-[[data-row-link][data-focus]]:-outline-offset-2 has-[[data-row-link][data-focus]]:outline-blue-500 dark:focus-within:bg-white/[2.5%]',
+                        'has-[[data-row-link][data-focus]]:outline-2 has-[[data-row-link][data-focus]]:-outline-offset-2 has-[[data-row-link][data-focus]]:outline-blue-500 dark:focus-within:bg-white/[2.5%]',
                     striped && 'even:bg-zinc-950/[2.5%] dark:even:bg-white/[2.5%]',
                     href && striped && 'hover:bg-zinc-950/5 dark:hover:bg-white/5',
                     href && !striped && 'hover:bg-zinc-950/[2.5%] dark:hover:bg-white/[2.5%]'
