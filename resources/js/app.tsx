@@ -9,7 +9,7 @@ import { createRoot } from 'react-dom/client';
 
 import { ThemeProvider } from './Layout/ThemeContext';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const appName = import.meta.env.VITE_APP_NAME || 'Neon';
 
 Sentry.init({
     dsn: import.meta.env.VITE_SENTRY_LARAVEL_DSN,

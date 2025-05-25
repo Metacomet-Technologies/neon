@@ -35,7 +35,7 @@ return [
     |
     */
 
-    'name' => env('NOVA_APP_NAME', env('APP_NAME')),
+    'name' => env('NOVA_APP_NAME', env('APP_NAME', 'Neon')),
 
     /*
     |--------------------------------------------------------------------------
