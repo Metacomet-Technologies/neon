@@ -1,16 +1,16 @@
-name: neon
-php: "8.4"
-secured: true
 aliases: {}
-services:
-  mysql:
-    version: 8.0.36
-    port: 3306
-  redis:
-    version: 7.0.0
-    port: 6379
 integrations:
   forge:
     neon-bot.com:
-      site-id: 2600963
       server-id: 881111
+      site-id: 2600963
+name: neon
+php: '8.4'
+secured: true
+services:
+  mysql:
+    port: 3306
+    version: 8.0.36
+  redis:
+    port: 6379
+    version: 7.0.0
