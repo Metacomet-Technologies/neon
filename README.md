@@ -55,3 +55,11 @@ When trying to develop anything with billing integrating with stripe is super im
 6. In another terminal run commands for the type of event `stripe trigger customer.subscription.created`
 
 I hope this makes it so I can NOT have to relive this with fresh eyes every time...
+
+
+## how to functionally move faster on uat
+
+1. create db on managed cluster for uat and testing
+2. deploy uat version to calm-valley as uat.neon-bot.com
+3. configure webhook on stripe for sandbox to use this
+4. use uat db in local while testing functionality
