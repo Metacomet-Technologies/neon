@@ -6,11 +6,12 @@ use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\UserIntegrationController;
 use App\Http\Controllers\CommandController;
 use App\Http\Controllers\JoinServerController;
+use App\Http\Controllers\LicenseCheckoutController;
 use App\Http\Controllers\LicenseController;
 use App\Http\Controllers\PrivacyPolicyController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\ServerController;
 use App\Http\Controllers\Server\WelcomeSettingController;
+use App\Http\Controllers\ServerController;
 use App\Http\Controllers\TermsOfServiceController;
 use App\Http\Controllers\UnsubscribeController;
 use Illuminate\Support\Facades\Route;
@@ -39,6 +40,8 @@ Route::group(['middleware' => 'auth'], function () {
     Route::delete('{provider}/disconnect', [UserIntegrationController::class, 'destroy'])->name('user-integration.destroy');
     Route::get('{provider}/connect', [UserIntegrationController::class, 'create'])->name('user-integration.create');
     Route::resource('licenses', LicenseController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::get('/licenses/purchase', fn () => inertia('Licenses/Purchase'))->name('licenses.purchase');
+    Route::post('/licenses/checkout', LicenseCheckoutController::class)->name('licenses.checkout');
 
 });
 

@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace App\Models;
 
@@ -23,20 +23,6 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string|null $two_factor_recovery_codes
  * @property string|null $two_factor_confirmed_at
  * @property string|null $remember_token
- * @property string|null $stripe_id
- * @property string|null $pm_type
- * @property string|null $pm_last_four
- * @property string|null $pm_expiration
- * @property string|null $extra_billing_information
- * @property \Illuminate\Support\Carbon|null $trial_ends_at
- * @property string|null $billing_address
- * @property string|null $billing_address_line_2
- * @property string|null $billing_city
- * @property string|null $billing_state
- * @property string|null $billing_postal_code
- * @property string|null $vat_id
- * @property array $invoice_emails
- * @property string|null $billing_country
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property string $avatar
@@ -47,9 +33,15 @@ use Laravel\Sanctum\HasApiTokens;
  * @property bool $is_admin
  * @property bool $is_on_mailing_list
  * @property string|null $current_server_id
+ * @property string|null $stripe_id
+ * @property string|null $pm_type
+ * @property string|null $pm_last_four
+ * @property \Illuminate\Support\Carbon|null $trial_ends_at
  * @property-read array<string, mixed> $guilds
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\UserIntegration> $integrations
  * @property-read int|null $integrations_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\License> $licenses
+ * @property-read int|null $licenses_count
  * @property-read \Illuminate\Notifications\DatabaseNotificationCollection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
  * @property-read int|null $notifications_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \Laravel\Cashier\Subscription> $subscriptions
@@ -65,25 +57,16 @@ use Laravel\Sanctum\HasApiTokens;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User query()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereAccessToken($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereAvatar($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereBillingAddress($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereBillingAddressLine2($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereBillingCity($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereBillingCountry($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereBillingPostalCode($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereBillingState($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereCreatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereCurrentServerId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereDiscordId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereEmail($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereEmailVerifiedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereExtraBillingInformation($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereInvoiceEmails($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereIsAdmin($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereIsOnMailingList($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User wherePassword($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|User wherePmExpiration($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User wherePmLastFour($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User wherePmType($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereRefreshToken($value)
@@ -95,7 +78,6 @@ use Laravel\Sanctum\HasApiTokens;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereTwoFactorRecoveryCodes($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereTwoFactorSecret($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereUpdatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereVatId($value)
  *
  * @mixin \Eloquent
  */

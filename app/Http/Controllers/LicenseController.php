@@ -7,9 +7,9 @@ namespace App\Http\Controllers;
 use App\Models\License;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Carbon;
 
 final class LicenseController
 {
@@ -29,7 +29,6 @@ final class LicenseController
     public function store(Request $request): RedirectResponse
     {
         $user = $request->user();
-
         $subscription = $user->subscription('default');
 
         if (! $subscription) {
@@ -49,7 +48,7 @@ final class LicenseController
     }
 
     /**
-     * Update the license's guild assignment.
+     * Assign or reassign the license to a guild.
      */
     public function update(Request $request, License $license): RedirectResponse
     {
@@ -64,22 +63,18 @@ final class LicenseController
             abort(403, 'You do not own this license.');
         }
 
-        $now = now();
-
-        if ($license->guild_id) {
-            $lastMoved = $license->last_moved_at ?? $license->assigned_at;
-            $cooldownEnds = Carbon::parse($lastMoved)->addDays(30);
-
-            if ($now->lessThan($cooldownEnds) && $license->guild_id !== $newGuildId) {
-                return redirect()->back()->withErrors([
-                    'license' => 'You can only reassign this license to a different guild after 30 days.'
-                ]);
-            }
+        if (! $license->canBeReassignedTo($newGuildId)) {
+            return redirect()->back()->withErrors([
+                'license' => 'This license was recently assigned to another server. Wait 30 days before reassigning.',
+            ]);
         }
+
+        $now = now();
 
         $license->update([
             'previous_guild_id' => $license->guild_id,
             'guild_id' => $newGuildId,
+            'last_assigned_guild_id' => $newGuildId,
             'assigned_at' => $now,
             'last_moved_at' => $now,
         ]);
