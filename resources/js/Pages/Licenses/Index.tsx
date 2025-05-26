@@ -46,8 +46,7 @@ export default function Index({ licenses }: Props) {
                         <div className="flex items-center gap-4 mt-2">
                             {license.guild_id ? (
                                 <Button
-                                    variant="outline"
-                                    size="sm"
+                                    plain
                                     disabled={processing}
                                     onClick={() => destroy(route('licenses.destroy', { license: license.id }))}
                                 >
@@ -82,4 +81,4 @@ export default function Index({ licenses }: Props) {
     );
 }
 
-Index.layout = (page: React.ReactNode) => <Layout title="Licenses">{page}</Layout>;
+Index.layout = (page: React.ReactNode) => <Layout>{page}</Layout>;
