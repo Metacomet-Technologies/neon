@@ -24,7 +24,7 @@
         "socialiteproviders/twitch": "^5.4",
         "symfony/http-client": "^7.2",
         "symfony/postmark-mailer": "^7.2",
-        "team-reflex/discord-php": "10.4.7",
+        "team-reflex/discord-php": "^10.4.7",
         "tightenco/ziggy": "^2.5"
     },
     "require-dev": {
@@ -96,8 +96,5 @@
             "type": "composer",
             "url": "https://spark.laravel.com"
         }
-    },
-    "replace": {
-        "ratchet/rfc6455": "*"
     }
 }
