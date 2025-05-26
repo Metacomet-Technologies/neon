@@ -6,6 +6,9 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
         Schema::create('subscription_items', function (Blueprint $table) {
@@ -17,10 +20,13 @@ return new class extends Migration
             $table->integer('quantity')->nullable();
             $table->timestamps();
 
-            $table->unique(['subscription_id', 'stripe_price']);
+            $table->index(['subscription_id', 'stripe_price']);
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
         Schema::dropIfExists('subscription_items');

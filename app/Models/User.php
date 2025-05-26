@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace App\Models;
 
@@ -11,7 +11,6 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Cache;
 use Laravel\Sanctum\HasApiTokens;
-use Spark\Billable;
 
 /**
  * @property int $id
@@ -102,7 +101,7 @@ use Spark\Billable;
 final class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use Billable, HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -190,5 +189,10 @@ final class User extends Authenticatable
     public function integrations()
     {
         return $this->hasMany(UserIntegration::class);
+    }
+
+    public function licenses()
+    {
+        return $this->hasMany(License::class);
     }
 }

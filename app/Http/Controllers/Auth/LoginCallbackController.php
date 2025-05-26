@@ -20,8 +20,14 @@ final class LoginCallbackController
      */
     public function __invoke(): \Illuminate\Http\RedirectResponse
     {
-        /** @var \Laravel\Socialite\Two\User $socialiteUser */
-        $socialiteUser = Socialite::driver('discord')->user();
+        try {
+            /** @var \Laravel\Socialite\Two\User $socialiteUser */
+            $socialiteUser = Socialite::driver('discord')->user();
+        } catch (Exception $e) {
+            Log::error($e->getMessage());
+
+            return redirect()->route('home')->with(['type' => 'error', 'message' => 'Failed to authenticate with Discord. Please try again.']);
+        }
 
         $now = Carbon::now()->toImmutable();
 

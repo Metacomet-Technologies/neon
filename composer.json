@@ -11,12 +11,12 @@
     "require": {
         "php": "^8.3",
         "inertiajs/inertia-laravel": "^2.0",
+        "laravel/cashier": "^15.6",
         "laravel/framework": "^12.0",
         "laravel/nova": "^5.2",
         "laravel/pulse": "^1.4",
         "laravel/reverb": "^1.4",
         "laravel/sanctum": "^4.0",
-        "laravel/spark-stripe": "^5.0",
         "laravel/tinker": "^2.10",
         "league/flysystem-aws-s3-v3": "^3.29",
         "sentry/sentry-laravel": "^4.12",
@@ -91,10 +91,6 @@
         "nova": {
             "type": "composer",
             "url": "https://nova.laravel.com"
-        },
-        "spark": {
-            "type": "composer",
-            "url": "https://spark.laravel.com"
         }
     }
 }

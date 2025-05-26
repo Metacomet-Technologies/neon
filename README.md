@@ -35,8 +35,6 @@ AI augmented discord bot and website for better server management.
         - [Twitch Developer Portal](https://dev.twitch.tv/console)
             - TWITCH_CLIENT_ID
             - TWITCH_CLIENT_SECRET
-        - [Laravel Spark](https://spark.laravel.com)
-            - SPARK_LICENSE_KEY
         - [Stripe](https://dashboard.stripe.com/apikeys)
             - STRIPE_KEY
             - STRIPE_SECRET
