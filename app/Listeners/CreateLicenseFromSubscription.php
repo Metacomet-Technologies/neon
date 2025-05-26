@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Listeners;
 
-use Laravel\Cashier\Events\WebhookReceived;
-use App\Models\User;
 use App\Models\License;
+use App\Models\User;
 use Illuminate\Support\Facades\Log;
+use Laravel\Cashier\Events\WebhookReceived;
 
 class CreateLicenseFromSubscription
 {
@@ -29,12 +31,14 @@ class CreateLicenseFromSubscription
 
         if (! $stripeCustomerId || ! $subscriptionId) {
             Log::warning('Missing Stripe customer or subscription ID in webhook payload.');
+
             return;
         }
 
         $user = User::where('stripe_id', $stripeCustomerId)->first();
         if (! $user) {
             Log::error("User not found for Stripe customer: {$stripeCustomerId}");
+
             return;
         }
 

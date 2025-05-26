@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Models\License;
@@ -17,7 +20,7 @@ class LicenseController
 
         $subscription = $user->subscription('default');
 
-        if (!$subscription) {
+        if (! $subscription) {
             abort(400, 'No subscription found for user.');
         }
 

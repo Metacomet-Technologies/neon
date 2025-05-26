@@ -9,8 +9,8 @@ use App\Http\Controllers\JoinServerController;
 use App\Http\Controllers\LicenseController;
 use App\Http\Controllers\PrivacyPolicyController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\ServerController;
 use App\Http\Controllers\Server\WelcomeSettingController;
+use App\Http\Controllers\ServerController;
 use App\Http\Controllers\TermsOfServiceController;
 use App\Http\Controllers\UnsubscribeController;
 use Illuminate\Support\Facades\Route;
@@ -38,8 +38,8 @@ Route::group(['middleware' => 'auth'], function () {
     Route::get('{provider}/callback', [UserIntegrationController::class, 'store'])->name('user-integration.store');
     Route::delete('{provider}/disconnect', [UserIntegrationController::class, 'destroy'])->name('user-integration.destroy');
     Route::get('{provider}/connect', [UserIntegrationController::class, 'create'])->name('user-integration.create');
-    Route::get('/licenses', [LicenseController::class, 'index'])->name('licenses.index');
-    Route::post('/licenses/create', [LicenseController::class, 'store'])->name('licenses.store');
+    Route::get('licenses', [LicenseController::class, 'index'])->name('licenses.index');
+    Route::post('licenses/create', [LicenseController::class, 'store'])->name('licenses.store');
 
 });
 
