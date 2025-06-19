@@ -25,8 +25,6 @@ AI augmented discord bot and website for better server management.
             - DISCORD_CLIENT_ID
             - DISCORD_CLIENT_SECRET
             - DISCORD_BOT_TOKEN
-        - [Sentry](https://metacomet-tech.sentry.io/settings/projects/neon-bot-com/keys/)
-            - SENTRY_LARAVEL_DSN
         - [OpenAI API Console](https://auth.openai.com/log-in)
             - OPENAI_API_KEY
             - OPENAI_ORGANIZATION

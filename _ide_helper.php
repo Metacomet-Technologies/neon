@@ -5,7 +5,7 @@
 
 /**
  * A helper file for Laravel, to provide autocomplete information to your IDE
- * Generated for Laravel 12.15.0.
+ * Generated for Laravel 12.19.3.
  *
  * This file should not be included in your code, only analyzed by your IDE!
  *
@@ -4837,13 +4837,14 @@ namespace Illuminate\Support\Facades {
          * @param array{ 0: \DateTimeInterface|\DateInterval|int, 1: \DateTimeInterface|\DateInterval|int } $ttl
          * @param (callable(): TCacheValue) $callback
          * @param array{ seconds?: int, owner?: string }|null $lock
+         * @param bool $alwaysDefer
          * @return TCacheValue 
          * @static 
          */
-        public static function flexible($key, $ttl, $callback, $lock = null)
+        public static function flexible($key, $ttl, $callback, $lock = null, $alwaysDefer = false)
         {
             /** @var \Illuminate\Cache\Repository $instance */
-            return $instance->flexible($key, $ttl, $callback, $lock);
+            return $instance->flexible($key, $ttl, $callback, $lock, $alwaysDefer);
         }
 
         /**
@@ -10101,6 +10102,8 @@ namespace Illuminate\Support\Facades {
      * @method static \Illuminate\Http\Client\PendingRequest stub(callable $callback)
      * @method static \Illuminate\Http\Client\PendingRequest async(bool $async = true)
      * @method static \GuzzleHttp\Promise\PromiseInterface|null getPromise()
+     * @method static \Illuminate\Http\Client\PendingRequest truncateExceptionsAt(int $length)
+     * @method static \Illuminate\Http\Client\PendingRequest dontTruncateExceptions()
      * @method static \Illuminate\Http\Client\PendingRequest setClient(\GuzzleHttp\Client $client)
      * @method static \Illuminate\Http\Client\PendingRequest setHandler(callable $handler)
      * @method static array getOptions()
@@ -12589,6 +12592,19 @@ namespace Illuminate\Support\Facades {
         }
 
         /**
+         * Register an event listener for the daemon queue starting.
+         *
+         * @param mixed $callback
+         * @return void 
+         * @static 
+         */
+        public static function starting($callback)
+        {
+            /** @var \Illuminate\Queue\QueueManager $instance */
+            $instance->starting($callback);
+        }
+
+        /**
          * Register an event listener for the daemon queue stopping.
          *
          * @param mixed $callback
@@ -12919,6 +12935,58 @@ namespace Illuminate\Support\Facades {
         {
             /** @var \Illuminate\Support\Testing\Fakes\QueueFake $instance */
             return $instance->size($queue);
+        }
+
+        /**
+         * Get the number of pending jobs.
+         *
+         * @param string|null $queue
+         * @return int 
+         * @static 
+         */
+        public static function pendingSize($queue = null)
+        {
+            /** @var \Illuminate\Support\Testing\Fakes\QueueFake $instance */
+            return $instance->pendingSize($queue);
+        }
+
+        /**
+         * Get the number of delayed jobs.
+         *
+         * @param string|null $queue
+         * @return int 
+         * @static 
+         */
+        public static function delayedSize($queue = null)
+        {
+            /** @var \Illuminate\Support\Testing\Fakes\QueueFake $instance */
+            return $instance->delayedSize($queue);
+        }
+
+        /**
+         * Get the number of reserved jobs.
+         *
+         * @param string|null $queue
+         * @return int 
+         * @static 
+         */
+        public static function reservedSize($queue = null)
+        {
+            /** @var \Illuminate\Support\Testing\Fakes\QueueFake $instance */
+            return $instance->reservedSize($queue);
+        }
+
+        /**
+         * Get the creation timestamp of the oldest pending job, excluding delayed jobs.
+         *
+         * @param string|null $queue
+         * @return int|null 
+         * @static 
+         */
+        public static function creationTimeOfOldestPendingJob($queue = null)
+        {
+            /** @var \Illuminate\Support\Testing\Fakes\QueueFake $instance */
+            return $instance->creationTimeOfOldestPendingJob($queue);
         }
 
         /**
@@ -16381,7 +16449,7 @@ namespace Illuminate\Support\Facades {
         /**
          * Create a new streamed response instance.
          *
-         * @param callable $callback
+         * @param callable|null $callback
          * @param int $status
          * @param array $headers
          * @return \Symfony\Component\HttpFoundation\StreamedResponse 
@@ -24006,247 +24074,28 @@ namespace Mpociot\VatCalculator\Facades {
             return $instance->setSoapClient($soapClient);
         }
 
-            }
-    }
-
-namespace Sentry\Laravel {
-    /**
-     * 
-     *
-     * @see \Sentry\State\HubInterface
-     */
-    class Facade {
         /**
-         * Gets the client bound to the top of the stack.
-         *
-         * @static 
-         */
-        public static function getClient()
-        {
-            /** @var \Sentry\State\Hub $instance */
-            return $instance->getClient();
-        }
-
-        /**
-         * Gets the ID of the last captured event.
-         *
-         * @static 
-         */
-        public static function getLastEventId()
-        {
-            /** @var \Sentry\State\Hub $instance */
-            return $instance->getLastEventId();
-        }
-
-        /**
-         * Creates a new scope to store context information that will be layered on
-         * top of the current one. It is isolated, i.e. all breadcrumbs and context
-         * information added to this scope will be removed once the scope ends. Be
-         * sure to always remove this scope with {@see Hub::popScope} when the
-         * operation finishes or throws.
-         *
-         * @static 
-         */
-        public static function pushScope()
-        {
-            /** @var \Sentry\State\Hub $instance */
-            return $instance->pushScope();
-        }
-
-        /**
-         * Removes a previously pushed scope from the stack. This restores the state
-         * before the scope was pushed. All breadcrumbs and context information added
-         * since the last call to {@see Hub::pushScope} are discarded.
-         *
-         * @static 
-         */
-        public static function popScope()
-        {
-            /** @var \Sentry\State\Hub $instance */
-            return $instance->popScope();
-        }
-
-        /**
-         * Creates a new scope with and executes the given operation within. The scope
-         * is automatically removed once the operation finishes or throws.
-         *
-         * @param callable $callback The callback to be executed
-         * @return mixed|void The callback's return value, upon successful execution
-         * @psalm-template T
-         * @psalm-param callable(Scope): T $callback
-         * @psalm-return T
-         * @static 
-         */
-        public static function withScope($callback)
-        {
-            /** @var \Sentry\State\Hub $instance */
-            return $instance->withScope($callback);
-        }
-
-        /**
-         * Calls the given callback passing to it the current scope so that any
-         * operation can be run within its context.
-         *
-         * @static 
-         */
-        public static function configureScope($callback)
-        {
-            /** @var \Sentry\State\Hub $instance */
-            return $instance->configureScope($callback);
-        }
-
-        /**
-         * Binds the given client to the current scope.
-         *
-         * @static 
-         */
-        public static function bindClient($client)
-        {
-            /** @var \Sentry\State\Hub $instance */
-            return $instance->bindClient($client);
-        }
-
-        /**
-         * Captures a message event and sends it to Sentry.
-         *
-         * @static 
-         */
-        public static function captureMessage($message, $level = null, $hint = null)
-        {
-            /** @var \Sentry\State\Hub $instance */
-            return $instance->captureMessage($message, $level, $hint);
-        }
-
-        /**
-         * Captures an exception event and sends it to Sentry.
-         *
-         * @static 
-         */
-        public static function captureException($exception, $hint = null)
-        {
-            /** @var \Sentry\State\Hub $instance */
-            return $instance->captureException($exception, $hint);
-        }
-
-        /**
-         * Captures a new event using the provided data.
-         *
-         * @static 
-         */
-        public static function captureEvent($event, $hint = null)
-        {
-            /** @var \Sentry\State\Hub $instance */
-            return $instance->captureEvent($event, $hint);
-        }
-
-        /**
-         * Captures an event that logs the last occurred error.
-         *
-         * @static 
-         */
-        public static function captureLastError($hint = null)
-        {
-            /** @var \Sentry\State\Hub $instance */
-            return $instance->captureLastError($hint);
-        }
-
-        /**
-         * Captures a check-in.
-         *
-         * @param int|float|null $duration
-         * @param int|float|null $duration
-         * @static 
-         */
-        public static function captureCheckIn($slug, $status, $duration = null, $monitorConfig = null, $checkInId = null)
-        {
-            /** @var \Sentry\State\Hub $instance */
-            return $instance->captureCheckIn($slug, $status, $duration, $monitorConfig, $checkInId);
-        }
-
-        /**
-         * Records a new breadcrumb which will be attached to future events. They
-         * will be added to subsequent events to provide more context on user's
-         * actions prior to an error or crash.
-         *
-         * @static 
-         */
-        public static function addBreadcrumb($breadcrumb)
-        {
-            /** @var \Sentry\State\Hub $instance */
-            return $instance->addBreadcrumb($breadcrumb);
-        }
-
-        /**
-         * Gets the integration whose FQCN matches the given one if it's available on the current client.
-         *
-         * @param string $className The FQCN of the integration
-         * @psalm-template T of IntegrationInterface
-         * @psalm-param class-string<T> $className
-         * @psalm-return T|null
-         * @static 
-         */
-        public static function getIntegration($className)
-        {
-            /** @var \Sentry\State\Hub $instance */
-            return $instance->getIntegration($className);
-        }
-
-        /**
-         * Starts a new `Transaction` and returns it. This is the entry point to manual
-         * tracing instrumentation.
          * 
-         * A tree structure can be built by adding child spans to the transaction, and
-         * child spans to other spans. To start a new child span within the transaction
-         * or any span, call the respective `startChild()` method.
+         *
+         * @static 
+         */
+        public static function setupCurlClient($curlClient)
+        {
+            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
+            return $instance->setupCurlClient($curlClient);
+        }
+
+        /**
          * 
-         * Every child span must be finished before the transaction is finished,
-         * otherwise the unfinished spans are discarded.
-         * 
-         * The transaction must be finished with a call to its `finish()` method, at
-         * which point the transaction with all its finished child spans will be sent to
-         * Sentry.
          *
-         * @param array<string, mixed> $customSamplingContext Additional context that will be passed to the {@see SamplingContext}
-         * @param array<string, mixed> $customSamplingContext Additional context that will be passed to the {@see SamplingContext}
+         * @return \Mpociot\VatCalculator\VatCalculator 
+         * @internal This method is not covered by our BC policy.
          * @static 
          */
-        public static function startTransaction($context, $customSamplingContext = [])
+        public static function testing($curlClient)
         {
-            /** @var \Sentry\State\Hub $instance */
-            return $instance->startTransaction($context, $customSamplingContext);
-        }
-
-        /**
-         * Returns the transaction that is on the Hub.
-         *
-         * @static 
-         */
-        public static function getTransaction()
-        {
-            /** @var \Sentry\State\Hub $instance */
-            return $instance->getTransaction();
-        }
-
-        /**
-         * Sets the span on the Hub.
-         *
-         * @static 
-         */
-        public static function setSpan($span)
-        {
-            /** @var \Sentry\State\Hub $instance */
-            return $instance->setSpan($span);
-        }
-
-        /**
-         * Returns the span that is on the Hub.
-         *
-         * @static 
-         */
-        public static function getSpan()
-        {
-            /** @var \Sentry\State\Hub $instance */
-            return $instance->getSpan();
+            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
+            return $instance->testing($curlClient);
         }
 
             }
@@ -24418,55 +24267,6 @@ namespace Illuminate\Testing {
         public static function inertiaPage()
         {
             return \Illuminate\Testing\TestResponse::inertiaPage();
-        }
-
-            }
-    }
-
-namespace Illuminate\Console\Scheduling {
-    /**
-     * 
-     *
-     */
-    class Event {
-        /**
-         * 
-         *
-         * @see \Sentry\Laravel\Features\ConsoleSchedulingIntegration::register()
-         * @param string|null $monitorSlug
-         * @param int|null $checkInMargin
-         * @param int|null $maxRuntime
-         * @param bool $updateMonitorConfig
-         * @param int|null $failureIssueThreshold
-         * @param int|null $recoveryThreshold
-         * @static 
-         */
-        public static function sentryMonitor($monitorSlug = null, $checkInMargin = null, $maxRuntime = null, $updateMonitorConfig = true, $failureIssueThreshold = null, $recoveryThreshold = null)
-        {
-            return \Illuminate\Console\Scheduling\Event::sentryMonitor($monitorSlug, $checkInMargin, $maxRuntime, $updateMonitorConfig, $failureIssueThreshold, $recoveryThreshold);
-        }
-
-            }
-    /**
-     * 
-     *
-     */
-    class CallbackEvent {
-        /**
-         * 
-         *
-         * @see \Sentry\Laravel\Features\ConsoleSchedulingIntegration::register()
-         * @param string|null $monitorSlug
-         * @param int|null $checkInMargin
-         * @param int|null $maxRuntime
-         * @param bool $updateMonitorConfig
-         * @param int|null $failureIssueThreshold
-         * @param int|null $recoveryThreshold
-         * @static 
-         */
-        public static function sentryMonitor($monitorSlug = null, $checkInMargin = null, $maxRuntime = null, $updateMonitorConfig = true, $failureIssueThreshold = null, $recoveryThreshold = null)
-        {
-            return \Illuminate\Console\Scheduling\CallbackEvent::sentryMonitor($monitorSlug, $checkInMargin, $maxRuntime, $updateMonitorConfig, $failureIssueThreshold, $recoveryThreshold);
         }
 
             }
@@ -28446,6 +28246,19 @@ namespace  {
         }
 
         /**
+         * Add descending "reorder" clause to the query.
+         *
+         * @param \Closure|\Illuminate\Database\Query\Builder|\Illuminate\Contracts\Database\Query\Expression|string|null $column
+         * @return \Illuminate\Database\Eloquent\Builder<static> 
+         * @static 
+         */
+        public static function reorderDesc($column)
+        {
+            /** @var \Illuminate\Database\Query\Builder $instance */
+            return $instance->reorderDesc($column);
+        }
+
+        /**
          * Add a union statement to the query.
          *
          * @param \Closure|\Illuminate\Database\Query\Builder|\Illuminate\Database\Eloquent\Builder<*> $query
@@ -29451,7 +29264,6 @@ namespace  {
     class Socialite extends \Laravel\Socialite\Facades\Socialite {}
     class Livewire extends \Livewire\Livewire {}
     class VatCalculator extends \Mpociot\VatCalculator\Facades\VatCalculator {}
-    class Sentry extends \Sentry\Laravel\Facade {}
 }
 
 
