@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Cashier\Cashier;
 
 /**
  * Class AppServiceProvider
@@ -27,6 +28,9 @@ final class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Configure Cashier to use the User model
+        Cashier::useCustomerModel(User::class);
+
         Event::listen(function (\SocialiteProviders\Manager\SocialiteWasCalled $event) {
             $event->extendSocialite('discord', \SocialiteProviders\Discord\Provider::class);
             $event->extendSocialite('twitch', \SocialiteProviders\Twitch\Provider::class);
