@@ -26,6 +26,10 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read array $invoice_emails
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\UserIntegration> $integrations
  * @property-read int|null $integrations_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\License> $licenses
+ * @property-read int|null $licenses_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\License> $activeLicenses
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\License> $parkedLicenses
  * @property-read \Illuminate\Notifications\DatabaseNotificationCollection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
  * @property-read int|null $notifications_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \Laravel\Cashier\Subscription> $subscriptions
@@ -139,5 +143,29 @@ final class User extends Authenticatable
     public function integrations()
     {
         return $this->hasMany(UserIntegration::class);
+    }
+
+    /**
+     * Get the licenses for the user.
+     */
+    public function licenses()
+    {
+        return $this->hasMany(License::class);
+    }
+
+    /**
+     * Get the active licenses for the user.
+     */
+    public function activeLicenses()
+    {
+        return $this->licenses()->active();
+    }
+
+    /**
+     * Get the parked licenses for the user.
+     */
+    public function parkedLicenses()
+    {
+        return $this->licenses()->parked();
     }
 }
