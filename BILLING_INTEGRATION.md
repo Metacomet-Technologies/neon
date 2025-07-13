@@ -1,4 +1,11 @@
-# Billing Integration Guide
+# Billin✅ **Laravel Spark Removed**: All Spark components have been removed from the application
+✅ **Laravel Cashier Installed**: v15.7.0 with Stripe integration
+✅ **License Model**: Comprehensive license management with 30-day cooldown and guild rules
+✅ **Guild Model**: Discord guild management with license relationships
+✅ **Billing Controllers**: Single-use invokable controllers following Laravel best practices
+✅ **Database**: Migrations applied with proper indexes and foreign keys
+✅ **Tests**: 49 tests passing (98 assertions)
+✅ **Architecture**: All controllers pass Laravel architecture testsration Guide
 
 ## Overview
 
@@ -98,18 +105,25 @@ CASHIER_WEBHOOK_SECRET=whsec_...
 - `user_id`: Foreign key to users table
 - `type`: ENUM ('subscription', 'lifetime')
 - `status`: ENUM ('active', 'parked')
-- `assigned_guild_id`: Optional guild assignment
-- `last_assigned_at`: Timestamp of last assignment
+- `assigned_guild_id`: Optional guild assignment (Foreign key to guilds table)
+- `last_assigned_at`: Timestamp of last assignment (used for cooldown calculation)
 - `stripe_subscription_id`: Optional Stripe subscription reference
 - `stripe_payment_intent_id`: Optional Stripe payment reference
 - `expires_at`: Optional expiration date
 - `created_at`, `updated_at`: Timestamps
 
+### Guilds Table
+- `id`: Primary key (Discord Guild ID as string)
+- `name`: Guild/Server name
+- `icon`: Optional guild icon hash
+- `created_at`, `updated_at`: Timestamps
+
 ### Indexes
-- `user_id` for user queries
-- `assigned_guild_id` for guild queries
-- `type` for filtering by license type
-- `status` for filtering by status
+- `licenses.user_id` for user queries
+- `licenses.assigned_guild_id` for guild queries
+- `licenses.type` for filtering by license type
+- `licenses.status` for filtering by status
+- `guilds.name` for guild name searches
 
 ## Usage Examples
 
@@ -168,20 +182,43 @@ php artisan test --filter LicenseTest
 
 ## License Management
 
-The License model provides helper methods for guild assignment:
+The License model provides comprehensive methods for guild assignment with cooldown and business rules:
+
+### Core Methods
 
 ```php
-// Assign license to guild
-$license = License::find(1);
-$license->assignToGuild('guild_123456');
+// Check cooldown status
+$license->isOnCooldown(); // Returns true if within 30 days of last assignment
+$license->getCooldownDaysRemaining(); // Returns days remaining in cooldown
 
-// Unassign license
-$license->unassignFromGuild();
+// Guild assignment
+$license->assignToGuild($guild); // Assigns if not on cooldown and guild has no active license
+$license->park(); // Sets assigned_guild_id to null, status to 'parked'
+$license->transferToGuild($guild); // Parks and reassigns, respecting cooldown
 
-// Check if assigned
-if ($license->isAssigned()) {
-    // License is assigned to a guild
-}
+// Status checks
+$license->isAssigned(); // Check if assigned to any guild
+$license->isActive(); // Check if status is 'active'
+$license->isParked(); // Check if status is 'parked'
+```
+
+### Business Rules
+
+1. **30-Day Cooldown**: Licenses cannot be reassigned within 30 days of last assignment
+2. **One License Per Guild**: Each guild can only have one active license at a time
+3. **Automatic Status Management**: Assignment sets status to 'active', parking sets to 'parked'
+4. **Exception Handling**: Throws specific exceptions for invalid operations:
+   - `LicenseOnCooldownException` - When attempting to assign during cooldown
+   - `GuildAlreadyHasLicenseException` - When guild already has an active license
+   - `LicenseNotAssignedException` - When trying to transfer an unassigned license
+
+### Guild Model
+
+```php
+// Guild relationships
+$guild->licenses(); // Get all licenses for this guild
+$guild->activeLicenses(); // Get only active licenses
+$guild->hasActiveLicense(); // Check if guild has any active license
 ```
 
 ## Database Factory & Seeding
@@ -194,6 +231,14 @@ License::factory()->parked()->create();
 License::factory()->subscription()->create();
 License::factory()->lifetime()->create();
 License::factory()->assigned()->create();
+License::factory()->onCooldown()->create();
+```
+
+The GuildFactory creates Discord guilds for testing:
+
+```php
+Guild::factory()->create();
+Guild::factory()->create(['name' => 'Test Server']);
 ```
 
 Run the seeder to populate test data:

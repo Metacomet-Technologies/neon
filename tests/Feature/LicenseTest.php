@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Exceptions\License\GuildAlreadyHasLicenseException;
+use App\Exceptions\License\LicenseNotAssignedException;
+use App\Exceptions\License\LicenseOnCooldownException;
+use App\Models\Guild;
 use App\Models\License;
 use App\Models\User;
 
@@ -52,22 +56,26 @@ test('license type methods work correctly', function () {
 
 test('license can be assigned to guild', function () {
     $license = License::factory()->parked()->create();
-    $guildId = '123456789012345678';
+    $guild = Guild::factory()->create();
 
     expect($license->isAssigned())->toBeFalse();
 
-    $license->assignToGuild($guildId);
+    $license->assignToGuild($guild);
     $license->refresh();
 
     expect($license->isAssigned())->toBeTrue();
     expect($license->isActive())->toBeTrue();
-    expect($license->assigned_guild_id)->toBe($guildId);
+    expect($license->assigned_guild_id)->toBe($guild->id);
     expect($license->last_assigned_at)->not()->toBeNull();
 });
 
 test('license can be unassigned from guild', function () {
-    $license = License::factory()->active()->create();
-    $license->assignToGuild('123456789012345678');
+    $license = License::factory()->parked()->create();
+    $guild = Guild::factory()->create();
+
+    // First assign without cooldown
+    $license->update(['last_assigned_at' => now()->subDays(31)]);
+    $license->assignToGuild($guild);
     $license->refresh();
 
     expect($license->isAssigned())->toBeTrue();
@@ -102,4 +110,97 @@ test('license guild assignment scope works correctly', function () {
 
     expect(License::assignedToGuild($guildId)->count())->toBe(2);
     expect(License::unassigned()->count())->toBe(3);
+});
+
+test('license cooldown detection works correctly', function () {
+    $license = License::factory()->onCooldown()->create();
+    $freshLicense = License::factory()->create();
+
+    expect($license->isOnCooldown())->toBeTrue();
+    expect($license->getCooldownDaysRemaining())->toBeGreaterThan(0);
+    expect($freshLicense->isOnCooldown())->toBeFalse();
+    expect($freshLicense->getCooldownDaysRemaining())->toBe(0);
+});
+
+test('license cannot be assigned while on cooldown', function () {
+    $license = License::factory()->onCooldown()->create();
+    $guild = Guild::factory()->create();
+
+    expect(fn() => $license->assignToGuild($guild))
+        ->toThrow(LicenseOnCooldownException::class);
+});
+
+test('license cannot be assigned to guild that already has active license', function () {
+    $guild = Guild::factory()->create();
+    $existingLicense = License::factory()->parked()->create();
+
+    // Assign first license without cooldown
+    $existingLicense->update(['last_assigned_at' => now()->subDays(31)]);
+    $existingLicense->assignToGuild($guild);
+
+    $newLicense = License::factory()->parked()->create();
+    $newLicense->update(['last_assigned_at' => now()->subDays(31)]);
+
+    expect(fn() => $newLicense->assignToGuild($guild))
+        ->toThrow(GuildAlreadyHasLicenseException::class);
+});
+
+test('license can be parked', function () {
+    $guild = Guild::factory()->create();
+    $license = License::factory()->parked()->create();
+
+    // First assign without cooldown
+    $license->update(['last_assigned_at' => now()->subDays(31)]);
+    $license->assignToGuild($guild);
+    $license->refresh();
+
+    expect($license->isActive())->toBeTrue();
+    expect($license->isAssigned())->toBeTrue();
+
+    $license->park();
+    $license->refresh();
+
+    expect($license->isParked())->toBeTrue();
+    expect($license->isAssigned())->toBeFalse();
+    expect($license->assigned_guild_id)->toBeNull();
+});
+
+test('license transfer respects cooldown', function () {
+    $license = License::factory()->onCooldown()->create();
+    $guild = Guild::factory()->create();
+
+    // Try to assign first (should fail due to cooldown)
+    expect(fn() => $license->assignToGuild($guild))
+        ->toThrow(LicenseOnCooldownException::class);
+});
+
+test('license transfer throws exception when not assigned', function () {
+    $license = License::factory()->parked()->create();
+    $guild = Guild::factory()->create();
+
+    expect(fn() => $license->transferToGuild($guild))
+        ->toThrow(LicenseNotAssignedException::class);
+});
+
+test('license transfer works correctly when not on cooldown', function () {
+    $originalGuild = Guild::factory()->create();
+    $newGuild = Guild::factory()->create();
+
+    $license = License::factory()->parked()->create();
+    // Set last_assigned_at to more than 30 days ago to avoid cooldown
+    $license->update(['last_assigned_at' => now()->subDays(31)]);
+    $license->assignToGuild($originalGuild);
+
+    // Update last_assigned_at again to simulate a license that was assigned long ago
+    $license->update(['last_assigned_at' => now()->subDays(31)]);
+    $license->refresh();
+
+    expect($license->assigned_guild_id)->toBe($originalGuild->id);
+    expect($license->isOnCooldown())->toBeFalse();
+
+    $license->transferToGuild($newGuild);
+    $license->refresh();
+
+    expect($license->assigned_guild_id)->toBe($newGuild->id);
+    expect($license->isActive())->toBeTrue();
 });

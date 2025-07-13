@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Exceptions\License\GuildAlreadyHasLicenseException;
+use App\Exceptions\License\LicenseNotAssignedException;
+use App\Exceptions\License\LicenseOnCooldownException;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -77,6 +80,14 @@ final class License extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the guild that this license is assigned to.
+     */
+    public function guild(): BelongsTo
+    {
+        return $this->belongsTo(Guild::class, 'assigned_guild_id', 'id');
     }
 
     /**
@@ -168,25 +179,99 @@ final class License extends Model
     }
 
     /**
-     * Assign the license to a guild.
+     * Check if the license is on cooldown (within 30 days of last assignment).
      */
-    public function assignToGuild(string $guildId): void
+    public function isOnCooldown(): bool
     {
+        if ($this->last_assigned_at === null) {
+            return false;
+        }
+
+        return $this->last_assigned_at->addDays(30)->isFuture();
+    }
+
+    /**
+     * Get the number of days remaining in the cooldown period.
+     */
+    public function getCooldownDaysRemaining(): int
+    {
+        if (!$this->isOnCooldown()) {
+            return 0;
+        }
+
+        return (int) now()->diffInDays($this->last_assigned_at->addDays(30), false);
+    }
+
+    /**
+     * Assign the license to a guild.
+     *
+     * @throws LicenseOnCooldownException
+     * @throws GuildAlreadyHasLicenseException
+     */
+    public function assignToGuild(Guild $guild): void
+    {
+        // Check if license is on cooldown
+        if ($this->isOnCooldown()) {
+            throw new LicenseOnCooldownException($this->getCooldownDaysRemaining());
+        }
+
+        // Check if guild already has an active license
+        if ($guild->hasActiveLicense()) {
+            throw new GuildAlreadyHasLicenseException($guild->id);
+        }
+
         $this->update([
-            'assigned_guild_id' => $guildId,
+            'assigned_guild_id' => $guild->id,
             'status' => self::STATUS_ACTIVE,
             'last_assigned_at' => now(),
         ]);
     }
 
     /**
-     * Unassign the license from any guild.
+     * Park the license (remove from guild and set to parked status).
      */
-    public function unassign(): void
+    public function park(): void
     {
         $this->update([
             'assigned_guild_id' => null,
             'status' => self::STATUS_PARKED,
         ]);
+    }
+
+    /**
+     * Transfer the license to a different guild.
+     *
+     * @throws LicenseOnCooldownException
+     * @throws GuildAlreadyHasLicenseException
+     * @throws LicenseNotAssignedException
+     */
+    public function transferToGuild(Guild $guild): void
+    {
+        // Check if license is currently assigned
+        if (!$this->isAssigned()) {
+            throw new LicenseNotAssignedException();
+        }
+
+        // Check if license is on cooldown
+        if ($this->isOnCooldown()) {
+            throw new LicenseOnCooldownException($this->getCooldownDaysRemaining());
+        }
+
+        // Check if target guild already has an active license
+        if ($guild->hasActiveLicense()) {
+            throw new GuildAlreadyHasLicenseException($guild->id);
+        }
+
+        // Park the license first, then assign to new guild
+        $this->park();
+        $this->assignToGuild($guild);
+    }
+
+    /**
+     * Unassign the license from any guild (alias for park method for backward compatibility).
+     */
+    public function unassign(): void
+    {
+        $this->park();
     }
 }

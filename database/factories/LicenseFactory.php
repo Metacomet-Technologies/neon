@@ -45,7 +45,7 @@ class LicenseFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'status' => License::STATUS_ACTIVE,
             'assigned_guild_id' => fake()->numerify('##################'),
-            'last_assigned_at' => fake()->dateTimeBetween('-30 days', 'now'),
+            'last_assigned_at' => fake()->dateTimeBetween('-90 days', '-31 days'), // Beyond cooldown period
         ]);
     }
 
@@ -113,7 +113,7 @@ class LicenseFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'status' => License::STATUS_ACTIVE,
             'assigned_guild_id' => $guildId,
-            'last_assigned_at' => fake()->dateTimeBetween('-30 days', 'now'),
+            'last_assigned_at' => fake()->dateTimeBetween('-90 days', '-31 days'), // Beyond cooldown period
         ]);
     }
 
