@@ -36,6 +36,8 @@ final class UserFactory extends Factory
             'access_token' => null,
             'refresh_token' => null,
             'refresh_token_expires_at' => null,
+            'is_admin' => false,
+            'is_on_mailing_list' => false,
             'created_at' => now(),
             'updated_at' => now(),
         ];

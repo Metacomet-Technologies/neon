@@ -5,7 +5,7 @@
 
 /**
  * A helper file for Laravel, to provide autocomplete information to your IDE
- * Generated for Laravel 12.19.3.
+ * Generated for Laravel 12.20.0.
  *
  * This file should not be included in your code, only analyzed by your IDE!
  *
@@ -5568,6 +5568,20 @@ namespace Illuminate\Support\Facades {
         }
 
         /**
+         * Get the specified array configuration value as a collection.
+         *
+         * @param string $key
+         * @param (\Closure():(array<array-key, mixed>|null))|array<array-key, mixed>|null $default
+         * @return Collection<array-key, mixed> 
+         * @static 
+         */
+        public static function collection($key, $default = null)
+        {
+            /** @var \Illuminate\Config\Repository $instance */
+            return $instance->collection($key, $default);
+        }
+
+        /**
          * Set a given configuration value.
          *
          * @param array|string $key
@@ -5942,6 +5956,34 @@ namespace Illuminate\Support\Facades {
         {
             /** @var \Illuminate\Log\Context\Repository $instance */
             return $instance->addHidden($key, $value);
+        }
+
+        /**
+         * Add a context value if it does not exist yet, and return the value.
+         *
+         * @param string $key
+         * @param mixed $value
+         * @return mixed 
+         * @static 
+         */
+        public static function remember($key, $value)
+        {
+            /** @var \Illuminate\Log\Context\Repository $instance */
+            return $instance->remember($key, $value);
+        }
+
+        /**
+         * Add a hidden context value if it does not exist yet, and return the value.
+         *
+         * @param string $key
+         * @param mixed $value
+         * @return mixed 
+         * @static 
+         */
+        public static function rememberHidden($key, $value)
+        {
+            /** @var \Illuminate\Log\Context\Repository $instance */
+            return $instance->rememberHidden($key, $value);
         }
 
         /**
@@ -13833,6 +13875,9 @@ namespace Illuminate\Support\Facades {
      * @method static array validate(array $rules, ...$params)
      * @method static array validateWithBag(string $errorBag, array $rules, ...$params)
      * @method static bool hasValidSignature(bool $absolute = true)
+     * @method static bool hasValidRelativeSignature()
+     * @method static bool hasValidSignatureWhileIgnoring($ignoreQuery = [], $absolute = true)
+     * @method static bool hasValidRelativeSignatureWhileIgnoring($ignoreQuery = [])
      * @see \Illuminate\Http\Request
      */
     class Request {
@@ -23784,323 +23829,6 @@ namespace Livewire {
             }
     }
 
-namespace Mpociot\VatCalculator\Facades {
-    /**
-     * 
-     *
-     */
-    class VatCalculator {
-        /**
-         * Determines if you need to collect VAT for the given country code.
-         *
-         * @param string $countryCode
-         * @return bool 
-         * @static 
-         */
-        public static function shouldCollectVAT($countryCode)
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            return $instance->shouldCollectVAT($countryCode);
-        }
-
-        /**
-         * Calculate the VAT based on the net price, country code and indication if the
-         * customer is a company or not.
-         *
-         * @param int|float $netPrice The net price to use for the calculation
-         * @param null|string $countryCode The country code to use for the rate lookup
-         * @param null|string $postalCode The postal code to use for the rate exception lookup
-         * @param null|bool $company
-         * @param null|string $type The type can be low or high
-         * @return float 
-         * @static 
-         */
-        public static function calculate($netPrice, $countryCode = null, $postalCode = null, $company = null, $type = null)
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            return $instance->calculate($netPrice, $countryCode, $postalCode, $company, $type);
-        }
-
-        /**
-         * Calculate the net price on the gross price, country code and indication if the
-         * customer is a company or not.
-         *
-         * @param int|float $gross The gross price to use for the calculation
-         * @param null|string $countryCode The country code to use for the rate lookup
-         * @param null|string $postalCode The postal code to use for the rate exception lookup
-         * @param null|bool $company
-         * @param null|string $type The type can be low or high
-         * @return float 
-         * @static 
-         */
-        public static function calculateNet($gross, $countryCode = null, $postalCode = null, $company = null, $type = null)
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            return $instance->calculateNet($gross, $countryCode, $postalCode, $company, $type);
-        }
-
-        /**
-         * 
-         *
-         * @return float 
-         * @static 
-         */
-        public static function getNetPrice()
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            return $instance->getNetPrice();
-        }
-
-        /**
-         * 
-         *
-         * @return string 
-         * @static 
-         */
-        public static function getCountryCode()
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            return $instance->getCountryCode();
-        }
-
-        /**
-         * 
-         *
-         * @param mixed $countryCode
-         * @static 
-         */
-        public static function setCountryCode($countryCode)
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            return $instance->setCountryCode($countryCode);
-        }
-
-        /**
-         * 
-         *
-         * @return string 
-         * @static 
-         */
-        public static function getPostalCode()
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            return $instance->getPostalCode();
-        }
-
-        /**
-         * 
-         *
-         * @param mixed $postalCode
-         * @static 
-         */
-        public static function setPostalCode($postalCode)
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            return $instance->setPostalCode($postalCode);
-        }
-
-        /**
-         * 
-         *
-         * @return float 
-         * @static 
-         */
-        public static function getTaxRate()
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            return $instance->getTaxRate();
-        }
-
-        /**
-         * 
-         *
-         * @return bool 
-         * @static 
-         */
-        public static function isCompany()
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            return $instance->isCompany();
-        }
-
-        /**
-         * 
-         *
-         * @param bool $company
-         * @static 
-         */
-        public static function setCompany($company)
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            return $instance->setCompany($company);
-        }
-
-        /**
-         * 
-         *
-         * @param string $businessCountryCode
-         * @static 
-         */
-        public static function setBusinessCountryCode($businessCountryCode)
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            return $instance->setBusinessCountryCode($businessCountryCode);
-        }
-
-        /**
-         * Returns the tax rate for the given country code.
-         * 
-         * This method is used to allow backwards compatibility.
-         *
-         * @param string $countryCode
-         * @param bool $company
-         * @param string|null $type
-         * @return float 
-         * @static 
-         */
-        public static function getTaxRateForCountry($countryCode, $company = false, $type = null)
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            return $instance->getTaxRateForCountry($countryCode, $company, $type);
-        }
-
-        /**
-         * Returns all tax rates for the given country code.
-         *
-         * @param string $countryCode
-         * @return array 
-         * @static 
-         */
-        public static function getTaxRatesForCountry($countryCode)
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            return $instance->getTaxRatesForCountry($countryCode);
-        }
-
-        /**
-         * Returns the tax rate for the given country code.
-         * 
-         * If a postal code is provided, it will try to lookup the different
-         * postal code exceptions that are possible.
-         *
-         * @param string $countryCode
-         * @param string|null $postalCode
-         * @param bool $company
-         * @param string|null $type
-         * @return float 
-         * @static 
-         */
-        public static function getTaxRateForLocation($countryCode, $postalCode = null, $company = false, $type = null)
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            return $instance->getTaxRateForLocation($countryCode, $postalCode, $company, $type);
-        }
-
-        /**
-         * 
-         *
-         * @return float 
-         * @static 
-         */
-        public static function getTaxValue()
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            return $instance->getTaxValue();
-        }
-
-        /**
-         * Validate a VAT number format without checking if the VAT number was really issued.
-         *
-         * @param string $vatNumber
-         * @return bool 
-         * @static 
-         */
-        public static function isValidVatNumberFormat($vatNumber)
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            return $instance->isValidVatNumberFormat($vatNumber);
-        }
-
-        /**
-         * 
-         *
-         * @param string $vatNumber
-         * @return bool 
-         * @throws VATCheckUnavailableException
-         * @static 
-         */
-        public static function isValidVATNumber($vatNumber)
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            return $instance->isValidVATNumber($vatNumber);
-        }
-
-        /**
-         * 
-         *
-         * @param string $vatNumber
-         * @return object|false 
-         * @throws VATCheckUnavailableException
-         * @static 
-         */
-        public static function getVATDetails($vatNumber)
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            return $instance->getVATDetails($vatNumber);
-        }
-
-        /**
-         * 
-         *
-         * @return void 
-         * @throws VATCheckUnavailableException
-         * @static 
-         */
-        public static function initSoapClient()
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            $instance->initSoapClient();
-        }
-
-        /**
-         * 
-         *
-         * @param \SoapClient $soapClient
-         * @static 
-         */
-        public static function setSoapClient($soapClient)
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            return $instance->setSoapClient($soapClient);
-        }
-
-        /**
-         * 
-         *
-         * @static 
-         */
-        public static function setupCurlClient($curlClient)
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            return $instance->setupCurlClient($curlClient);
-        }
-
-        /**
-         * 
-         *
-         * @return \Mpociot\VatCalculator\VatCalculator 
-         * @internal This method is not covered by our BC policy.
-         * @static 
-         */
-        public static function testing($curlClient)
-        {
-            /** @var \Mpociot\VatCalculator\VatCalculator $instance */
-            return $instance->testing($curlClient);
-        }
-
-            }
-    }
-
 namespace Illuminate\Http {
     /**
      * 
@@ -24267,6 +23995,18 @@ namespace Illuminate\Testing {
         public static function inertiaPage()
         {
             return \Illuminate\Testing\TestResponse::inertiaPage();
+        }
+
+        /**
+         * 
+         *
+         * @see \Inertia\Testing\TestResponseMacros::inertiaProps()
+         * @param string|null $propName
+         * @static 
+         */
+        public static function inertiaProps($propName = null)
+        {
+            return \Illuminate\Testing\TestResponse::inertiaProps($propName);
         }
 
             }
@@ -28386,7 +28126,7 @@ namespace  {
          * Get the count of the total records for the paginator.
          *
          * @param array<string|\Illuminate\Contracts\Database\Query\Expression> $columns
-         * @return int 
+         * @return int<0, max> 
          * @static 
          */
         public static function getCountForPagination($columns = [])
@@ -28461,7 +28201,7 @@ namespace  {
          * Retrieve the "count" result of the query.
          *
          * @param \Illuminate\Contracts\Database\Query\Expression|string $columns
-         * @return int 
+         * @return int<0, max> 
          * @static 
          */
         public static function count($columns = '*')
@@ -28578,7 +28318,7 @@ namespace  {
         /**
          * Insert new records into the database while ignoring errors.
          *
-         * @return int 
+         * @return int<0, max> 
          * @static 
          */
         public static function insertOrIgnore($values)
@@ -28655,7 +28395,7 @@ namespace  {
          *
          * @param array<string, float|int|numeric-string> $columns
          * @param array<string, mixed> $extra
-         * @return int 
+         * @return int<0, max> 
          * @throws \InvalidArgumentException
          * @static 
          */
@@ -28670,7 +28410,7 @@ namespace  {
          *
          * @param array<string, float|int|numeric-string> $columns
          * @param array<string, mixed> $extra
-         * @return int 
+         * @return int<0, max> 
          * @throws \InvalidArgumentException
          * @static 
          */
@@ -29263,7 +29003,6 @@ namespace  {
     class Pulse extends \Laravel\Pulse\Facades\Pulse {}
     class Socialite extends \Laravel\Socialite\Facades\Socialite {}
     class Livewire extends \Livewire\Livewire {}
-    class VatCalculator extends \Mpociot\VatCalculator\Facades\VatCalculator {}
 }
 
 

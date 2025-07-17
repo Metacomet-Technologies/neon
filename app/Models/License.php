@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Events\LicenseAssigned;
+use App\Events\LicenseTransferred;
 use App\Exceptions\License\GuildAlreadyHasLicenseException;
 use App\Exceptions\License\LicenseNotAssignedException;
 use App\Exceptions\License\LicenseOnCooldownException;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,23 +20,57 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $stripe_id
  * @property string $status
  * @property string|null $assigned_guild_id
- * @property Carbon|null $last_assigned_at
- * @property Carbon|null $created_at
- * @property Carbon|null $updated_at
- * @property-read User $user
+ * @property \Illuminate\Support\Carbon|null $last_assigned_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Guild|null $guild
+ * @property-read \App\Models\User $user
  *
- * @method static \Database\Factories\LicenseFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|License active()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|License parked()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|License subscription()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|License lifetime()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|License assignedToGuild(string $guildId)
+ * @method static \Database\Factories\LicenseFactory factory($count = null, $state = [])
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|License lifetime()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|License newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|License newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|License parked()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|License query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|License subscription()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|License unassigned()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|License whereAssignedGuildId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|License whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|License whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|License whereLastAssignedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|License whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|License whereStripeId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|License whereType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|License whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|License whereUserId($value)
+ *
+ * @mixin \Eloquent
  */
 final class License extends Model
 {
     /** @use HasFactory<\Database\Factories\LicenseFactory> */
     use HasFactory;
+
+    /**
+     * The possible license types.
+     */
+    public const TYPE_SUBSCRIPTION = 'subscription';
+    public const TYPE_LIFETIME = 'lifetime';
+
+    /**
+     * The possible license statuses.
+     */
+    public const STATUS_ACTIVE = 'active';
+    public const STATUS_PARKED = 'parked';
+
+    /**
+     * The policy class for the model.
+     *
+     * @var string
+     */
+    protected $policy = \App\Policies\LicensePolicy::class;
 
     /**
      * The attributes that are mass assignable.
@@ -61,18 +96,6 @@ final class License extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
-
-    /**
-     * The possible license types.
-     */
-    public const TYPE_SUBSCRIPTION = 'subscription';
-    public const TYPE_LIFETIME = 'lifetime';
-
-    /**
-     * The possible license statuses.
-     */
-    public const STATUS_ACTIVE = 'active';
-    public const STATUS_PARKED = 'parked';
 
     /**
      * Get the user that owns the license.
@@ -195,7 +218,7 @@ final class License extends Model
      */
     public function getCooldownDaysRemaining(): int
     {
-        if (!$this->isOnCooldown()) {
+        if (! $this->isOnCooldown()) {
             return 0;
         }
 
@@ -225,6 +248,9 @@ final class License extends Model
             'status' => self::STATUS_ACTIVE,
             'last_assigned_at' => now(),
         ]);
+
+        // Dispatch the LicenseAssigned event
+        LicenseAssigned::dispatch($this, $guild);
     }
 
     /**
@@ -248,8 +274,8 @@ final class License extends Model
     public function transferToGuild(Guild $guild): void
     {
         // Check if license is currently assigned
-        if (!$this->isAssigned()) {
-            throw new LicenseNotAssignedException();
+        if (! $this->isAssigned()) {
+            throw new LicenseNotAssignedException;
         }
 
         // Check if license is on cooldown
@@ -262,9 +288,15 @@ final class License extends Model
             throw new GuildAlreadyHasLicenseException($guild->id);
         }
 
+        // Store the original guild for the event
+        $fromGuild = $this->guild;
+
         // Park the license first, then assign to new guild
         $this->park();
         $this->assignToGuild($guild);
+
+        // Dispatch the LicenseTransferred event
+        LicenseTransferred::dispatch($this, $fromGuild, $guild);
     }
 
     /**

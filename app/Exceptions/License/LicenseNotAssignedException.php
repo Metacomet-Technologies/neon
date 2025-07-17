@@ -10,7 +10,7 @@ class LicenseNotAssignedException extends Exception
 {
     public function __construct()
     {
-        $message = "License is not currently assigned to any guild.";
+        $message = 'License is not currently assigned to any guild.';
         parent::__construct($message);
     }
 }

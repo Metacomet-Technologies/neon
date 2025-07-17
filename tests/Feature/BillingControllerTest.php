@@ -7,7 +7,7 @@ use Laravel\Sanctum\Sanctum;
 
 test('checkout subscription requires authentication', function () {
     $response = $this->postJson('/api/checkout/subscription', [
-        'price_id' => 'price_1234567890'
+        'price_id' => 'price_1234567890',
     ]);
 
     $response->assertStatus(401);
@@ -25,7 +25,7 @@ test('checkout subscription validates price_id', function () {
 
 test('checkout lifetime requires authentication', function () {
     $response = $this->postJson('/api/checkout/lifetime', [
-        'price_id' => 'price_1234567890'
+        'price_id' => 'price_1234567890',
     ]);
 
     $response->assertStatus(401);
@@ -55,7 +55,7 @@ test('billing portal returns error when user has no stripe id', function () {
 
     $response->assertStatus(404)
         ->assertJson([
-            'error' => 'No billing information found'
+            'error' => 'No billing information found',
         ]);
 });
 
@@ -76,13 +76,13 @@ test('billing info returns user billing information', function () {
             'has_stripe_id',
             'subscriptions',
             'licenses',
-            'payment_methods'
+            'payment_methods',
         ]);
 });
 
 test('cancel subscription requires authentication', function () {
     $response = $this->postJson('/api/billing/subscription/cancel', [
-        'subscription_id' => 'sub_1234567890'
+        'subscription_id' => 'sub_1234567890',
     ]);
 
     $response->assertStatus(401);
@@ -100,7 +100,7 @@ test('cancel subscription validates subscription_id', function () {
 
 test('resume subscription requires authentication', function () {
     $response = $this->postJson('/api/billing/subscription/resume', [
-        'subscription_id' => 'sub_1234567890'
+        'subscription_id' => 'sub_1234567890',
     ]);
 
     $response->assertStatus(401);

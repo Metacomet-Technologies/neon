@@ -8,7 +8,6 @@ use App\Models\License;
 use App\Models\User;
 use Laravel\Cashier\Http\Controllers\WebhookController as CashierWebhookController;
 use Stripe\Checkout\Session;
-use Stripe\PaymentIntent;
 use Symfony\Component\HttpFoundation\Response;
 
 final class StripeWebhookController extends CashierWebhookController
