@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace App\Console\Commands;
 
@@ -9,10 +9,10 @@ use App\Jobs\NeonDispatchHandler;
 use App\Jobs\ProcessGuildCommandJob;
 use App\Jobs\ProcessGuildJoin;
 use App\Jobs\ProcessGuildLeave;
+use App\Jobs\ProcessNeonSQLExecutionJob;
 use App\Jobs\ProcessScheduledMessageJob;
 use App\Jobs\ProcessWelcomeMessageJob;
 use App\Jobs\RefreshNeonGuildsJob;
-use Illuminate\Support\Facades\Bus;
 use App\Models\NativeCommand;
 use App\Models\NeonCommand;
 use App\Models\WelcomeSetting;
@@ -22,6 +22,7 @@ use Discord\WebSockets\Event;
 use Discord\WebSockets\Intents;
 use Exception;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Monolog\Handler\StreamHandler;
 use Monolog\Level;
@@ -33,7 +34,7 @@ final class StartNeonCommand extends Command
 {
     public string $environment;
 
-    protected $signature = 'neon:start';
+    protected $signature   = 'neon:start';
     protected $description = 'Run Neon';
 
     public function __construct()
@@ -68,7 +69,7 @@ final class StartNeonCommand extends Command
                     return;
                 }
 
-                if (! str_starts_with($message->content, '!')) {
+                if (!str_starts_with($message->content, '!')) {
                     return;
                 }
 
@@ -112,7 +113,7 @@ final class StartNeonCommand extends Command
                 $guildId = $member->guild_id;
                 // check if guild has welcome message enabled
                 $welcomeSettings = $this->getGuildsWithWelcomeSettings();
-                if (! in_array($guildId, $welcomeSettings)) {
+                if (!in_array($guildId, $welcomeSettings)) {
                     return;
                 }
                 $newMemberId = $member->user->id;
@@ -132,6 +133,31 @@ final class StartNeonCommand extends Command
                     new ProcessGuildJoin($guild->id, $guild->name, $guild->icon),
                     new RefreshNeonGuildsJob(),
                 ])->dispatch();
+            });
+
+            // Handle reactions for Neon AI confirmation
+            $discord->on(Event::MESSAGE_REACTION_ADD, function ($reaction, $discord) {
+                // Skip if reaction is from a bot
+                if ($reaction->user->bot) {
+                    return;
+                }
+
+                $emoji = $reaction->emoji->name;
+                $userId = $reaction->user_id;
+                $channelId = $reaction->channel_id;
+                $messageId = $reaction->message_id;
+
+                // Only handle ✅ and ❌ reactions
+                if ($emoji === '✅' || $emoji === '❌') {
+                    // Check if there's a pending Neon SQL execution for this user and channel
+                    $cacheKey = "neon_sql_{$channelId}_{$userId}";
+                    $sqlCommands = Cache::get($cacheKey);
+
+                    if ($sqlCommands) {
+                        $userConfirmed = $emoji === '✅';
+                        ProcessNeonSQLExecutionJob::dispatch($channelId, $userId, $userConfirmed);
+                    }
+                }
             });
         });
 
@@ -252,7 +278,7 @@ final class StartNeonCommand extends Command
         }
 
         // Validate message content
-        if (! $messageText) {
+        if (!$messageText) {
             SendMessage::sendMessage($channelId, [
                 'is_embed' => false,
                 'response' => "ℹ️ **Scheduled Message Help**\nSchedules a message to be sent later in a specific channel.\n\n**Usage:** `!scheduled-message <#channel> <YYYY-MM-DD HH:MM> <message>`\n\n**Example:** `!scheduled-message #announcements 2025-02-07 18:48 Server maintenance Starting!`",
