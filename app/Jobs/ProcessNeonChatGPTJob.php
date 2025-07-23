@@ -49,7 +49,7 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
         try {
             // Get database schema information
             $this->dbSchema = $this->getDatabaseSchema();
-            
+
             // Send initial message to user
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => true,
@@ -60,7 +60,7 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
 
             // Generate the ChatGPT response with database schema context
             $chatGptResponse = $this->getChatGPTResponse();
-            
+
             if (!$chatGptResponse) {
                 $this->sendErrorMessage('Failed to get response from ChatGPT. Please try again.');
                 return;
@@ -68,7 +68,7 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
 
             // Parse the response to extract SQL commands and synopsis
             $parsedResponse = $this->parseChatGPTResponse($chatGptResponse);
-            
+
             if (!$parsedResponse) {
                 $this->sendErrorMessage('Failed to parse ChatGPT response. Please try again.');
                 return;
@@ -76,11 +76,11 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
 
             // Send synopsis and ask for confirmation
             $this->sendConfirmationMessage($parsedResponse);
-            
+
             // Store the SQL commands in cache for potential execution
             $cacheKey = "neon_sql_{$this->channelId}_{$this->discordUserId}";
             Cache::put($cacheKey, $parsedResponse['sql_commands'], now()->addMinutes(5));
-            
+
             $this->updateNativeCommandRequestComplete();
 
         } catch (Exception $e) {
@@ -111,7 +111,7 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
         // Cache database schema for performance
         return Cache::remember('neon_db_schema', now()->addHours(1), function () {
             $schema = [];
-            
+
             try {
                 // Get all table names
                 $tables = DB::select('SHOW TABLES');
@@ -120,10 +120,10 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
 
                 foreach ($tables as $table) {
                     $tableName = $table->$tableColumn;
-                    
+
                     // Get column information for each table
                     $columns = DB::select("DESCRIBE {$tableName}");
-                    
+
                     $schema[$tableName] = [
                         'columns' => array_map(function($column) {
                             return [
@@ -180,7 +180,7 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
     private function buildSystemPrompt(): string
     {
         $schemaText = $this->formatSchemaForPrompt();
-        
+
         return "You are Neon, an AI assistant for a Discord bot application that helps users interact with their database through natural language queries.
 
 DATABASE SCHEMA:
@@ -225,7 +225,7 @@ Please analyze this request and provide appropriate SQL commands to fulfill it. 
     private function formatSchemaForPrompt(): string
     {
         $schemaText = '';
-        
+
         foreach ($this->dbSchema as $tableName => $tableInfo) {
             $schemaText .= "\nTable: {$tableName}\n";
             foreach ($tableInfo['columns'] as $column) {
@@ -246,14 +246,14 @@ Please analyze this request and provide appropriate SQL commands to fulfill it. 
             // Try to extract JSON from the response
             $jsonStart = strpos($response, '{');
             $jsonEnd = strrpos($response, '}');
-            
+
             if ($jsonStart === false || $jsonEnd === false) {
                 return null;
             }
-            
+
             $jsonString = substr($response, $jsonStart, $jsonEnd - $jsonStart + 1);
             $parsed = json_decode($jsonString, true);
-            
+
             if (!$parsed || !isset($parsed['synopsis']) || !isset($parsed['sql_commands'])) {
                 return null;
             }
@@ -326,7 +326,7 @@ Please analyze this request and provide appropriate SQL commands to fulfill it. 
             'embed_description' => $message,
             'embed_color' => 15158332, // Red
         ]);
-        
+
         $this->updateNativeCommandRequestFailed(
             status: 'error',
             message: $message,

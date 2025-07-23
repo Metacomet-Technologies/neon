@@ -107,7 +107,7 @@ final class ProcessNeonSQLExecutionJob implements ShouldQueue
     private function isSafeQuery(string $sql): bool
     {
         $sql = strtoupper(trim($sql));
-        
+
         // Allow only SELECT, INSERT, UPDATE with WHERE clause
         $allowedPatterns = [
             '/^SELECT\s+/',
@@ -155,14 +155,14 @@ final class ProcessNeonSQLExecutionJob implements ShouldQueue
     private function sendExecutionResults(array $results, int $executedCommands): void
     {
         $description = "**Executed {$executedCommands} out of " . count($results) . " commands**\n\n";
-        
+
         foreach ($results as $index => $result) {
             $description .= "**Command " . ($index + 1) . ":**\n";
             $description .= "`" . substr($result['command'], 0, 100) . (strlen($result['command']) > 100 ? '...' : '') . "`\n";
-            
+
             if ($result['success']) {
                 $description .= "✅ **Success** - Returned {$result['count']} rows\n";
-                
+
                 // Show first few results if any
                 if (!empty($result['result']) && count($result['result']) > 0) {
                     $firstRow = (array) $result['result'][0];
