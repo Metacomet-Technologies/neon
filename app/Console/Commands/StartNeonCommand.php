@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Helpers\Discord\SendMessage;
 use App\Jobs\NeonDispatchHandler;
 use App\Jobs\ProcessGuildCommandJob;
+use App\Jobs\ProcessNeonSQLExecutionJob;
 use App\Jobs\ProcessScheduledMessageJob;
 use App\Jobs\ProcessWelcomeMessageJob;
 use App\Jobs\RefreshNeonGuildsJob;
@@ -123,6 +124,31 @@ final class StartNeonCommand extends Command
 
             $discord->on(Event::GUILD_CREATE, function ($guild, $discord) {
                 return RefreshNeonGuildsJob::dispatch();
+            });
+
+            // Handle reactions for Neon AI confirmation
+            $discord->on(Event::MESSAGE_REACTION_ADD, function ($reaction, $discord) {
+                // Skip if reaction is from a bot
+                if ($reaction->user->bot) {
+                    return;
+                }
+
+                $emoji = $reaction->emoji->name;
+                $userId = $reaction->user_id;
+                $channelId = $reaction->channel_id;
+                $messageId = $reaction->message_id;
+
+                // Only handle ✅ and ❌ reactions
+                if ($emoji === '✅' || $emoji === '❌') {
+                    // Check if there's a pending Neon SQL execution for this user and channel
+                    $cacheKey = "neon_sql_{$channelId}_{$userId}";
+                    $sqlCommands = Cache::get($cacheKey);
+
+                    if ($sqlCommands) {
+                        $userConfirmed = $emoji === '✅';
+                        ProcessNeonSQLExecutionJob::dispatch($channelId, $userId, $userConfirmed);
+                    }
+                }
             });
         });
 

@@ -344,6 +344,14 @@ class NativeCommandSeeder extends Seeder
                 'example' => 'Example: !scheduled-message #announcements 2025-02-07 18:48 Server maintenance Starting!',
                 'is_active' => true,
             ],
+            [
+                'slug' => 'neon',
+                'description' => 'AI assistant powered by ChatGPT that helps you interact with the database using natural language queries.',
+                'class' => \App\Jobs\ProcessNeonChatGPTJob::class,
+                'usage' => 'Usage: !neon <your question or request>',
+                'example' => 'Example: !neon show me all users who joined in the last week',
+                'is_active' => true,
+            ],
         ];
 
         foreach ($commands as $command) {
