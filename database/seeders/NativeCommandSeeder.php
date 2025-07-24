@@ -204,8 +204,8 @@ class NativeCommandSeeder extends Seeder
                 'slug' => 'purge',
                 'description' => 'Deletes a specified number of messages from a channel.',
                 'class' => \App\Jobs\ProcessPurgeMessagesJob::class,
-                'usage' => 'Usage: !purge #channel <number>',
-                'example' => 'Example: !purge #general 100',
+                'usage' => 'Usage: !purge <#channel|channel-id|this> <number|all>',
+                'example' => 'Example: !purge this all or !purge #general 100',
                 'is_active' => true,
             ],
             [
@@ -350,6 +350,14 @@ class NativeCommandSeeder extends Seeder
                 'class' => \App\Jobs\ProcessNeonChatGPTJob::class,
                 'usage' => 'Usage: !neon <your question or request>',
                 'example' => 'Example: !neon show me all users who joined in the last week',
+                'is_active' => true,
+            ],
+            [
+                'slug' => 'analyze-server',
+                'description' => 'Analyzes Discord server screenshots using ChatGPT Vision to extract structure and generate similar templates.',
+                'class' => \App\Jobs\ProcessImageAnalysisJob::class,
+                'usage' => 'Usage: !analyze-server [custom prompt] (with image attachment)',
+                'example' => 'Example: !analyze-server Create a gaming community template',
                 'is_active' => true,
             ],
         ];

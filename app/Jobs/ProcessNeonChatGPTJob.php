@@ -414,6 +414,14 @@ COMMAND EXAMPLES:
 ❌ Bad: !delete-category category1 (use real names, not placeholders)
 ❌ Bad: !delete-category 1234567890123456789 (don't predict IDs that don't exist)
 
+**CRITICAL: ALWAYS USE REAL DISCORD IDs FROM SERVER STRUCTURE!**
+When the server structure shows channel/category IDs, use those exact IDs in commands:
+✅ Good: !delete-channel 123456789012345678 (uses actual ID from server structure)
+✅ Good: !edit-channel-slowmode 987654321098765432 5 (uses actual channel ID)
+✅ Good: !lock-channel 456789012345678901 true (uses actual channel ID)
+❌ Bad: !delete-channel <channel-id> (never use placeholder format)
+❌ Bad: !edit-channel-slowmode <channel-id> 5 (never use placeholder format)
+
 WORKFLOW PATTERNS:
 1. Simple creation: !new-category category-name, !new-channel channel-name text category-name
 2. Simple deletion: !delete-category exact-name-from-server

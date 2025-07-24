@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Helpers\Discord\SendMessage;
 use App\Jobs\NeonDispatchHandler;
 use App\Jobs\ProcessGuildCommandJob;
+use App\Jobs\ProcessImageAnalysisJob;
 use App\Jobs\ProcessNeonDiscordExecutionJob;
 use App\Jobs\ProcessNeonSQLExecutionJob;
 use App\Jobs\ProcessScheduledMessageJob;
@@ -76,6 +77,40 @@ final class StartNeonCommand extends Command
                 $channelId = $message->channel->id;
                 $discordUserId = $message->author->id;
                 $messageContent = $message->content;
+
+                // Check for image analysis commands with attachments
+                if (str_starts_with($messageContent, '!analyze-server') && !empty($message->attachments)) {
+                    $imageAttachments = [];
+
+                    foreach ($message->attachments as $attachment) {
+                        // Check if attachment is an image
+                        $contentType = $attachment->content_type ?? '';
+                        if (str_starts_with($contentType, 'image/')) {
+                            $imageAttachments[] = [
+                                'url' => $attachment->url,
+                                'filename' => $attachment->filename,
+                                'content_type' => $contentType,
+                                'size' => $attachment->size
+                            ];
+                        }
+                    }
+
+                    if (!empty($imageAttachments)) {
+                        // Create a NativeCommandRequest for the image analysis
+                        $nativeCommandRequest = \App\Models\NativeCommandRequest::create([
+                            'discord_user_id' => $discordUserId,
+                            'channel_id' => $channelId,
+                            'guild_id' => $guildId,
+                            'native_command_id' => \App\Models\NativeCommand::where('slug', 'analyze-server')->first()?->id,
+                            'message_content' => $messageContent,
+                            'status' => 'processing',
+                        ]);
+
+                        // Dispatch the image analysis job
+                        ProcessImageAnalysisJob::dispatch($nativeCommandRequest, $imageAttachments);
+                        return;
+                    }
+                }
 
                 // Restore dynamic command execution
                 $commands = $this->getCommandsForGuild($guildId);
