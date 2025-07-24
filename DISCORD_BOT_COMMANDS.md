@@ -270,9 +270,9 @@ This document provides a comprehensive list of all available Discord bot command
 ### !purge
 **Description:** Deletes a specified number of messages from a channel.
 
-**Usage:** `!purge #channel <number>`
+**Usage:** `!purge <#channel|channel-id|this> <number|all>`
 
-**Example:** `!purge #general 100`
+**Example:** `!purge this all` or `!purge #general 100`
 
 ### !scheduled-message
 **Description:** Schedules a message to be sent at a later time in a specific channel.

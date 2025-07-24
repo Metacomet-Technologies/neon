@@ -52,14 +52,15 @@ final class ProcessDeleteCategoryJob extends ProcessBaseJob
 
         // }
         // Parse the command
-        $parts = explode(' ', $this->messageContent);
+        $parts = explode(' ', $this->messageContent, 2);
 
         if (count($parts) < 2) {
             $this->sendUsageAndExample();
 
             throw new Exception('No category ID provided.', 400);
         }
-        $categoryId = $parts[1];
+
+        $categoryId = trim($parts[1]);
 
         // If it's not a numeric ID, try to resolve it as a category name
         if (! is_numeric($categoryId)) {

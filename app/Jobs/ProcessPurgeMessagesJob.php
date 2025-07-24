@@ -54,13 +54,70 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob
             throw new Exception('User does not have permission to manage messages in this server.', 403);
         }
         $this->purgeMessages();
+    }    private function parseMessage(string $message): array
+    {
+        // Support both channel names (#channel), mentions (<#channelId>), and "this"
+        preg_match('/^!purge\s+(.+?)\s+(\d+|all)$/i', $message, $matches);
+
+        if (isset($matches[1], $matches[2])) {
+            $channelInput = trim($matches[1]);
+            $messageCount = strtolower($matches[2]) === 'all' ? 1000 : (int) $matches[2]; // Use 1000 for "all"
+
+            // Handle "this" channel reference
+            if (strtolower($channelInput) === 'this') {
+                return [$this->channelId, $messageCount]; // Use current channel ID
+            }
+
+            // Resolve channel input to actual Discord channel ID
+            $channelId = $this->resolveChannelToId($channelInput);
+
+            return [$channelId, $messageCount];
+        }
+
+        return [null, null];
     }
 
-    private function parseMessage(string $message): array
+    /**
+     * Resolve channel name or ID to Discord channel ID
+     */
+    private function resolveChannelToId(string $channelInput): ?string
     {
-        preg_match('/^!purge\s+<#?(\d{17,19})>\s+(\d+)$/', $message, $matches);
+        // If it's already a numeric Discord ID, return it
+        if (preg_match('/^\d{17,19}$/', $channelInput)) {
+            return $channelInput;
+        }
 
-        return isset($matches[1], $matches[2]) ? [$matches[1], (int) $matches[2]] : [null, null];
+        // If channel mention format (<#channelID>), extract the numeric ID
+        if (preg_match('/^<#(\d{17,19})>$/', $channelInput, $channelMatches)) {
+            return $channelMatches[1]; // Extract numeric channel ID
+        }
+
+        // Extract channel name from input (with or without # prefix)
+        $channelName = $channelInput;
+        if (preg_match('/^#(.+)$/', $channelInput, $nameMatches)) {
+            $channelName = $nameMatches[1]; // Remove # prefix if present
+        }
+
+        // Fetch all channels in the guild to resolve name to ID
+        $channelsUrl = $this->baseUrl . "/guilds/{$this->guildId}/channels";
+        $channelsResponse = retry(3, function () use ($channelsUrl) {
+            return Http::withToken(config('discord.token'), 'Bot')
+                ->timeout(10)
+                ->get($channelsUrl);
+        }, [1000, 2000, 3000]);
+
+        if ($channelsResponse->successful()) {
+            $channels = $channelsResponse->json();
+
+            // Find channel by name (case-insensitive)
+            foreach ($channels as $channel) {
+                if (strtolower($channel['name']) === strtolower($channelName)) {
+                    return $channel['id'];
+                }
+            }
+        }
+
+        return null; // Could not resolve channel
     }
 
     private function userHasPermission(string $userId): bool
