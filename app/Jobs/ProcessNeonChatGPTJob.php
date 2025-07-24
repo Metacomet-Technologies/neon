@@ -378,6 +378,28 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
 
 {$serverStructure}
 
+IMPORTANT: Handle TWO types of requests differently:
+
+**TYPE 1: INFORMATIONAL REQUESTS** (list, show, what, how many, etc.)
+For requests like \"list roles\", \"show channels\", \"what roles exist\", \"can you list roles for me\", respond with INFORMATION ONLY:
+{
+  \"synopsis\": \"Here are the current roles in your Discord server:\",
+  \"discord_commands\": [],
+  \"information_response\": \"**Current Roles:**\\n• Role1\\n• Role2\\n• Role3\"
+}
+
+IMPORTANT: For simple informational requests like \"list roles\", \"show me the roles\", \"what roles do we have\", ALWAYS use informational responses. DO NOT suggest the !list-roles command or any role assignment commands.
+
+**TYPE 2: ACTION REQUESTS** (create, delete, modify, etc.)
+For management requests like \"create channel\", \"delete role\", respond with COMMANDS:
+{
+  \"synopsis\": \"Brief explanation of what you plan to do\",
+  \"discord_commands\": [
+    \"!new-category newcomers\",
+    \"!new-channel general-chat text newcomers\"
+  ]
+}
+
 CRITICAL SYNTAX RULES:
 1. Use ONLY the commands listed above - NEVER invent new commands
 2. Follow the EXACT syntax shown in the SYNTAX line for each command
@@ -483,17 +505,14 @@ Focus on helping with:
     {
         return "User request: \"{$this->userQuery}\"
 
-Please analyze this Discord server management request and suggest appropriate bot commands to accomplish the task.
+Please analyze this request and determine if it's:
+1. **INFORMATIONAL** (asking for current information like \"list roles\", \"show channels\") → Provide information directly
+2. **ACTION** (requesting changes like \"create channel\", \"delete role\") → Provide Discord commands
 
-IMPORTANT: Keep commands simple and functional. Focus on creating basic Discord structures that work reliably. Avoid complex chains of dependent commands or trying to do too many things at once.
+CRITICAL: Use ONLY the exact names from the CURRENT SERVER STRUCTURE above. Do NOT guess or assume names that aren't listed.
 
-For channel creation requests:
-1. Create categories with simple names
-2. Create channels with clean, functional names (no emojis)
-3. Avoid immediate renaming or complex configurations
-4. Focus on getting basic structure in place first
-
-Generate practical, working Discord commands that will successfully execute.";
+For informational requests: Respond with current server information from the structure above.
+For action requests: Generate practical, working Discord commands using ONLY the resources shown in the server structure above.";
     }
 
     private function formatSchemaForPrompt(): string
@@ -528,7 +547,19 @@ Generate practical, working Discord commands that will successfully execute.";
             $jsonString = substr($response, $jsonStart, $jsonEnd - $jsonStart + 1);
             $parsed = json_decode($jsonString, true);
 
-            if (!$parsed || !isset($parsed['synopsis']) || !isset($parsed['discord_commands'])) {
+            if (!$parsed || !isset($parsed['synopsis'])) {
+                return null;
+            }
+
+            // Handle informational responses (no commands to execute)
+            if (isset($parsed['information_response']) && (!isset($parsed['discord_commands']) || empty($parsed['discord_commands']))) {
+                // This is an informational request - send the information directly
+                $this->sendInformationalResponse($parsed['synopsis'], $parsed['information_response']);
+                return null; // Don't proceed with command execution flow
+            }
+
+            // Handle command requests
+            if (!isset($parsed['discord_commands'])) {
                 return null;
             }
 
@@ -651,5 +682,17 @@ Generate practical, working Discord commands that will successfully execute.";
             message: $message,
             statusCode: 500,
         );
+    }
+
+    private function sendInformationalResponse(string $synopsis, string $information): void
+    {
+        SendMessage::sendMessage($this->channelId, [
+            'is_embed' => true,
+            'embed_title' => '📋 Neon AI - Server Information',
+            'embed_description' => "**{$synopsis}**\n\n{$information}",
+            'embed_color' => 3066993, // Green for informational responses
+        ]);
+
+        $this->updateNativeCommandRequestComplete();
     }
 }
