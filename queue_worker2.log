@@ -1,0 +1,19 @@
+
+   INFO  Processing jobs from the [default] queue.  
+
+  2025-07-24 01:21:37 App\Jobs\RefreshNeonGuildsJob .................................................................... RUNNING
+  2025-07-24 01:21:37 App\Jobs\RefreshNeonGuildsJob .............................................................. 546.65ms DONE
+  2025-07-24 01:22:37 App\Jobs\NeonDispatchHandler ..................................................................... RUNNING
+  2025-07-24 01:22:38 App\Jobs\NeonDispatchHandler ............................................................... 257.48ms DONE
+  2025-07-24 01:22:38 App\Jobs\ProcessNeonChatGPTJob ................................................................... RUNNING
+  2025-07-24 01:22:41 App\Jobs\ProcessNeonChatGPTJob ................................................................... 3s DONE
+  2025-07-24 01:22:59 App\Jobs\NeonDispatchHandler ..................................................................... RUNNING
+  2025-07-24 01:22:59 App\Jobs\NeonDispatchHandler ............................................................... 174.25ms DONE
+  2025-07-24 01:22:59 App\Jobs\ProcessNeonDiscordExecutionJob .......................................................... RUNNING
+  2025-07-24 01:23:00 App\Jobs\ProcessNeonDiscordExecutionJob .................................................... 403.12ms DONE
+  2025-07-24 01:23:39 App\Jobs\ProcessNeonDiscordExecutionJob .......................................................... RUNNING
+  2025-07-24 01:23:39 App\Jobs\ProcessNeonDiscordExecutionJob .................................................... 460.58ms FAIL
+  2025-07-24 01:23:39 App\Jobs\NeonDispatchHandler ..................................................................... RUNNING
+  2025-07-24 01:23:39 App\Jobs\NeonDispatchHandler ............................................................... 146.32ms DONE
+  2025-07-24 01:23:39 App\Jobs\ProcessNeonDiscordExecutionJob .......................................................... RUNNING
+  2025-07-24 01:23:40 App\Jobs\ProcessNeonDiscordExecutionJob .................................................... 498.67ms DONE
