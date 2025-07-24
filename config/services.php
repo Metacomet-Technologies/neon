@@ -54,4 +54,11 @@ return [
         'redirect' => env('TWITCH_REDIRECT_URI'),
     ],
 
+    'openai' => [
+        'api_key' => env('OPENAI_API_KEY'),
+        'model' => env('OPENAI_MODEL', 'gpt-3.5-turbo'),
+        'organization' => env('OPENAI_ORGANIZATION'),
+        'request_timeout' => env('OPENAI_REQUEST_TIMEOUT', 30),
+    ],
+
 ];

@@ -9,7 +9,7 @@ use App\Jobs\NeonDispatchHandler;
 use App\Jobs\ProcessGuildCommandJob;
 use App\Jobs\ProcessGuildJoin;
 use App\Jobs\ProcessGuildLeave;
-use App\Jobs\ProcessNeonSQLExecutionJob;
+use App\Jobs\ProcessNeonDiscordExecutionJob;
 use App\Jobs\ProcessScheduledMessageJob;
 use App\Jobs\ProcessWelcomeMessageJob;
 use App\Jobs\RefreshNeonGuildsJob;
@@ -24,6 +24,7 @@ use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Monolog\Handler\StreamHandler;
 use Monolog\Level;
 use Monolog\Logger;
@@ -137,6 +138,14 @@ final class StartNeonCommand extends Command
 
             // Handle reactions for Neon AI confirmation
             $discord->on(Event::MESSAGE_REACTION_ADD, function ($reaction, $discord) {
+                // Debug logging
+                Log::info('Reaction received', [
+                    'emoji' => $reaction->emoji->name,
+                    'user_id' => $reaction->user_id,
+                    'channel_id' => $reaction->channel_id,
+                    'is_bot' => $reaction->user->bot ?? false,
+                ]);
+
                 // Skip if reaction is from a bot
                 if ($reaction->user->bot) {
                     return;
@@ -149,13 +158,54 @@ final class StartNeonCommand extends Command
 
                 // Only handle ✅ and ❌ reactions
                 if ($emoji === '✅' || $emoji === '❌') {
-                    // Check if there's a pending Neon SQL execution for this user and channel
-                    $cacheKey = "neon_sql_{$channelId}_{$userId}";
-                    $sqlCommands = Cache::get($cacheKey);
+                    // Check if there's a pending Neon Discord command execution for this user and channel
+                    $cacheKey = "neon_discord_{$channelId}_{$userId}";
+                    $cachedData = Cache::get($cacheKey);
 
-                    if ($sqlCommands) {
+                    Log::info('Reaction handler processing', [
+                        'emoji' => $emoji,
+                        'cache_key' => $cacheKey,
+                        'has_cached_data' => !empty($cachedData),
+                        'user_id' => $userId,
+                        'channel_id' => $channelId,
+                    ]);
+
+                    if ($cachedData) {
                         $userConfirmed = $emoji === '✅';
-                        ProcessNeonSQLExecutionJob::dispatch($channelId, $userId, $userConfirmed);
+
+                        // Get guild ID from the cached data first, then try channel lookup
+                        $guildId = $cachedData['guild_id'] ?? null;
+
+                        if (!$guildId) {
+                            try {
+                                $channel = $discord->getChannel($channelId);
+                                if ($channel && isset($channel->guild_id)) {
+                                    $guildId = $channel->guild_id;
+                                }
+
+                                Log::info('Channel lookup result', [
+                                    'channel_id' => $channelId,
+                                    'channel_found' => !empty($channel),
+                                    'guild_id' => $guildId,
+                                    'channel_type' => $channel->type ?? 'unknown',
+                                ]);
+                            } catch (Exception $e) {
+                                Log::error("Failed to get guild ID for channel {$channelId}: " . $e->getMessage());
+                                return;
+                            }
+                        } else {
+                            Log::info('Using guild ID from cache', ['guild_id' => $guildId]);
+                        }
+
+                        Log::info('Dispatching Discord execution job', [
+                            'channel_id' => $channelId,
+                            'user_id' => $userId,
+                            'guild_id' => $guildId,
+                            'user_confirmed' => $userConfirmed,
+                        ]);
+
+                        // Dispatch the Discord command execution job
+                        ProcessNeonDiscordExecutionJob::dispatch($channelId, $userId, $guildId, $userConfirmed);
                     }
                 }
             });

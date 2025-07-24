@@ -168,7 +168,7 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
                     ]
                 ],
                 'max_tokens' => 1000,
-                'temperature' => 0.2,
+                'temperature' => 0.7,
             ]);
 
             return $response->choices[0]->message->content ?? null;
@@ -193,36 +193,14 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
                     ->orderBy('slug')
                     ->get(['slug', 'usage', 'example', 'description']);
 
-                $commandsText = "EXACT COMMAND SYNTAX (USE THESE EXACTLY):\n\n";
-
-                // Group commands by category for better organization
-                $categories = [
-                    'Channel Management' => ['assign-channel', 'delete-channel', 'edit-channel-autohide', 'edit-channel-name', 'edit-channel-nsfw', 'edit-channel-slowmode', 'edit-channel-topic', 'lock-channel', 'new-channel', 'set-inactive', 'vanish', 'unvanish'],
-                    'Category Management' => ['delete-category', 'new-category'],
-                    'Role Management' => ['assign-role', 'delete-role', 'new-role', 'remove-role'],
-                    'User Management' => ['ban', 'disconnect', 'kick', 'move-user', 'mute', 'prune', 'set-nickname', 'unban', 'unmute'],
-                    'Voice Management' => ['lock-voice'],
-                    'Message Management' => ['notify', 'pin', 'poll', 'purge', 'scheduled-message', 'unpin'],
-                    'Event Management' => ['create-event', 'delete-event'],
-                    'Server Management' => ['display-boost'],
-                    'Utility' => ['color', 'help']
-                ];
-
-                foreach ($categories as $categoryName => $categoryCommands) {
-                    $commandsText .= "## {$categoryName}\n";
-
-                    foreach ($commands as $command) {
-                        if (in_array($command->slug, $categoryCommands)) {
-                            $commandsText .= "**!{$command->slug}**\n";
-                            $commandsText .= "  SYNTAX: {$command->usage}\n";
-                            if ($command->example) {
-                                $commandsText .= "  EXAMPLE: {$command->example}\n";
-                            }
-                            if ($command->description) {
-                                $commandsText .= "  PURPOSE: {$command->description}\n";
-                            }
-                            $commandsText .= "\n";
-                        }
+                $commandsText = '';
+                foreach ($commands as $command) {
+                    $commandsText .= "- !{$command->slug}: {$command->usage}\n";
+                    if ($command->example) {
+                        $commandsText .= "  Example: {$command->example}\n";
+                    }
+                    if ($command->description) {
+                        $commandsText .= "  Description: {$command->description}\n";
                     }
                     $commandsText .= "\n";
                 }
@@ -241,82 +219,53 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
 
         return "You are Neon, an AI assistant for a Discord bot that helps server administrators manage their Discord servers through natural language requests.
 
+AVAILABLE DISCORD BOT COMMANDS:
+
 {$availableCommands}
 
-CRITICAL SYNTAX RULES:
-1. Use ONLY the commands listed above - NEVER invent new commands
-2. Follow the EXACT syntax shown in the SYNTAX line for each command
-3. Create channels and categories with simple, functional names
-4. Channel names must be Discord-compliant: lowercase, hyphens, underscores, NO SPACES or emojis
-5. For boolean values, use exactly 'true' or 'false'
-6. Always include the ! prefix for commands
-7. Keep commands simple and independent
-8. Avoid complex multi-step operations that depend on each other
-9. Focus on creating basic, working Discord structures
-10. Use realistic examples that will actually work
-
-IMPORTANT WORKFLOW RULES:
-- Create categories first, then create channels in those categories
-- Use simple category names (no spaces, no emojis)
-- Use simple channel names (no spaces, no emojis)
-- When creating channels in categories, use the category name as reference
-- Avoid immediate editing of newly created channels
-- Focus on functional setup over decorative features
-
-COMMAND EXAMPLES:
-✅ Good: !new-category newcomers
-✅ Good: !new-channel general-chat text newcomers
-✅ Good: !new-channel voice-lounge voice newcomers
-❌ Bad: !new-channel 🌟Welcome-Text💬 text (emojis not allowed)
-❌ Bad: !edit-channel-name general-chat fancy-name (avoid immediate edits)
+Your role is to:
+1. Understand Discord server management requests in natural language
+2. Suggest appropriate bot commands to accomplish the task
+3. Create comprehensive workflows for complex server setup tasks
+4. Provide helpful, creative solutions for Discord community building
 
 RESPONSE FORMAT (JSON):
 {
   \"synopsis\": \"Brief explanation of what you plan to do\",
   \"discord_commands\": [
-    \"!new-category newcomers\",
-    \"!new-channel general-chat text newcomers\",
-    \"!new-channel voice-lounge voice newcomers\"
+    \"!new-channel newbie-central text\",
+    \"!assign-role NewMember @user\"
   ]
 }
 
-VALIDATION CHECKLIST:
-- Every command starts with !
-- Every command exists in the list above
-- Syntax matches exactly (check parameter order, types, format)
-- Channel names are simple, lowercase with hyphens (no spaces, no emojis)
-- Boolean values are 'true' or 'false'
-- Commands are independent and functional
-- Workflow creates working Discord structures
-
-Your role is to:
-1. Understand Discord server management requests in natural language
-2. Generate ONLY valid commands with correct syntax
-3. Create simple, functional Discord structures that work reliably
-4. Provide practical solutions for Discord community building
+IMPORTANT GUIDELINES:
+- Use ONLY the commands listed above - do not invent new commands
+- Follow the exact usage syntax shown for each command
+- Channel names must be Discord-compliant: lowercase, hyphens, underscores, no spaces or emojis
+- Use actual channel IDs when available, or placeholder format like <channel-id> when not
+- For role assignments, use proper Discord user mention format: @username or user-id
+- Consider permission structures and user experience
+- Think about new member onboarding and community building
+- Suggest logical channel organization and categories
+- Always explain the purpose behind your suggested commands
+- For complex requests, break them into logical steps
+- Consider both text and voice channel needs
+- Think about role hierarchies and permissions
 
 Focus on helping with:
-- Basic channel and category creation
-- Simple role and permission setup
-- Functional server organization
-- Practical community building features";
+- Channel and category creation and management
+- Role and permission setup
+- Server organization and moderation
+- Community building and engagement
+- New member experience and onboarding
+- Content management and announcements";
     }
 
     private function buildUserPrompt(): string
     {
         return "User request: \"{$this->userQuery}\"
 
-Please analyze this Discord server management request and suggest appropriate bot commands to accomplish the task.
-
-IMPORTANT: Keep commands simple and functional. Focus on creating basic Discord structures that work reliably. Avoid complex chains of dependent commands or trying to do too many things at once.
-
-For channel creation requests:
-1. Create categories with simple names
-2. Create channels with clean, functional names (no emojis)
-3. Avoid immediate renaming or complex configurations
-4. Focus on getting basic structure in place first
-
-Generate practical, working Discord commands that will successfully execute.";
+Please analyze this Discord server management request and suggest appropriate bot commands to accomplish the task. Be creative and helpful in your suggestions, considering user experience and server organization.";
     }
 
     private function formatSchemaForPrompt(): string
@@ -355,20 +304,7 @@ Generate practical, working Discord commands that will successfully execute.";
                 return null;
             }
 
-            // Validate generated commands
-            $validatedCommands = $this->validateDiscordCommands($parsed['discord_commands']);
-            if (empty($validatedCommands)) {
-                Log::warning('No valid commands found in ChatGPT response', [
-                    'original_commands' => $parsed['discord_commands'],
-                    'response' => $response
-                ]);
-                return null;
-            }
-
-            return [
-                'discord_commands' => $validatedCommands,
-                'synopsis' => $parsed['synopsis']
-            ];
+            return $parsed;
 
         } catch (Exception $e) {
             Log::error('Failed to parse ChatGPT response', [
@@ -377,38 +313,6 @@ Generate practical, working Discord commands that will successfully execute.";
             ]);
             return null;
         }
-    }
-
-    private function validateDiscordCommands(array $commands): array
-    {
-        $availableCommands = DB::table('native_commands')
-            ->where('is_active', true)
-            ->whereNotIn('slug', ['neon'])
-            ->pluck('slug')
-            ->toArray();
-
-        $validatedCommands = [];
-
-        foreach ($commands as $command) {
-            // Extract command name from the command string
-            $commandParts = explode(' ', trim($command));
-            if (empty($commandParts)) continue;
-
-            $commandName = ltrim($commandParts[0], '!');
-
-            // Check if command exists
-            if (in_array($commandName, $availableCommands)) {
-                $validatedCommands[] = $command;
-            } else {
-                Log::warning('Invalid command generated by ChatGPT', [
-                    'command' => $command,
-                    'extracted_name' => $commandName,
-                    'available_commands' => $availableCommands
-                ]);
-            }
-        }
-
-        return $validatedCommands;
     }
 
     private function sendConfirmationMessage(array $parsedResponse): void
