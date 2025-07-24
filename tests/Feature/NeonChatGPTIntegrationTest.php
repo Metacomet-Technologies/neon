@@ -12,7 +12,7 @@ uses(RefreshDatabase::class);
 
 it('has neon command in database', function () {
     $this->artisan('db:seed', ['--class' => 'NativeCommandSeeder']);
-    
+
     $this->assertDatabaseHas('native_commands', [
         'slug' => 'neon',
         'is_active' => true,
@@ -30,14 +30,14 @@ it('can parse user query', function () {
     ]);
 
     $job = new ProcessNeonChatGPTJob($request);
-    
+
     // Use reflection to test the private parseMessage method
     $reflection = new \ReflectionClass($job);
     $method = $reflection->getMethod('parseMessage');
     $method->setAccessible(true);
-    
+
     $result = $method->invoke($job, '!neon show me all users');
-    
+
     expect($result)->toBe('show me all users');
 });
 
@@ -70,7 +70,7 @@ it('validates sql safety correctly', function () {
     $reflection = new \ReflectionClass(\App\Jobs\ProcessNeonSQLExecutionJob::class);
     $method = $reflection->getMethod('isSafeQuery');
     $method->setAccessible(true);
-    
+
     $job = new \App\Jobs\ProcessNeonSQLExecutionJob('123', '456', true);
 
     // Test safe queries
@@ -89,16 +89,16 @@ it('handles cache expiry properly', function () {
     $channelId = '123456789';
     $userId = '987654321';
     $cacheKey = "neon_sql_{$channelId}_{$userId}";
-    
+
     // Test that commands are cached
     Cache::put($cacheKey, ['SELECT * FROM users'], now()->addMinutes(5));
     expect(Cache::has($cacheKey))->toBeTrue();
-    
+
     // Test cache retrieval
     $commands = Cache::get($cacheKey);
     expect($commands)->toBeArray();
     expect($commands)->toContain('SELECT * FROM users');
-    
+
     // Test cache expiry
     Cache::forget($cacheKey);
     expect(Cache::has($cacheKey))->toBeFalse();
@@ -107,10 +107,10 @@ it('handles cache expiry properly', function () {
 it('caches database schema', function () {
     // This test verifies that database schema is properly cached
     $cacheKey = 'neon_db_schema';
-    
+
     // Clear any existing cache
     Cache::forget($cacheKey);
-    
+
     // The schema should be cached after first access
     $job = new ProcessNeonChatGPTJob(
         NativeCommandRequest::create([
@@ -126,9 +126,9 @@ it('caches database schema', function () {
     $reflection = new \ReflectionClass($job);
     $method = $reflection->getMethod('getDatabaseSchema');
     $method->setAccessible(true);
-    
+
     $schema = $method->invoke($job);
-    
+
     expect($schema)->toBeArray();
     expect(Cache::has($cacheKey))->toBeTrue();
 });
