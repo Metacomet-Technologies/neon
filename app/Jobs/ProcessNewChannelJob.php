@@ -47,8 +47,8 @@ final class ProcessNewChannelJob extends ProcessBaseJob implements ShouldQueue
             return;
         }
 
-        // 2️⃣ Parse the command properly
-        preg_match('/^!new-channel\s+(\S+)\s+(\S+)(?:\s+(\d+))?(?:\s+(.+))?$/', $this->messageContent, $matches);
+        // 2️⃣ Parse the command properly to handle both category ID and name
+        preg_match('/^!new-channel\s+(\S+)\s+(\S+)(?:\s+(\S+))?(?:\s+(.+))?$/', $this->messageContent, $matches);
 
         if (! isset($matches[1], $matches[2])) {
             $this->sendUsageAndExample();
@@ -64,7 +64,7 @@ final class ProcessNewChannelJob extends ProcessBaseJob implements ShouldQueue
 
         $channelName = $matches[1];
         $channelType = $matches[2];
-        $categoryId = isset($matches[3]) ? $matches[3] : null;
+        $categoryIdentifier = isset($matches[3]) ? $matches[3] : null; // Could be ID or name
         $channelTopic = isset($matches[4]) ? trim($matches[4], '"') : null; // Remove extra quotes if used
 
         // 3️⃣ Validate the channel name
@@ -112,7 +112,25 @@ final class ProcessNewChannelJob extends ProcessBaseJob implements ShouldQueue
             return;
         }
 
-        // 5️⃣ Construct the API request payload
+        // 5️⃣ Resolve category ID if category identifier is provided
+        $categoryId = null;
+        if ($categoryIdentifier) {
+            $categoryId = $this->resolveCategoryId($categoryIdentifier);
+            if (!$categoryId) {
+                SendMessage::sendMessage($this->channelId, [
+                    'is_embed' => false,
+                    'response' => "❌ Category '{$categoryIdentifier}' not found.",
+                ]);
+                $this->updateNativeCommandRequestFailed(
+                    status: 'failed',
+                    message: 'Category not found.',
+                    statusCode: 404,
+                );
+                return;
+            }
+        }
+
+        // 6️⃣ Construct the API request payload
         $payload = [
             'name' => $channelName,
             'type' => $channelType === 'text' ? Channel::TYPE_GUILD_TEXT : Channel::TYPE_GUILD_VOICE,
@@ -128,7 +146,7 @@ final class ProcessNewChannelJob extends ProcessBaseJob implements ShouldQueue
 
         $url = $this->baseUrl . "/guilds/{$this->guildId}/channels";
 
-        // 6️⃣ Send request to create the channel
+        // 7️⃣ Send request to create the channel
         $apiResponse = retry(3, function () use ($url, $payload) {
             return Http::withToken(config('discord.token'), 'Bot')
                 ->post($url, $payload);
@@ -164,5 +182,38 @@ final class ProcessNewChannelJob extends ProcessBaseJob implements ShouldQueue
             'embed_color' => 3447003, // Blue embed
         ]);
         $this->updateNativeCommandRequestComplete();
+    }
+
+    /**
+     * Resolve category identifier to Discord category ID
+     * Supports both numeric IDs and category names
+     */
+    private function resolveCategoryId(string $categoryIdentifier): ?string
+    {
+        // If it's already a numeric Discord ID, return it
+        if (preg_match('/^\d{17,19}$/', $categoryIdentifier)) {
+            return $categoryIdentifier;
+        }
+
+        // Fetch all channels/categories in the guild
+        $channelsUrl = $this->baseUrl . "/guilds/{$this->guildId}/channels";
+
+        $channelsResponse = retry(3, function () use ($channelsUrl) {
+            return Http::withToken(config('discord.token'), 'Bot')->get($channelsUrl);
+        }, 200);
+
+        if ($channelsResponse->failed()) {
+            Log::error("Failed to fetch channels for guild {$this->guildId}");
+            return null;
+        }
+
+        $channels = collect($channelsResponse->json());
+
+        // Find category by name (case insensitive) - type 4 is category
+        $category = $channels->first(function ($channel) use ($categoryIdentifier) {
+            return $channel['type'] === 4 && strcasecmp($channel['name'], $categoryIdentifier) === 0;
+        });
+
+        return $category ? $category['id'] : null;
     }
 }

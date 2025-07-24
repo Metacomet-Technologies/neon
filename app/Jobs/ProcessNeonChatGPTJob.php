@@ -22,6 +22,7 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
 
     private string $userQuery = '';
     private array $dbSchema = [];
+    private array $discordServerData = [];
     private int $retryDelay = 2000;
     private int $maxRetries = 3;
 
@@ -50,6 +51,9 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
             // Get database schema information
             $this->dbSchema = $this->getDatabaseSchema();
 
+            // Get Discord server structure
+            $this->discordServerData = $this->getDiscordServerStructure();
+
             // Send initial message to user
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => true,
@@ -58,7 +62,7 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
                 'embed_color' => 3066993, // Green
             ]);
 
-            // Generate the ChatGPT response with database schema context
+            // Generate the ChatGPT response with database schema and Discord server context
             $chatGptResponse = $this->getChatGPTResponse();
 
             if (!$chatGptResponse) {
@@ -146,6 +150,134 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
             }
 
             return $schema;
+        });
+    }
+
+    private function formatDiscordServerStructure(): string
+    {
+        if (empty($this->discordServerData)) {
+            return "CURRENT SERVER STRUCTURE: No server data available";
+        }
+
+        $structure = "CURRENT SERVER STRUCTURE:\n\n";
+
+        // Format categories
+        if (!empty($this->discordServerData['categories'])) {
+            $structure .= "📁 CATEGORIES:\n";
+            foreach ($this->discordServerData['categories'] as $category) {
+                $structure .= "- {$category['name']} (ID: {$category['id']})\n";
+            }
+            $structure .= "\n";
+        }
+
+        // Format text channels
+        if (!empty($this->discordServerData['text_channels'])) {
+            $structure .= "💬 TEXT CHANNELS:\n";
+            foreach ($this->discordServerData['text_channels'] as $channel) {
+                $categoryInfo = '';
+                if ($channel['category_id']) {
+                    $category = collect($this->discordServerData['categories'])
+                        ->firstWhere('id', $channel['category_id']);
+                    if ($category) {
+                        $categoryInfo = " (in {$category['name']})";
+                    }
+                }
+                $structure .= "- {$channel['name']} (ID: {$channel['id']}){$categoryInfo}\n";
+            }
+            $structure .= "\n";
+        }
+
+        // Format voice channels
+        if (!empty($this->discordServerData['voice_channels'])) {
+            $structure .= "🔊 VOICE CHANNELS:\n";
+            foreach ($this->discordServerData['voice_channels'] as $channel) {
+                $categoryInfo = '';
+                if ($channel['category_id']) {
+                    $category = collect($this->discordServerData['categories'])
+                        ->firstWhere('id', $channel['category_id']);
+                    if ($category) {
+                        $categoryInfo = " (in {$category['name']})";
+                    }
+                }
+                $structure .= "- {$channel['name']} (ID: {$channel['id']}){$categoryInfo}\n";
+            }
+            $structure .= "\n";
+        }
+
+        $structure .= "IMPORTANT: When deleting channels or categories, use the exact names shown above.\n";
+        $structure .= "For protected channels like 'welcome', 'general', or 'rules', be extra careful and confirm the user's intent.\n\n";
+
+        return $structure;
+    }
+
+    private function getDiscordServerStructure(): array
+    {
+        // Cache Discord server structure for performance (5 minutes)
+        $cacheKey = "discord_server_structure_{$this->guildId}";
+
+        return Cache::remember($cacheKey, now()->addMinutes(5), function () {
+            try {
+                $baseUrl = config('services.discord.rest_api_url');
+                $response = Http::withToken(config('discord.token'), 'Bot')
+                    ->get("{$baseUrl}/guilds/{$this->guildId}/channels");
+
+                if ($response->failed()) {
+                    Log::error('Failed to fetch Discord server structure', [
+                        'status' => $response->status(),
+                        'guild_id' => $this->guildId
+                    ]);
+                    return [];
+                }
+
+                $channels = $response->json();
+                $structure = [
+                    'categories' => [],
+                    'text_channels' => [],
+                    'voice_channels' => []
+                ];
+
+                foreach ($channels as $channel) {
+                    switch ($channel['type']) {
+                        case 4: // Category
+                            $structure['categories'][] = [
+                                'id' => $channel['id'],
+                                'name' => $channel['name'],
+                                'position' => $channel['position'] ?? 0
+                            ];
+                            break;
+                        case 0: // Text channel
+                            $structure['text_channels'][] = [
+                                'id' => $channel['id'],
+                                'name' => $channel['name'],
+                                'category_id' => $channel['parent_id'] ?? null,
+                                'position' => $channel['position'] ?? 0
+                            ];
+                            break;
+                        case 2: // Voice channel
+                            $structure['voice_channels'][] = [
+                                'id' => $channel['id'],
+                                'name' => $channel['name'],
+                                'category_id' => $channel['parent_id'] ?? null,
+                                'position' => $channel['position'] ?? 0
+                            ];
+                            break;
+                    }
+                }
+
+                // Sort by position
+                usort($structure['categories'], fn($a, $b) => $a['position'] <=> $b['position']);
+                usort($structure['text_channels'], fn($a, $b) => $a['position'] <=> $b['position']);
+                usort($structure['voice_channels'], fn($a, $b) => $a['position'] <=> $b['position']);
+
+                return $structure;
+
+            } catch (Exception $e) {
+                Log::error('Exception while fetching Discord server structure', [
+                    'error' => $e->getMessage(),
+                    'guild_id' => $this->guildId
+                ]);
+                return [];
+            }
         });
     }
 
@@ -238,20 +370,23 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
     private function buildSystemPrompt(): string
     {
         $availableCommands = $this->getAvailableDiscordCommands();
+        $serverStructure = $this->formatDiscordServerStructure();
 
         return "You are Neon, an AI assistant for a Discord bot that helps server administrators manage their Discord servers through natural language requests.
 
 {$availableCommands}
 
+{$serverStructure}
+
 CRITICAL SYNTAX RULES:
 1. Use ONLY the commands listed above - NEVER invent new commands
 2. Follow the EXACT syntax shown in the SYNTAX line for each command
-3. Create channels and categories with simple, functional names
+3. When deleting channels/categories, use the EXACT NAMES or IDs from the server structure above
 4. Channel names must be Discord-compliant: lowercase, hyphens, underscores, NO SPACES or emojis
 5. For boolean values, use exactly 'true' or 'false'
 6. Always include the ! prefix for commands
 7. Keep commands simple and independent
-8. Avoid complex multi-step operations that depend on each other
+8. Use the actual channel and category names from the server structure
 9. Focus on creating basic, working Discord structures
 10. Use realistic examples that will actually work
 
@@ -259,16 +394,43 @@ IMPORTANT WORKFLOW RULES:
 - Create categories first, then create channels in those categories
 - Use simple category names (no spaces, no emojis)
 - Use simple channel names (no spaces, no emojis)
-- When creating channels in categories, use the category name as reference
-- Avoid immediate editing of newly created channels
+- When creating channels in categories, use the category name as the third parameter
 - Focus on functional setup over decorative features
+- ALWAYS create channels directly in categories, don't use separate assign-channel commands
+- When deleting, use exact names from the current server structure
+- FOR CREATE-THEN-DELETE WORKFLOWS: Only provide creation commands and suggest user run deletion separately
+- NEVER predict category/channel IDs that don't exist yet
+- If user requests create+delete in one operation, suggest breaking it into two steps
 
 COMMAND EXAMPLES:
 ✅ Good: !new-category newcomers
 ✅ Good: !new-channel general-chat text newcomers
 ✅ Good: !new-channel voice-lounge voice newcomers
+✅ Good: !delete-category Gaming (uses exact name from server)
+✅ Good: !delete-channel general (uses exact name from server)
 ❌ Bad: !new-channel 🌟Welcome-Text💬 text (emojis not allowed)
-❌ Bad: !edit-channel-name general-chat fancy-name (avoid immediate edits)
+❌ Bad: !new-channel general-chat text (missing category reference)
+❌ Bad: !assign-channel general-chat newcomers (avoid separate assignment)
+❌ Bad: !delete-category category1 (use real names, not placeholders)
+❌ Bad: !delete-category 1234567890123456789 (don't predict IDs that don't exist)
+
+WORKFLOW PATTERNS:
+1. Simple creation: !new-category category-name, !new-channel channel-name text category-name
+2. Simple deletion: !delete-category exact-name-from-server
+3. Create-then-delete: Suggest user creates first, then runs separate delete command
+4. Complex operations: Break into logical, executable steps
+
+SPECIAL HANDLING FOR CREATE+DELETE REQUESTS:
+When user asks to \"create X and delete them\" or similar create-then-delete workflows:
+- Respond with ONLY creation commands in this response
+- Add clear note in synopsis: \"Creating items first. Please run a separate delete command afterward to clean up the created items.\"
+- Explain why: \"This ensures we can identify the actual category/channel names and IDs after creation.\"
+- Suggest follow-up: \"After creation completes, use '!neon delete all test categories' for cleanup.\"
+
+OPTIMAL WORKFLOW PATTERN:
+1. Create category: !new-category category-name
+2. Create channels in that category: !new-channel channel-name text category-name
+3. Create voice channels in that category: !new-channel voice-name voice category-name
 
 RESPONSE FORMAT (JSON):
 {
@@ -288,11 +450,18 @@ VALIDATION CHECKLIST:
 - Boolean values are 'true' or 'false'
 - Commands are independent and functional
 - Workflow creates working Discord structures
+- Deletion commands use exact names from server structure
 
 Your role is to:
 1. Understand Discord server management requests in natural language
 2. Generate ONLY valid commands with correct syntax
 3. Create simple, functional Discord structures that work reliably
+4. Use the actual server structure data when deleting or modifying existing channels/categories
+
+Focus on helping with:
+- Basic channel and category creation
+- Simple role and permission setup
+- Server cleanup and organization using actual channel/category names
 4. Provide practical solutions for Discord community building
 
 Focus on helping with:
