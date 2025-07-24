@@ -83,9 +83,31 @@ final class ProcessDeleteRoleJob extends ProcessBaseJob implements ShouldQueue
             return;
         }
 
-        // 4️⃣ Find the role by name
+        // 4️⃣ Find the role by name (with enhanced matching for special characters)
         $roles = $rolesResponse->json();
+
+        Log::info("Looking for role to delete", [
+            'target_role' => $roleName,
+            'available_roles' => array_map(fn($r) => $r['name'], $roles),
+            'guild_id' => $this->guildId
+        ]);
+
+        // Try exact match first
         $role = collect($roles)->first(fn ($r) => strcasecmp($r['name'], $roleName) === 0);
+
+        // If no exact match, try trimming whitespace and quotes
+        if (!$role) {
+            $cleanRoleName = trim($roleName, ' "\'"');
+            $role = collect($roles)->first(fn ($r) => strcasecmp(trim($r['name'], ' "\'"'), $cleanRoleName) === 0);
+
+            if ($role) {
+                Log::info("Found role with special character handling", [
+                    'original_search' => $roleName,
+                    'cleaned_search' => $cleanRoleName,
+                    'found_role' => $role['name']
+                ]);
+            }
+        }
 
         if (! $role) {
             SendMessage::sendMessage($this->channelId, [
@@ -111,18 +133,41 @@ final class ProcessDeleteRoleJob extends ProcessBaseJob implements ShouldQueue
         }, 200);
 
         if ($deleteResponse->failed()) {
+            $errorDetails = $deleteResponse->json();
+            $statusCode = $deleteResponse->status();
+
             Log::error("Failed to delete role '{$roleName}' in guild {$this->guildId}", [
-                'response' => $deleteResponse->json(),
+                'role_name' => $roleName,
+                'role_id' => $roleId,
+                'status_code' => $statusCode,
+                'response' => $errorDetails,
+                'guild_id' => $this->guildId,
+                'user_id' => $this->discordUserId
             ]);
+
+            // Check for specific Discord API errors
+            $errorMessage = "❌ Failed to delete role '{$roleName}'.";
+            if (isset($errorDetails['message'])) {
+                $discordError = $errorDetails['message'];
+                if (str_contains($discordError, 'Missing Permissions')) {
+                    $errorMessage = "❌ Bot lacks permission to delete role '{$roleName}'. Role may be higher than bot's highest role.";
+                } elseif (str_contains($discordError, 'Unknown Role')) {
+                    $errorMessage = "❌ Role '{$roleName}' not found or already deleted.";
+                } elseif (str_contains($discordError, 'role hierarchy')) {
+                    $errorMessage = "❌ Cannot delete role '{$roleName}' - it's higher in hierarchy than bot's role.";
+                } else {
+                    $errorMessage = "❌ Failed to delete role '{$roleName}': {$discordError}";
+                }
+            }
 
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => "❌ Failed to delete role '{$roleName}'.",
+                'response' => $errorMessage,
             ]);
             $this->updateNativeCommandRequestFailed(
                 status: 'discord_api_error',
-                message: "Failed to delete role '{$roleName}'.",
-                statusCode: 500,
+                message: "Failed to delete role '{$roleName}': " . ($errorDetails['message'] ?? 'Unknown error'),
+                statusCode: $statusCode,
             );
 
             return;

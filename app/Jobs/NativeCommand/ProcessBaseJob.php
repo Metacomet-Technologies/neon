@@ -30,7 +30,7 @@ class ProcessBaseJob implements ShouldQueue
         $this->channelId = $nativeCommandRequest->channel_id;
         $this->guildId = $nativeCommandRequest->guild_id;
         $this->messageContent = $nativeCommandRequest->message_content;
-        $this->command = $nativeCommandRequest->command;
+        $this->command = $nativeCommandRequest->command ?? [];
         $this->baseUrl = config('services.discord.rest_api_url');
     }
 

@@ -505,8 +505,23 @@ final class ProcessNeonDiscordExecutionJob implements ShouldQueue
 
             if ($response->successful()) {
                 $roles = $response->json();
+
+                // Try exact match first
                 foreach ($roles as $role) {
                     if ($role['name'] === $roleName) {
+                        return true;
+                    }
+                }
+
+                // Try with special character handling for roles with quotes/special chars
+                $cleanRoleName = trim($roleName, ' "\'"');
+                foreach ($roles as $role) {
+                    if (trim($role['name'], ' "\'"') === $cleanRoleName) {
+                        Log::info('Role found with special character handling', [
+                            'original_search' => $roleName,
+                            'cleaned_search' => $cleanRoleName,
+                            'found_role' => $role['name']
+                        ]);
                         return true;
                     }
                 }
@@ -544,7 +559,7 @@ final class ProcessNeonDiscordExecutionJob implements ShouldQueue
             'edit-channel-autohide', 'edit-channel-name', 'edit-channel-nsfw',
             'edit-channel-slowmode', 'edit-channel-topic', 'lock-channel',
             'lock-voice', 'move-user', 'set-inactive', 'set-nickname',
-            'display-boost'
+            'display-boost', 'list-roles'
         ];
 
         $recoveryCommands = [
@@ -667,142 +682,40 @@ final class ProcessNeonDiscordExecutionJob implements ShouldQueue
     {
         Log::info('Starting sequential destructive command execution with 100% validation', [
             'total_commands' => count($destructiveCommands),
-            'estimated_time' => (count($destructiveCommands) * 6) . '-' . (count($destructiveCommands) * 10) . ' seconds'
+            'estimated_time' => (count($destructiveCommands) * 3) . '-' . (count($destructiveCommands) * 6) . ' seconds'
         ]);
 
-        $baseDelay = 3; // Reduced base delay since we have proper validation now
-        $currentDelay = $baseDelay;
-        $consecutiveFailures = 0;
+        $baseDelay = 3; // Base delay between destructive commands for rate limit safety
 
         foreach ($destructiveCommands as $index => $commandData) {
-            $discordCommand = $commandData['command'];
-            $commandSlug = $this->extractCommandSlug($discordCommand);
+            Log::info('Executing destructive command', [
+                'command' => $commandData['command'],
+                'position' => $index + 1,
+                'total' => count($destructiveCommands)
+            ]);
 
-            if (isset($nativeCommands[$commandSlug])) {
-                $maxRetries = 3;
-                $retryCount = 0;
-                $commandExecuted = false;
+            // Check circuit breaker for this guild before execution
+            $failureKey = "api_failures_guild_{$this->guildId}";
+            $failureCount = Cache::get($failureKey, 0);
 
-                while ($retryCount < $maxRetries && !$commandExecuted) {
-                    try {
-                        // Check circuit breaker for this guild
-                        $failureKey = "api_failures_guild_{$this->guildId}";
-                        $failureCount = Cache::get($failureKey, 0);
+            if ($failureCount >= 5) {
+                Log::warning('Circuit breaker activated, waiting before destructive command', [
+                    'failure_count' => $failureCount,
+                    'wait_time' => 30
+                ]);
+                sleep(30);
+                Cache::forget($failureKey); // Reset circuit breaker
+            }
 
-                        if ($failureCount >= 5) {
-                            Log::warning('Circuit breaker activated, waiting before retry', [
-                                'failure_count' => $failureCount,
-                                'wait_time' => 30
-                            ]);
-                            sleep(30);
-                            Cache::forget($failureKey); // Reset circuit breaker
-                        }
+            // Use centralized executeCommand method to ensure consistent validation and counting
+            $this->executeCommand($commandData['command'], $commandData['index'], $nativeCommands, $results, $executedCommands);
 
-                        Log::info('Executing destructive command with validation', [
-                            'command' => $discordCommand,
-                            'position' => $index + 1,
-                            'total' => count($destructiveCommands),
-                            'current_delay' => $currentDelay,
-                            'retry_attempt' => $retryCount + 1
-                        ]);
-
-                        // Execute the command SYNCHRONOUSLY with full validation
-                        $command = $nativeCommands[$commandSlug];
-                        $executionResult = $this->executeSynchronousCommand($discordCommand, $command);
-
-                        if ($executionResult['success']) {
-                            $commandExecuted = true;
-                            $consecutiveFailures = 0; // Reset on success
-                            $currentDelay = $baseDelay; // Reset delay on success
-
-                            $executedCommands++;
-                            $results[] = [
-                                'command' => $discordCommand,
-                                'success' => true,
-                                'status' => $executionResult['message'] ?? 'Executed and validated successfully'
-                            ];
-
-                            Log::info('Destructive command executed successfully', [
-                                'command' => $discordCommand,
-                                'position' => $index + 1
-                            ]);
-                        } else {
-                            throw new Exception($executionResult['error'] ?? 'Command execution failed');
-                        }
-
-                    } catch (Exception $e) {
-                        $retryCount++;
-                        $consecutiveFailures++;
-
-                        // Check if this is a rate limit error
-                        $isRateLimit = $this->isRetryableError($e);
-
-                        if ($isRateLimit && $retryCount < $maxRetries) {
-                            // Exponential backoff for rate limits
-                            $currentDelay = min($baseDelay * pow(2, $consecutiveFailures), 60); // Max 60 seconds
-
-                            Log::warning('Rate limit detected, applying exponential backoff', [
-                                'command' => $discordCommand,
-                                'retry_attempt' => $retryCount,
-                                'consecutive_failures' => $consecutiveFailures,
-                                'next_delay' => $currentDelay,
-                                'error' => $e->getMessage()
-                            ]);
-
-                            Log::info("Waiting {$currentDelay} seconds before retry due to rate limit");
-                            sleep($currentDelay);
-                        } else {
-                            // Non-rate-limit error or max retries reached
-                            Log::error('Command failed permanently', [
-                                'command' => $discordCommand,
-                                'error' => $e->getMessage(),
-                                'retryable' => $isRateLimit ? 'yes' : 'no'
-                            ]);
-                            break;
-                        }
-
-                        // Increment failure count for circuit breaker
-                        $failureKey = "api_failures_guild_{$this->guildId}";
-                        $currentFailures = Cache::get($failureKey, 0);
-                        Cache::put($failureKey, $currentFailures + 1, now()->addMinutes(10));
-
-                        if ($retryCount >= $maxRetries) {
-                            $results[] = [
-                                'command' => $discordCommand,
-                                'success' => false,
-                                'error' => 'Max retries exceeded: ' . $e->getMessage()
-                            ];
-                            Log::error('Destructive command failed after max retries', [
-                                'command' => $discordCommand,
-                                'error' => $e->getMessage(),
-                                'user_id' => $this->discordUserId,
-                                'position' => $index + 1,
-                                'max_retries' => $maxRetries
-                            ]);
-                        }
-                    }
-                }
-
-                // Wait between commands (adaptive delay based on recent failures)
-                if ($index < count($destructiveCommands) - 1) {
-                    $interCommandDelay = max($currentDelay, 2); // Minimum 2 seconds between commands
-                    Log::info("Waiting {$interCommandDelay} seconds before next command");
-                    sleep($interCommandDelay);
-                }
-
-            } else {
-                $results[] = [
-                    'command' => $discordCommand,
-                    'success' => false,
-                    'error' => 'Unknown or inactive command'
-                ];
+            // Wait between destructive commands for rate limit safety
+            if ($index < count($destructiveCommands) - 1) {
+                Log::info("Waiting {$baseDelay} seconds before next destructive command");
+                sleep($baseDelay);
             }
         }
-
-        Log::info('Completed sequential destructive command execution with validation', [
-            'total_executed' => $executedCommands,
-            'final_delay' => $currentDelay
-        ]);
     }
 
     /**
@@ -851,10 +764,28 @@ final class ProcessNeonDiscordExecutionJob implements ShouldQueue
         $totalCommands = count($results);
         $successfulCommands = array_filter($results, fn($result) => $result['success']);
         $failedCommands = array_filter($results, fn($result) => !$result['success']);
-        $successRate = $totalCommands > 0 ? round((count($successfulCommands) / $totalCommands) * 100, 1) : 0;
+        $successCount = count($successfulCommands);
+        $failedCount = count($failedCommands);
+        $successRate = $totalCommands > 0 ? round(($successCount / $totalCommands) * 100, 1) : 0;
+
+        // Log detailed failure information for debugging
+        if (!empty($failedCommands)) {
+            Log::warning('Commands failed during execution', [
+                'failed_commands' => array_map(function($result) {
+                    return [
+                        'command' => $result['command'],
+                        'error' => $result['error'] ?? 'Unknown error'
+                    ];
+                }, $failedCommands),
+                'success_rate' => $successRate,
+                'total_commands' => $totalCommands,
+                'guild_id' => $this->guildId
+            ]);
+        }
 
         $description = "**🎯 EXECUTION COMPLETE**\n\n";
-        $description .= "**Success Rate:** {$successRate}% ({$executedCommands}/{$totalCommands} commands)\n";
+        $description .= "**Success Rate:** {$successRate}% ({$successCount}/{$totalCommands} commands)\n";
+        $description .= "**Results:** ✅ {$successCount} successful, ❌ {$failedCount} failed\n";
         $description .= "**Validation:** All commands verified with Discord API\n\n";
 
         // Add successful commands

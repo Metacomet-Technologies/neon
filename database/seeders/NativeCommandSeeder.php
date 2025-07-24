@@ -353,6 +353,14 @@ class NativeCommandSeeder extends Seeder
                 'is_active' => true,
             ],
             [
+                'slug' => 'list-roles',
+                'description' => 'Lists all roles in the server with member counts and properties.',
+                'class' => \App\Jobs\ProcessListRolesJob::class,
+                'usage' => 'Usage: !list-roles',
+                'example' => 'Example: !list-roles',
+                'is_active' => true,
+            ],
+            [
                 'slug' => 'analyze-server',
                 'description' => 'Analyzes Discord server screenshots using ChatGPT Vision to extract structure and generate similar templates.',
                 'class' => \App\Jobs\ProcessImageAnalysisJob::class,
