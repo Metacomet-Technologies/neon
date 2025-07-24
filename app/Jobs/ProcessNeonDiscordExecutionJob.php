@@ -73,7 +73,7 @@ final class ProcessNeonDiscordExecutionJob implements ShouldQueue
                 'ban', 'kick', 'mute', 'disconnect', 'purge', 'prune',
                 'remove-role', 'vanish', 'unpin'
             ];
-            
+
             $destructiveCommandCount = count(array_filter($discordCommands, function($cmd) use ($destructiveCommands) {
                 $commandSlug = $this->extractCommandSlug($cmd);
                 return in_array($commandSlug, $destructiveCommands);
@@ -102,7 +102,7 @@ final class ProcessNeonDiscordExecutionJob implements ShouldQueue
 
             // Separate commands into proper execution categories to prevent dependency conflicts
             $commandCategories = $this->categorizeCommands($discordCommands);
-            
+
             // Log the categorization for monitoring
             Log::info('Command categorization for execution', [
                 'recovery_count' => count($commandCategories['recovery']),
@@ -225,7 +225,7 @@ final class ProcessNeonDiscordExecutionJob implements ShouldQueue
 
         $modificationCommands = [
             'edit-channel-autohide', 'edit-channel-name', 'edit-channel-nsfw',
-            'edit-channel-slowmode', 'edit-channel-topic', 'lock-channel', 
+            'edit-channel-slowmode', 'edit-channel-topic', 'lock-channel',
             'lock-voice', 'move-user', 'set-inactive', 'set-nickname',
             'display-boost'
         ];

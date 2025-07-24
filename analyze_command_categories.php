@@ -31,7 +31,7 @@ $constructiveCommands = [
 
 $modificationCommands = [
     'edit-channel-autohide', 'edit-channel-name', 'edit-channel-nsfw',
-    'edit-channel-slowmode', 'edit-channel-topic', 'lock-channel', 
+    'edit-channel-slowmode', 'edit-channel-topic', 'lock-channel',
     'lock-voice', 'move-user', 'set-inactive', 'set-nickname',
     'display-boost'
 ];
