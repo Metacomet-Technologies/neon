@@ -28,6 +28,7 @@ final class BillingController
     {
         $user = Auth::user();
 
+
         // Handle Stripe checkout success/failure
         $checkoutMessage = null;
         $checkoutType = null;
@@ -64,6 +65,7 @@ final class BillingController
         // Handle Stripe checkout success/failure
         $checkoutMessage = null;
         $checkoutType = null;
+
 
         if ($request->has('session_id') && $request->has('success')) {
             $checkoutMessage = 'Payment successful! Your license has been created and is ready to assign.';
@@ -124,6 +126,7 @@ final class BillingController
             $discordGuilds = $getGuilds->getGuildsWhereUserHasPermission();
 
             $botChecker = new CheckBotMembership();
+
             // Sync guilds with database and check bot membership
             foreach ($discordGuilds as $discordGuild) {
                 $guild = Guild::updateOrCreate(
@@ -239,6 +242,7 @@ final class BillingController
                 'user_id' => auth()->id(),
                 'error' => $e->getMessage(),
             ]);
+
             return redirect()->back()->with('error', $e->getMessage());
         }
     }

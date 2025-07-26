@@ -37,6 +37,7 @@ This document contains important context and coding standards for the Neon proje
 10. **Policies**: Use the `#[UsePolicy]` attribute on models instead of manual policy registration in service providers
 11. **Job Chaining**: When appropriate, use Laravel job chaining as described in the Laravel documentation
 
+
 ### Frontend (React/TypeScript)
 1. **Component libraries**: Always use Catalyst components first, then UI components, before creating custom components
 2. **Prefer Inertia.js over API calls** - Use `router.post()` instead of `axios` for form submissions
@@ -74,8 +75,6 @@ This document contains important context and coding standards for the Neon proje
 5. **Controller Constraints**:
    - Controllers should only use RESTful public methods or `__invoke`/`__construct`
    - If a controller needs a different method name, it likely needs to be another controller with RESTful patterns or should be invokable
-
-[Rest of the document remains unchanged]
 
 ### Testing
 1. **Use Pest PHP** for testing
@@ -175,3 +174,4 @@ return redirect()->back()->with('success', 'Action completed!');
 4. Follow the established naming conventions
 5. Keep responses concise and to the point
 6. Run linting/type checking after changes
+

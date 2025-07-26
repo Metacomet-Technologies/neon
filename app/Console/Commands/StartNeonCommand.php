@@ -11,6 +11,9 @@ use App\Jobs\ProcessGuildJoin;
 use App\Jobs\ProcessGuildLeave;
 use App\Jobs\ProcessImageAnalysisJob;
 use App\Jobs\ProcessNeonDiscordExecutionJob;
+
+use App\Jobs\ProcessNeonSQLExecutionJob;
+
 use App\Jobs\ProcessScheduledMessageJob;
 use App\Jobs\ProcessWelcomeMessageJob;
 use App\Jobs\RefreshNeonGuildsJob;
