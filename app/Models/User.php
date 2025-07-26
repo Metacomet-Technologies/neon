@@ -205,4 +205,22 @@ final class User extends Authenticatable
     {
         return $this->refresh_token && ! $this->hasExpiredDiscordRefreshToken();
     }
+
+    /**
+     * Get the user's settings.
+     */
+    public function settings()
+    {
+        return $this->hasOne(UserSetting::class);
+    }
+
+    /**
+     * Get or create user settings.
+     */
+    public function getOrCreateSettings(): UserSetting
+    {
+        return $this->settings()->firstOrCreate([
+            'user_id' => $this->id,
+        ]);
+    }
 }
