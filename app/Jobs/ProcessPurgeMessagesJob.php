@@ -219,7 +219,7 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob implements ShouldQueu
         if (count($messageIds) === 1) {
             // Single message deletion - use different endpoint
             $deleteUrl = "{$this->baseUrl}/channels/{$this->targetChannelId}/messages/{$messageIds[0]}";
-            
+
             $deleteResponse = retry(3, function () use ($deleteUrl) {
                 return Http::withToken(config('discord.token'), 'Bot')->delete($deleteUrl);
             }, [2000, 4000, 6000]);
@@ -255,7 +255,7 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob implements ShouldQueu
             if (count($batch) === 1) {
                 // Single message deletion
                 $deleteUrl = "{$this->baseUrl}/channels/{$this->targetChannelId}/messages/{$batch[0]}";
-                
+
                 $deleteResponse = retry(3, function () use ($deleteUrl) {
                     return Http::withToken(config('discord.token'), 'Bot')->delete($deleteUrl);
                 }, [2000, 4000, 6000]);
