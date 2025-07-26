@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Helpers\Discord\GetBotGuilds;
+use App\Services\Discord\Discord;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Cache;
@@ -21,8 +21,10 @@ final class RefreshNeonGuildsJob implements ShouldQueue
         $key = 'neon:guilds';
         $ttl = 300;
 
-        $guilds = new GetBotGuilds;
+        $discord = new Discord;
+        $guilds = $discord->bot()->guilds();
+        $guildIds = $guilds->pluck('id')->toArray();
 
-        Cache::put($key, $guilds->getGuildIds(), $ttl);
+        Cache::put($key, $guildIds, $ttl);
     }
 }

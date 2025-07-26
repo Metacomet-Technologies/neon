@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Enums\DiscordPermissionEnum;
-use App\Helpers\Discord\GetGuilds;
+use App\Services\Discord\Discord;
+use App\Services\Discord\Enums\PermissionEnum;
+use Exception;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -147,8 +148,13 @@ final class User extends Authenticatable
     public function getGuildsAttribute(): array
     {
         $guilds = Cache::remember('user-guilds-' . $this->id, now()->addMinutes(1), function () {
-            return (new GetGuilds($this))
-                ->getGuildsWhereUserHasPermission(DiscordPermissionEnum::ADMINISTRATOR);
+            try {
+                $discord = Discord::forUser($this);
+
+                return $discord->userGuildsWithPermission(PermissionEnum::ADMINISTRATOR);
+            } catch (Exception $e) {
+                return [];
+            }
         });
 
         return $guilds;

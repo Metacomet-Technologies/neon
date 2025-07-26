@@ -4,21 +4,24 @@ declare(strict_types=1);
 
 namespace App\Traits;
 
-use App\Helpers\Discord\SendMessage;
-
+/**
+ * Trait for handling Discord responses.
+ * Requires channelId property.
+ */
 trait DiscordResponseTrait
 {
+    use DiscordBaseTrait;
+
     /**
      * Send a success message with embed.
      */
     protected function sendSuccessMessage(string $title, string $description, int $color = 3066993): void
     {
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => true,
-            'embed_title' => "✅ {$title}",
-            'embed_description' => $description,
-            'embed_color' => $color,
-        ]);
+        $this->getDiscord()->channel($this->channelId)->sendEmbed(
+            "✅ {$title}",
+            $description,
+            $color
+        );
     }
 
     /**
@@ -26,10 +29,7 @@ trait DiscordResponseTrait
      */
     protected function sendErrorMessage(string $message): void
     {
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => false,
-            'response' => "❌ {$message}",
-        ]);
+        $this->getDiscord()->channel($this->channelId)->send("❌ {$message}");
     }
 
     /**
@@ -51,12 +51,11 @@ trait DiscordResponseTrait
 
         $color = count($successfulItems) > 0 ? 3066993 : 15158332; // Green or Red
 
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => true,
-            'embed_title' => "🔹 {$action} Results",
-            'embed_description' => trim($successMessage . "\n" . $errorMessage),
-            'embed_color' => $color,
-        ]);
+        $this->getDiscord()->channel($this->channelId)->sendEmbed(
+            "🔹 {$action} Results",
+            trim($successMessage . "\n" . $errorMessage),
+            $color
+        );
     }
 
     /**
@@ -64,12 +63,11 @@ trait DiscordResponseTrait
      */
     protected function sendWarningMessage(string $message): void
     {
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => true,
-            'embed_title' => '⚠️ Warning',
-            'embed_description' => $message,
-            'embed_color' => 16776960, // Yellow
-        ]);
+        $this->getDiscord()->channel($this->channelId)->sendEmbed(
+            '⚠️ Warning',
+            $message,
+            16776960 // Yellow
+        );
     }
 
     /**
@@ -77,12 +75,11 @@ trait DiscordResponseTrait
      */
     protected function sendInfoMessage(string $title, string $description): void
     {
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => true,
-            'embed_title' => "ℹ️ {$title}",
-            'embed_description' => $description,
-            'embed_color' => 3447003, // Blue
-        ]);
+        $this->getDiscord()->channel($this->channelId)->sendEmbed(
+            "ℹ️ {$title}",
+            $description,
+            3447003 // Blue
+        );
     }
 
     /**
@@ -133,12 +130,11 @@ trait DiscordResponseTrait
             $description .= "• {$item}\n";
         }
 
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => true,
-            'embed_title' => $title,
-            'embed_description' => trim($description),
-            'embed_color' => $color,
-        ]);
+        $this->getDiscord()->channel($this->channelId)->sendEmbed(
+            $title,
+            trim($description),
+            $color
+        );
     }
 
     /**

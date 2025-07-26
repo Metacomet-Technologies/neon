@@ -4,23 +4,25 @@ declare(strict_types=1);
 
 namespace App\Traits;
 
-use App\Helpers\Discord\SendMessage;
-use App\Services\DiscordParserService;
+use App\Services\Discord\Discord;
 use DateTime;
 use Exception;
 
+/**
+ * Trait for validating Discord-related inputs.
+ * Requires channelId property.
+ */
 trait DiscordValidatorTrait
 {
+    use DiscordBaseTrait;
+
     /**
      * Validate that a user ID is in correct Discord format.
      */
     protected function validateUserId(string $userId, string $context = 'user'): void
     {
-        if (! DiscordParserService::isValidDiscordId($userId)) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "❌ Invalid {$context} ID format. Please provide a valid Discord {$context} ID.",
-            ]);
+        if (! Discord::isValidDiscordId($userId)) {
+            $this->getDiscord()->channel($this->channelId)->send("❌ Invalid {$context} ID format. Please provide a valid Discord {$context} ID.");
             throw new Exception("Invalid {$context} ID format.", 400);
         }
     }
@@ -40,10 +42,7 @@ trait DiscordValidatorTrait
     {
         if (count($parameters) < $minCount) {
             if ($customMessage) {
-                SendMessage::sendMessage($this->channelId, [
-                    'is_embed' => false,
-                    'response' => "❌ {$customMessage}",
-                ]);
+                $this->getDiscord()->channel($this->channelId)->send("❌ {$customMessage}");
             } else {
                 $this->sendUsageAndExample();
             }
@@ -57,10 +56,7 @@ trait DiscordValidatorTrait
     protected function validateTarget($target, string $type, string $identifier): void
     {
         if (! $target) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "❌ {$type} '{$identifier}' not found.",
-            ]);
+            $this->getDiscord()->channel($this->channelId)->send("❌ {$type} '{$identifier}' not found.");
             throw new Exception("{$type} not found.", 404);
         }
     }
@@ -73,12 +69,9 @@ trait DiscordValidatorTrait
         $userIds = [];
 
         foreach ($mentions as $mention) {
-            $userId = DiscordParserService::extractUserId($mention);
+            $userId = Discord::extractUserId($mention);
             if (! $userId) {
-                SendMessage::sendMessage($this->channelId, [
-                    'is_embed' => false,
-                    'response' => "❌ Invalid user mention format: {$mention}",
-                ]);
+                $this->getDiscord()->channel($this->channelId)->send("❌ Invalid user mention format: {$mention}");
                 throw new Exception('Invalid user mention format.', 400);
             }
             $userIds[] = $userId;
@@ -93,20 +86,14 @@ trait DiscordValidatorTrait
     protected function validateNumericRange(string $value, int $min, int $max, string $context): int
     {
         if (! is_numeric($value)) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "❌ {$context} must be a number between {$min} and {$max}.",
-            ]);
+            $this->getDiscord()->channel($this->channelId)->send("❌ {$context} must be a number between {$min} and {$max}.");
             throw new Exception('Invalid numeric value.', 400);
         }
 
         $numValue = (int) $value;
 
         if ($numValue < $min || $numValue > $max) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "❌ {$context} must be between {$min} and {$max}.",
-            ]);
+            $this->getDiscord()->channel($this->channelId)->send("❌ {$context} must be between {$min} and {$max}.");
             throw new Exception('Value out of range.', 400);
         }
 
@@ -128,10 +115,7 @@ trait DiscordValidatorTrait
             return false;
         }
 
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => false,
-            'response' => "❌ {$context} must be true/false, yes/no, or 1/0.",
-        ]);
+        $this->getDiscord()->channel($this->channelId)->send("❌ {$context} must be true/false, yes/no, or 1/0.");
         throw new Exception('Invalid boolean value.', 400);
     }
 
@@ -143,10 +127,7 @@ trait DiscordValidatorTrait
         $dateTime = DateTime::createFromFormat('Y-m-d', $date);
 
         if (! $dateTime || $dateTime->format('Y-m-d') !== $date) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Invalid date format. Use YYYY-MM-DD format.',
-            ]);
+            $this->getDiscord()->channel($this->channelId)->send('❌ Invalid date format. Use YYYY-MM-DD format.');
             throw new Exception('Invalid date format.', 400);
         }
 
@@ -159,10 +140,7 @@ trait DiscordValidatorTrait
     protected function validateTime(string $time): array
     {
         if (! preg_match('/^(\d{1,2}):(\d{2})$/', $time, $matches)) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Invalid time format. Use HH:MM format.',
-            ]);
+            $this->getDiscord()->channel($this->channelId)->send('❌ Invalid time format. Use HH:MM format.');
             throw new Exception('Invalid time format.', 400);
         }
 
@@ -170,10 +148,7 @@ trait DiscordValidatorTrait
         $minute = (int) $matches[2];
 
         if ($hour > 23 || $minute > 59) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Invalid time. Hour must be 0-23, minute must be 0-59.',
-            ]);
+            $this->getDiscord()->channel($this->channelId)->send('❌ Invalid time. Hour must be 0-23, minute must be 0-59.');
             throw new Exception('Invalid time values.', 400);
         }
 

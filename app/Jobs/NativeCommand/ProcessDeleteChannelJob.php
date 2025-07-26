@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\DiscordParserService;
+
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\Discord\Discord;
 use Exception;
 
 final class ProcessDeleteChannelJob extends ProcessBaseJob
@@ -69,6 +71,6 @@ final class ProcessDeleteChannelJob extends ProcessBaseJob
         }
 
         // Extract channel ID using parser service
-        return DiscordParserService::extractChannelId($matches[1]);
+        return Discord::extractChannelId($matches[1]);
     }
 }

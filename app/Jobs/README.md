@@ -89,29 +89,29 @@ protected function executeCommand(): void
 
 ### Services Available
 
-#### **DiscordParserService**
+#### **Discord Parser Methods (Static)**
 Parse Discord entities from message content:
 
 ```php
-use App\Services\DiscordParserService;
+use App\Services\Discord\Discord;
 
 protected function executeCommand(): void
 {
     // Parse user commands (ban, kick, mute)
-    $userId = DiscordParserService::parseUserCommand($this->messageContent, 'ban');
+    $userId = Discord::parseUserCommand($this->messageContent, 'ban');
     
     // Parse channel edit commands
-    [$channelId, $newName] = DiscordParserService::parseChannelEditCommand($this->messageContent, 'edit-channel-name');
+    [$channelId, $newName] = Discord::parseChannelEditCommand($this->messageContent, 'edit-channel-name');
     
     // Parse role commands
-    [$roleName, $userIds] = DiscordParserService::parseRoleCommand($this->messageContent, 'assign-role');
+    [$roleName, $userIds] = Discord::parseRoleCommand($this->messageContent, 'assign-role');
     
     // Extract individual entities
-    $userId = DiscordParserService::extractUserId('<@123456789>');
-    $channelId = DiscordParserService::extractChannelId('<#123456789>');
+    $userId = Discord::extractUserId('<@123456789>');
+    $channelId = Discord::extractChannelId('<#123456789>');
     
     // Validate Discord ID format
-    if (!DiscordParserService::isValidDiscordId($id)) {
+    if (!Discord::isValidDiscordId($id)) {
         // Handle invalid ID
     }
 }
@@ -174,7 +174,7 @@ final class ProcessBanUserJob extends ProcessBaseJob
         $this->requireBanPermission();
         
         // 2. Parse and validate
-        $targetUserId = DiscordParserService::parseUserCommand($this->messageContent, 'ban');
+        $targetUserId = Discord::parseUserCommand($this->messageContent, 'ban');
         if (!$targetUserId) {
             $this->sendUsageAndExample();
             throw new \Exception('No user ID provided.', 400);
@@ -234,7 +234,7 @@ $this->requireRolePermission(); // or appropriate permission
 
 3. **Use Parser Service**
 ```php
-$userId = DiscordParserService::parseUserCommand($this->messageContent, 'command');
+$userId = Discord::parseUserCommand($this->messageContent, 'command');
 ```
 
 4. **Use Validator Traits**

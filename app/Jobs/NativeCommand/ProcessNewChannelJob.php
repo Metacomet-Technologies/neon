@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Helpers\DiscordChannelValidator;
+
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\DiscordApiService;
 use Discord\Parts\Channel\Channel;
 use Exception;
 
@@ -43,7 +45,8 @@ final class ProcessNewChannelJob extends ProcessBaseJob
             throw new Exception('Invalid channel name provided.', 400);
         }
 
-        $validationResult = DiscordChannelValidator::validateChannelName($channelName);
+        $discordApiService = app(DiscordApiService::class);
+        $validationResult = $discordApiService->validateChannelName($channelName);
         if (! $validationResult['is_valid']) {
             $this->sendErrorMessage($validationResult['message']);
             throw new Exception('Invalid channel name provided.', 400);

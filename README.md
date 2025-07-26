@@ -16,9 +16,7 @@
 ## How to contribute
 
 1. Create .env file from the example - `cp .env.example .env`.
-2. Install nodemon
-    - `npm i nodemon -g`
-3. Install Project Dependencies
+2. Install Project Dependencies
     - PHP - Composer
         - `composer install`
     - Javascript - npm

@@ -5,9 +5,9 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Helpers\Discord\GetGuildsByDiscordUserId;
-use App\Helpers\Discord\SendMessage;
-use App\Services\DiscordApiService;
+
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\Discord\Discord;
 use Exception;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -44,7 +44,7 @@ final class ProcessUserNicknameJob extends ProcessBaseJob
         if (is_null($parsedUserId) || is_null($parsedNickname)) {
             $this->sendUsageAndExample();
 
-            throw new Exception('Operation failed', 500);
+
             throw new Exception('Invalid input for !set-nickname. Expected a valid user mention and nickname.');
         }
         // Assign parsed values
@@ -52,21 +52,18 @@ final class ProcessUserNicknameJob extends ProcessBaseJob
         $this->newNickname = $parsedNickname;
 
         // Check if the user has permission to change nicknames
-        if (! GetGuildsByDiscordUserId::getIfUserCanManageNicknames($this->guildId, $this->discordUserId)) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ You do not have permission to change nicknames in this server.',
-            ]);
+
+        $discord = new Discord;
+        if (! $discord->guild($this->guildId)->member($this->discordUserId)->canManageNicknames()) {
+            $discord->channel($this->channelId)->send('❌ You do not have permission to change nicknames in this server.');
             throw new Exception('User lacks permission to change nicknames.', 403);
         }
         // Validate target user ID format
         if (! preg_match('/^\d{17,19}$/', $this->targetUserId)) {
             // dump("❌ Invalid user ID format: {$this->targetUserId}");
 
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Invalid user ID format. Please mention a valid user.',
-            ]);
+
+            $discord->channel($this->channelId)->send('❌ Invalid user ID format. Please mention a valid user.');
             throw new Exception('Invalid user ID format.', 400);
         }
         // API Request to change nickname
@@ -88,23 +85,17 @@ final class ProcessUserNicknameJob extends ProcessBaseJob
                 } else {
                     $errorMessage = "❌ Failed to update nickname for <@{$this->targetUserId}>.";
                 }
-                SendMessage::sendMessage($this->channelId, [
-                    'is_embed' => false,
-                    'response' => $errorMessage,
-                ]);
+
+                $discord->channel($this->channelId)->send($errorMessage);
                 throw new Exception('Operation failed', 500);
             }
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => true,
-                'embed_title' => '📝 Nickname Updated',
-                'embed_description' => "✅ <@{$this->targetUserId}>'s nickname has been updated to **{$this->newNickname}**.",
-                'embed_color' => 3447003,
-            ]);
+            $discord->channel($this->channelId)->sendEmbed(
+                '📝 Nickname Updated',
+                "✅ <@{$this->targetUserId}>'s nickname has been updated to **{$this->newNickname}**.",
+                3447003
+            );
         } catch (Exception $e) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ An unexpected error occurred while updating the nickname.',
-            ]);
+            $discord->channel($this->channelId)->send('❌ An unexpected error occurred while updating the nickname.');
             throw new Exception('Operation failed', 500);
         }
     }

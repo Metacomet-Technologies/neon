@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\DiscordApiService;
-use App\Services\DiscordParserService;
+
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\Discord\Discord;
 use Exception;
 
 final class ProcessLockChannelJob extends ProcessBaseJob
 {
+    private readonly ?string $targetChannelId;
+    private readonly ?bool $lockStatus;
+
     public function __construct(
         string $discordUserId,
         string $channelId,
@@ -20,6 +24,10 @@ final class ProcessLockChannelJob extends ProcessBaseJob
         array $parameters = []
     ) {
         parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
+
+        // Parse parameters immediately in constructor
+        [$this->targetChannelId, $newValue] = Discord::parseChannelEditCommand($messageContent, 'lock-channel');
+        $this->lockStatus = $newValue ? $this->validateBoolean($newValue, 'Lock status') : null;
     }
 
     protected function executeCommand(): void
@@ -27,55 +35,43 @@ final class ProcessLockChannelJob extends ProcessBaseJob
         // 1. Check permissions
         $this->requireChannelPermission();
 
-        // 2. Parse channel edit command
-        [$channelId, $newValue] = DiscordParserService::parseChannelEditCommand($this->messageContent, 'lock-channel');
-
-        if (! $channelId || ! $newValue) {
+        // 2. Validate parsed data
+        if (! $this->targetChannelId || $this->lockStatus === null) {
             $this->sendUsageAndExample();
             throw new Exception('Missing required parameters.', 400);
         }
 
-        $this->validateChannelId($channelId);
+        $this->validateChannelId($this->targetChannelId);
 
-        // 3. Validate boolean input
-        $lockStatus = $this->validateBoolean($newValue, 'Lock status');
+        try {
+            // 3. Use SDK to handle channel locking
+            $discord = new Discord;
+            $guild = $discord->guild($this->guildId);
+            $channel = $discord->channel($this->targetChannelId);
 
-        // 4. Get guild roles and update permissions
-        $roles = $this->discord->getGuildRoles($this->guildId);
-        $failedRoles = [];
+            // Get the @everyone role
+            $everyoneRole = $guild->everyoneRole();
 
-        foreach ($roles as $role) {
-            $roleId = $role['id'];
-            $permissionsUrl = "{$this->baseUrl}/channels/{$channelId}/permissions/{$roleId}";
 
-            $payload = [
-                'deny' => $lockStatus ? (1 << 11) : 0, // Deny or allow SEND_MESSAGES
-                'type' => 0, // Role
-            ];
-
-            $discordService = app(DiscordApiService::class);
-            $response = retry(3, function () use ($discordService, $targetChannelId, $everyoneRoleId, $payload) {
-                return $discordService->put("/channels/{$targetChannelId}/permissions/{$everyoneRoleId}", $payload);
-            }, 2000);
-
-            if ($response->failed()) {
-                $failedRoles[] = $role['name'];
+            if (! $everyoneRole) {
+                throw new Exception('Could not find @everyone role.', 500);
             }
-        }
 
-        // 5. Send confirmation
-        if (! empty($failedRoles)) {
-            $action = $lockStatus ? 'Lock' : 'Unlock';
-            $this->sendBatchResults(
-                $action . ' Channel',
-                [],
-                $failedRoles,
-                'role'
-            );
-        } else {
-            $action = $lockStatus ? 'locked' : 'unlocked';
-            $emoji = $lockStatus ? '🔒' : '🔓';
-            $this->sendChannelActionConfirmation($action, $channelId, "{$emoji} Channel access updated");
+            // Lock or unlock the channel
+            if ($this->lockStatus) {
+                $channel->lock($everyoneRole['id']);
+            } else {
+                $channel->unlock($everyoneRole['id']);
+            }
+
+            // 4. Send confirmation
+            $action = $this->lockStatus ? 'locked' : 'unlocked';
+            $emoji = $this->lockStatus ? '🔒' : '🔓';
+            $this->sendChannelActionConfirmation($action, $this->targetChannelId, "{$emoji} Channel access updated");
+
+        } catch (Exception $e) {
+            $this->sendErrorMessage('Failed to update channel permissions. Please try again.');
+            throw new Exception('Failed to lock/unlock channel.', 500);
         }
     }
 }

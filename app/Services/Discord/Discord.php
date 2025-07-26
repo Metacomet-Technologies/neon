@@ -2,13 +2,51 @@
 
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Discord;
+
+use App\Models\User as UserModel;
+use App\Services\Discord\Enums\PermissionEnum;
+use App\Services\Discord\Resources\Channel;
+use App\Services\Discord\Resources\Guild;
+use App\Services\Discord\Resources\User;
+use Exception;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 
 /**
- * Service for parsing Discord entities from message content.
+ * Discord SDK - Expressive interface for Discord API operations.
+ *
+ * Usage:
+ * $discord = new Discord();
+ * $guild = $discord->guild('123456789');
+ * $member = $guild->member('987654321');
+ * $member->addRole('roleId');
  */
-final class DiscordParserService
+final class Discord
 {
+    private string $baseUrl;
+    private string $token;
+    private int $maxRetries;
+    private int $retryDelay;
+
+    public function __construct(?string $token = null, private readonly bool $isUserToken = false)
+    {
+        $this->baseUrl = config('services.discord.rest_api_url');
+        $this->token = $token ?? config('discord.token');
+        $this->maxRetries = 3;
+        $this->retryDelay = 2000;
+    }
+
+    /**
+     * Create a Discord instance for user OAuth operations.
+     */
+    public static function forUser(UserModel $user): self
+    {
+        return new self($user->access_token, true);
+    }
+
+    // ========== Parser Methods (Static) ==========
+
     /**
      * Extract user ID from mention or direct ID.
      */
@@ -198,5 +236,164 @@ final class DiscordParserService
         }
 
         return [];
+    }
+
+    /**
+     * Get a guild resource.
+     */
+    public function guild(string $guildId): Guild
+    {
+        return new Guild($this, $guildId);
+    }
+
+    /**
+     * Get a user resource.
+     */
+    public function user(string $userId): User
+    {
+        return new User($this, $userId);
+    }
+
+    /**
+     * Get a channel resource.
+     */
+    public function channel(string $channelId): Channel
+    {
+        return new Channel($this, $channelId);
+    }
+
+    /**
+     * Get bot's guilds.
+     */
+    public function guilds(): array
+    {
+        return $this->get('/users/@me/guilds');
+    }
+
+    /**
+     * Get bot guilds with caching.
+     */
+    public function botGuilds(): array
+    {
+        $key = 'neon:guilds';
+        $ttl = 300;
+
+        return Cache::remember($key, $ttl, function () {
+            $guilds = $this->guilds();
+
+            return collect($guilds)->pluck('id')->all();
+        });
+    }
+
+    /**
+     * Get user guilds where they have a specific permission.
+     */
+    public function userGuildsWithPermission(PermissionEnum $permission = PermissionEnum::ADMINISTRATOR): array
+    {
+        $guilds = $this->guilds();
+
+        return array_values(array_filter($guilds, function ($guild) use ($permission) {
+            return (bool) ($guild['permissions'] & $permission->value);
+        }));
+    }
+
+    /**
+     * Make an authenticated GET request.
+     */
+    public function get(string $endpoint): array
+    {
+        $url = "{$this->baseUrl}{$endpoint}";
+
+        $response = retry($this->maxRetries, function () use ($url) {
+            $tokenType = $this->isUserToken ? 'Bearer' : 'Bot';
+
+            return Http::withToken($this->token, $tokenType)->get($url);
+        }, $this->retryDelay);
+
+        if ($response->failed()) {
+            throw new Exception("Discord API request failed: {$response->status()}", $response->status());
+        }
+
+        return $response->json();
+    }
+
+    /**
+     * Make an authenticated POST request.
+     */
+    public function post(string $endpoint, array $data = []): array
+    {
+        $url = "{$this->baseUrl}{$endpoint}";
+
+        $response = retry($this->maxRetries, function () use ($url, $data) {
+            $tokenType = $this->isUserToken ? 'Bearer' : 'Bot';
+
+            return Http::withToken($this->token, $tokenType)->post($url, $data);
+        }, $this->retryDelay);
+
+        if ($response->failed()) {
+            throw new Exception("Discord API request failed: {$response->status()}", $response->status());
+        }
+
+        return $response->json();
+    }
+
+    /**
+     * Make an authenticated PUT request.
+     */
+    public function put(string $endpoint, array $data = []): bool
+    {
+        $url = "{$this->baseUrl}{$endpoint}";
+
+        $response = retry($this->maxRetries, function () use ($url, $data) {
+            $tokenType = $this->isUserToken ? 'Bearer' : 'Bot';
+
+            return Http::withToken($this->token, $tokenType)->put($url, $data);
+        }, $this->retryDelay);
+
+        return $response->successful();
+    }
+
+    /**
+     * Make an authenticated PATCH request.
+     */
+    public function patch(string $endpoint, array $data = []): array|bool
+    {
+        $url = "{$this->baseUrl}{$endpoint}";
+
+        $response = retry($this->maxRetries, function () use ($url, $data) {
+            $tokenType = $this->isUserToken ? 'Bearer' : 'Bot';
+
+            return Http::withToken($this->token, $tokenType)->patch($url, $data);
+        }, $this->retryDelay);
+
+        if ($response->failed()) {
+            throw new Exception("Discord API request failed: {$response->status()}", $response->status());
+        }
+
+        return $response->json() ?: true;
+    }
+
+    /**
+     * Make an authenticated DELETE request.
+     */
+    public function delete(string $endpoint): bool
+    {
+        $url = "{$this->baseUrl}{$endpoint}";
+
+        $response = retry($this->maxRetries, function () use ($url) {
+            $tokenType = $this->isUserToken ? 'Bearer' : 'Bot';
+
+            return Http::withToken($this->token, $tokenType)->delete($url);
+        }, $this->retryDelay);
+
+        return $response->successful();
+    }
+
+    /**
+     * Get retry delay.
+     */
+    public function getRetryDelay(): int
+    {
+        return $this->retryDelay;
     }
 }

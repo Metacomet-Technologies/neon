@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
-use App\Helpers\DiscordRefreshToken;
+use App\Services\DiscordApiService;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -12,6 +12,10 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class EnsureDiscordTokenValid
 {
+    public function __construct(
+        private DiscordApiService $discordApiService
+    ) {}
+
     /**
      * Handle an incoming request.
      */
@@ -27,8 +31,7 @@ final class EnsureDiscordTokenValid
         if ($user->hasExpiredDiscordToken()) {
             // Token is expired, try to refresh
             if ($user->canRefreshDiscordToken()) {
-                $refreshHelper = new DiscordRefreshToken($user);
-                $newToken = $refreshHelper->refreshToken();
+                $newToken = $this->discordApiService->refreshUserToken($user);
 
                 if (! $newToken) {
                     // Refresh failed, redirect to login

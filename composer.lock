@@ -10141,16 +10141,16 @@
         },
         {
             "name": "team-reflex/discord-php",
-            "version": "v10.18.16",
+            "version": "v10.18.17",
             "source": {
                 "type": "git",
                 "url": "https://github.com/discord-php/DiscordPHP",
-                "reference": "db6e2da9e375465a6688d91a4fec46691916f89d"
+                "reference": "5d817562a369d33004983f325544d9612f864895"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/discord-php/DiscordPHP/zipball/db6e2da9e375465a6688d91a4fec46691916f89d",
-                "reference": "db6e2da9e375465a6688d91a4fec46691916f89d",
+                "url": "https://api.github.com/repos/discord-php/DiscordPHP/zipball/5d817562a369d33004983f325544d9612f864895",
+                "reference": "5d817562a369d33004983f325544d9612f864895",
                 "shasum": ""
             },
             "require": {
@@ -10214,7 +10214,7 @@
                 "issues": "https://github.com/discord-php/DiscordPHP/issues",
                 "wiki": "https://github.com/discord-php/DiscordPHP/wiki"
             },
-            "time": "2025-07-26T04:07:22+00:00"
+            "time": "2025-07-26T20:28:40+00:00"
         },
         {
             "name": "tightenco/ziggy",
@@ -12464,16 +12464,16 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.1.19",
+            "version": "2.1.20",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpstan/phpstan.git",
-                "reference": "473a8c30e450d87099f76313edcbb90852f9afdf"
+                "reference": "a9ccfef95210f92ba6feea6e8d1eef42b5605499"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/473a8c30e450d87099f76313edcbb90852f9afdf",
-                "reference": "473a8c30e450d87099f76313edcbb90852f9afdf",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/a9ccfef95210f92ba6feea6e8d1eef42b5605499",
+                "reference": "a9ccfef95210f92ba6feea6e8d1eef42b5605499",
                 "shasum": ""
             },
             "require": {
@@ -12518,7 +12518,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-07-21T19:58:24+00:00"
+            "time": "2025-07-26T20:45:26+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",

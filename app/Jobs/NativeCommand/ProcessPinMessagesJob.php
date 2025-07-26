@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Helpers\Discord\GetGuildsByDiscordUserId;
-use App\Helpers\Discord\SendMessage;
-use App\Services\DiscordApiService;
+
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\Discord\Discord;
 use Exception;
 
 final class ProcessPinMessagesJob extends ProcessBaseJob
@@ -40,12 +40,10 @@ final class ProcessPinMessagesJob extends ProcessBaseJob
             throw new Exception('Invalid input for !pin. Expected a valid message ID or the keyword "this".');
         }
         // 1️⃣ Ensure the user has permission to pin messages
-        $adminCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
-        if ($adminCheck === 'failed') {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ You are not allowed to pin messages.',
-            ]);
+        $discord = new Discord;
+        $canManageChannels = $discord->guild($this->guildId)->member($this->discordUserId)->canManageChannels();
+        if (! $canManageChannels) {
+            $discord->channel($this->channelId)->send('❌ You are not allowed to pin messages.');
             throw new Exception('User does not have permission to manage channels', 403);
         }
         $this->pinMessage();
@@ -65,44 +63,35 @@ final class ProcessPinMessagesJob extends ProcessBaseJob
 
     private function getLastMessageId(): ?string
     {
-        // Fetch the most recent messages (2 messages to avoid the current command message)
-        $discordService = app(DiscordApiService::class);
-        $response = $discordService->get("/channels/{$this->channelId}/messages", ['limit' => 2]);
 
-        if ($response->failed()) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Failed to fetch the last message. Please try again later.',
-            ]);
+        try {
+            $discord = new Discord;
+            $messages = $discord->channel($this->channelId)->getMessages(['limit' => 2]);
+
+            // The first message will be the last message (the current command)
+            // The second message will be the message above it
+            if (count($messages) < 2) {
+                $discord->channel($this->channelId)->send('❌ There is no previous message to pin.');
+                throw new Exception('Operation failed', 500);
+            }
+
+            $previousMessage = $messages[1]; // Get the second message (the one before the command)
+
+            return $previousMessage['id'] ?? null;
+        } catch (Exception $e) {
+            $discord = new Discord;
+            $discord->channel($this->channelId)->send('❌ Failed to fetch the last message. Please try again later.');
             throw new Exception('Operation failed', 500);
-
-            return null;
         }
-        $messages = $response->json();
-
-        // The first message will be the last message (the current command)
-        // The second message will be the message above it
-        if (count($messages) < 2) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ There is no previous message to pin.',
-            ]);
-            throw new Exception('Operation failed', 500);
-
-            return null;
-        }
-        $previousMessage = $messages[1]; // Get the second message (the one before the command)
-
-        return $previousMessage['id'] ?? null;
     }
 
     private function userHasPermission(string $userId): bool
     {
+        $discord = new Discord;
+        $member = $discord->guild($this->guildId)->member($userId);
+
         // Check for both the ADMINISTRATOR and MANAGE_MESSAGES permissions
-        if (GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $userId) === 'success') {
-            return true;
-        }
-        if (GetGuildsByDiscordUserId::getIfUserCanManageMessages($this->guildId, $userId) === 'success') {
+        if ($member->canManageChannels() || $member->canManageMessages()) {
             return true;
         }
 
@@ -111,22 +100,20 @@ final class ProcessPinMessagesJob extends ProcessBaseJob
 
     private function pinMessage(): void
     {
-        $discordService = app(DiscordApiService::class);
-        $response = $discordService->put("/channels/{$this->channelId}/pins/{$this->messageId}");
 
-        if ($response->failed()) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Failed to pin the message. Please try again later.',
-            ]);
+        try {
+            $discord = new Discord;
+            $discord->channel($this->channelId)->pinMessage($this->messageId);
+
+            // ✅ Success! Send confirmation message
+            $discord->channel($this->channelId)->sendEmbed(
+                '📌 Message Pinned',
+                "✅ Successfully pinned message ID `{$this->messageId}` in this channel.",
+                3066993
+            );
+        } catch (Exception $e) {
+            $discord->channel($this->channelId)->send('❌ Failed to pin the message. Please try again later.');
             throw new Exception('Failed to pin the message.', 500);
         }
-        // ✅ Success! Send confirmation message
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => true,
-            'embed_title' => '📌 Message Pinned',
-            'embed_description' => "✅ Successfully pinned message ID `{$this->messageId}` in this channel.",
-            'embed_color' => 3066993,
-        ]);
     }
 }

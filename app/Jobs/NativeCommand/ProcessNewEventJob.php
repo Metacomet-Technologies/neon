@@ -4,15 +4,24 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Helpers\Discord\GetGuildsByDiscordUserId;
-use App\Helpers\Discord\SendMessage;
+
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\Discord\Discord;
 use DateTime;
 use DateTimeZone;
 use Exception;
-use App\Services\DiscordApiService;
 
 final class ProcessNewEventJob extends ProcessBaseJob
 {
+    private readonly ?string $eventTopic;
+    private readonly ?string $startDate;
+    private readonly ?string $startTime;
+    private readonly ?string $eventFrequency;
+    private readonly ?string $location;
+    private readonly ?string $description;
+    private readonly ?string $coverImage;
+    private readonly array $parsedData;
+
     public function __construct(
         string $discordUserId,
         string $channelId,
@@ -23,117 +32,136 @@ final class ProcessNewEventJob extends ProcessBaseJob
         array $parameters = []
     ) {
         parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
+
+        // Parse event data in constructor
+        $this->parsedData = $this->parseEventData($messageContent);
+        $this->eventTopic = $this->parsedData['topic'] ?? null;
+        $this->startDate = $this->parsedData['date'] ?? null;
+        $this->startTime = $this->parsedData['time'] ?? null;
+        $this->eventFrequency = $this->parsedData['frequency'] ?? null;
+        $this->location = $this->parsedData['location'] ?? null;
+        $this->description = $this->parsedData['description'] ?? null;
+        $this->coverImage = $this->parsedData['coverImage'] ?? null;
     }
 
-    /**
-     * Execute the job.
-     */
     protected function executeCommand(): void
     {
-        // 1️⃣ Check if user is an admin
-        $adminCheck = GetGuildsByDiscordUserId::getIfUserCanCreateEvents($this->guildId, $this->discordUserId);
-        if ($adminCheck === 'failed') {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ You are not allowed to create events.',
-            ]);
+        $discord = new Discord;
+
+        // Check permissions
+        $canCreateEvents = $discord->guild($this->guildId)->member($this->discordUserId)->canCreateEvents();
+        if (! $canCreateEvents) {
+            $discord->channel($this->channelId)->send('❌ You are not allowed to create events.');
             throw new Exception('User does not have permission to create events.', 403);
         }
-        // 2️⃣ Parse command input
-        $parts = explode('|', $this->messageContent);
-        if (count($parts) < 6) {
+
+        // Validate required fields
+        if (! $this->eventTopic || ! $this->startDate || ! $this->startTime ||
+            ! $this->eventFrequency || ! $this->location || ! $this->description) {
             $this->sendUsageAndExample();
-
-            throw new Exception('No user ID provided.', 400);
+            throw new Exception('Missing required event parameters.', 400);
         }
-        $eventTopic = trim(str_replace('!create-event', '', $parts[0]));
-        $eventTopic = trim($eventTopic, '"'); // Remove extra quotes
-        $startDate = trim($parts[1]);
-        $startTime = trim($parts[2]);
-        $eventFrequency = trim($parts[3]);
-        $location = trim($parts[4]);
-        $description = trim($parts[5], ' "');
-        $coverImage = $parts[6] ?? null;
 
-        // 3️⃣ Fetch all channels in the guild to check if location is a voice channel
-        $discordService = app(DiscordApiService::class);
-        
+
         try {
-            $channelsResponse = $discordService->get("/guilds/{$this->guildId}/channels");
-            if ($channelsResponse->failed()) {
-                throw new Exception('Failed to fetch channels from the server.');
-            }
-            $channels = $channelsResponse->json() ?? [];
+            $guild = $discord->guild($this->guildId);
+
+            // Check if location is a voice channel
+            $channels = $guild->channels()->get();
+            $voiceChannel = $channels->first(fn ($ch) => $ch['id'] === $this->location ||
+                (isset($ch['name']) && $ch['name'] === $this->location)
+            );
+
+            $isVoiceChannel = $voiceChannel && $voiceChannel['type'] === 2;
+
+            // Parse datetime
+            $startDateTime = $this->parseDateTime($this->startDate, $this->startTime);
+
+            // Build event data
+            $eventData = $this->buildEventData($startDateTime, $isVoiceChannel, $voiceChannel);
+
+            // Create the event
+            $event = $guild->createScheduledEvent($eventData);
+
+            // Send success message
+            $this->sendEventCreatedMessage($event);
+
         } catch (Exception $e) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Failed to retrieve channels from the server.',
-            ]);
-            throw new Exception('Failed to fetch channels from the server.', 500);
+            $discord->channel($this->channelId)->send('❌ Failed to create event: ' . $e->getMessage());
+            throw new Exception('Failed to create Discord event.', 500);
+        }
+    }
+
+    private function parseEventData(string $messageContent): array
+    {
+        $parts = explode('|', $messageContent);
+        if (count($parts) < 6) {
+            return [];
         }
 
-        // 4️⃣ Find the channel ID if it's a voice channel
-        $channelId = null;
-        $isVoiceChannel = false;
-        foreach ($channels as $channel) {
-            if (strtolower($channel['name']) === strtolower($location) && $channel['type'] === 2) { // Type 2 = Voice Channel
-                $channelId = $channel['id'];
-                $isVoiceChannel = true;
-                break;
-            }
+        return [
+            'topic' => trim(str_replace('!create-event', '', $parts[0]), ' "'),
+            'date' => trim($parts[1]),
+            'time' => trim($parts[2]),
+            'frequency' => trim($parts[3]),
+            'location' => trim($parts[4]),
+            'description' => trim($parts[5], ' "'),
+            'coverImage' => isset($parts[6]) ? trim($parts[6]) : null,
+        ];
+    }
+
+    private function parseDateTime(string $date, string $time): DateTime
+    {
+        $dateTimeString = "{$date} {$time}";
+        $dateTime = DateTime::createFromFormat('Y-m-d H:i', $dateTimeString, new DateTimeZone('UTC'));
+
+        if (! $dateTime) {
+            throw new Exception('Invalid date or time format. Use YYYY-MM-DD for date and HH:MM for time.');
         }
-        // 5️⃣ Determine event type (Voice Channel = 2, External/Text = 3)
-        $entityType = $isVoiceChannel ? 2 : 3;
 
-        // 6️⃣ Determine event end time (Default: 1 hour duration)
-        $eventStart = new DateTime("{$startDate} {$startTime}", new DateTimeZone('UTC'));
-        $eventEnd = clone $eventStart;
-        $eventEnd->modify('+1 hour');
+        return $dateTime;
+    }
 
-        // 7️⃣ Prepare event payload
+    private function buildEventData(DateTime $startDateTime, bool $isVoiceChannel, ?array $voiceChannel): array
+    {
         $eventData = [
-            'name' => $eventTopic,
-            'scheduled_start_time' => $eventStart->format('Y-m-d\TH:i:s\Z'),
-            'scheduled_end_time' => $eventEnd->format('Y-m-d\TH:i:s\Z'),
-            'description' => $description,
-            'entity_type' => $entityType,
-            'privacy_level' => 2,
+            'name' => $this->eventTopic,
+            'scheduled_start_time' => $startDateTime->format('c'),
+            'privacy_level' => 2, // GUILD_ONLY
+            'entity_type' => $isVoiceChannel ? 2 : 3, // VOICE or EXTERNAL
+            'description' => $this->description,
         ];
 
-        // 8️⃣ If it's a voice channel, use `channel_id`; otherwise, use `entity_metadata`
-        if ($isVoiceChannel) {
-            $eventData['channel_id'] = $channelId;
+        if ($isVoiceChannel && $voiceChannel) {
+            $eventData['channel_id'] = $voiceChannel['id'];
         } else {
-            $eventData['entity_metadata'] = ['location' => $location];
+            $eventData['entity_metadata'] = ['location' => $this->location];
         }
-        // 9️⃣ Send API request to create the event
-        try {
-            $apiResponse = $discordService->post("/guilds/{$this->guildId}/scheduled-events", $eventData);
 
-            // 🔟 Check for API errors
-            if ($apiResponse->failed()) {
-                SendMessage::sendMessage($this->channelId, [
-                    'is_embed' => false,
-                    'response' => '❌ Failed to create event.',
-                ]);
-                throw new Exception('Failed to create event. ' . json_encode($apiResponse->json()), 500);
-            }
-        } catch (Exception $e) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Failed to create event.',
-            ]);
-            throw new Exception('Failed to create event: ' . $e->getMessage(), 500);
+
+        if ($this->coverImage) {
+            $eventData['image'] = $this->coverImage;
         }
-        // Extract Event ID from response
-        $responseData = $apiResponse->json();
-        $eventId = $responseData['id'] ?? 'Unknown';
 
-        // ✅ Send an Embedded Confirmation Message with Event ID
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => true,
-            'embed_title' => '🎉 Event Created!',
-            'embed_description' => "**Event:** {$eventTopic}\n**Start:** {$startDate} at {$startTime} UTC\n**Location:** " . ($isVoiceChannel ? '🔊 Voice Channel' : '🌍 External/Text Channel') . "\n**Event ID:** `{$eventId}`",
-        ]);
+        return $eventData;
+    }
+
+    private function sendEventCreatedMessage(array $event): void
+    {
+        $discord = new Discord;
+        $locationInfo = isset($event['channel_id'])
+            ? "<#{$event['channel_id']}>"
+            : ($event['entity_metadata']['location'] ?? 'Unknown Location');
+
+        $embedDescription = "**{$event['name']}** has been scheduled!\n\n";
+        $embedDescription .= "**📅 Date & Time**\n<t:{$event['scheduled_start_time']}:F>\n\n";
+        $embedDescription .= "**📍 Location**\n{$locationInfo}\n\n";
+        $embedDescription .= "**📝 Description**\n" . ($event['description'] ?? 'No description');
+
+        $discord->channel($this->channelId)->sendEmbed(
+            '🎉 Event Created Successfully!',
+            $embedDescription,
+            5814783 // Purple
+        );
     }
 }

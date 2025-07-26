@@ -4,9 +4,8 @@ declare (strict_types = 1);
 
 namespace App\Http\Controllers;
 
-use App\Helpers\Discord\CheckBotMembership;
-use App\Helpers\Discord\GetGuilds;
 use App\Models\Guild;
+use App\Services\Discord\Discord;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -23,39 +22,6 @@ final class BillingController
     public function index(Request $request): Response
     {
         $user = $request->user();
-
-        // Handle Stripe checkout success/failure
-        $checkoutMessage = null;
-        $checkoutType = null;
-
-        if ($request->has('session_id') && $request->has('success')) {
-            $checkoutMessage = 'Payment successful! Your license has been created and is ready to assign.';
-            $checkoutType = 'success';
-        } elseif ($request->has('session_id') && $request->has('cancelled')) {
-            $checkoutMessage = 'Payment was cancelled. You can try again when you\'re ready.';
-            $checkoutType = 'error';
-        } elseif ($request->has('session_id')) {
-            // Check the session status to provide better error details
-            try {
-                Stripe::setApiKey(config('cashier.secret'));
-                $session = Session::retrieve($request->session_id);
-
-                if ($session->payment_status === 'unpaid') {
-                    $checkoutMessage = 'Payment was not completed. Please try again or contact support if you continue to have issues.';
-                    $checkoutType = 'error';
-                } elseif ($session->status === 'expired') {
-                    $checkoutMessage = 'Your checkout session has expired. Please start a new purchase.';
-                    $checkoutType = 'error';
-                }
-            } catch (Exception $e) {
-                Log::error('Failed to retrieve checkout session', [
-                    'session_id' => $request->session_id,
-                    'error' => $e->getMessage(),
-                ]);
-                $checkoutMessage = 'There was an issue processing your payment. Please contact support.';
-                $checkoutType = 'error';
-            }
-        }
 
         // Handle Stripe checkout success/failure
         $checkoutMessage = null;
@@ -108,7 +74,7 @@ final class BillingController
                         'exp_year' => $paymentMethod->card->exp_year ?? '',
                     ];
                 })->toArray();
-            } catch (Exception $e) {
+            } catch (Exception) {
                 $paymentMethods = [];
             }
         }
@@ -116,10 +82,8 @@ final class BillingController
         // Get user's Discord guilds and sync with database
         $userGuilds = [];
         try {
-            $getGuilds = new GetGuilds($user);
-            $discordGuilds = $getGuilds->getGuildsWhereUserHasPermission();
-
-            $botChecker = new CheckBotMembership;
+            $discord = Discord::forUser($user);
+            $discordGuilds = $discord->userGuildsWithPermission();
 
             // Sync guilds with database and check bot membership
             foreach ($discordGuilds as $discordGuild) {
@@ -134,7 +98,12 @@ final class BillingController
                 // Check bot membership if we haven't checked recently
                 if ($guild->needsBotMembershipCheck()) {
                     try {
-                        $isBotMember = $botChecker->isBotInGuild($guild->id);
+                        try {
+                            (new Discord)->guild($guild->id)->get();
+                            $isBotMember = true;
+                        } catch (Exception) {
+                            $isBotMember = false;
+                        }
                         $guild->update([
                             'is_bot_member' => $isBotMember,
                             'last_bot_check_at' => now(),

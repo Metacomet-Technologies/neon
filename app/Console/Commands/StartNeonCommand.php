@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Helpers\Discord\SendMessage;
 use App\Jobs\NeonDispatchHandler;
-use App\Jobs\ProcessGuildCommandJob;
+use App\Jobs\NativeCommand\ProcessGuildCommandJob;
 use App\Jobs\ProcessGuildJoin;
 use App\Jobs\ProcessGuildLeave;
-use App\Jobs\ProcessImageAnalysisJob;
-use App\Jobs\ProcessNeonDiscordExecutionJob;
-use App\Jobs\ProcessScheduledMessageJob;
+use App\Jobs\NativeCommand\ProcessImageAnalysisJob;
+use App\Jobs\NativeCommand\ProcessNeonDiscordExecutionJob;
+use App\Jobs\NativeCommand\ProcessScheduledMessageJob;
 use App\Jobs\ProcessWelcomeMessageJob;
 use App\Jobs\RefreshNeonGuildsJob;
 use App\Models\NativeCommand;
 use App\Models\NeonCommand;
 use App\Models\WelcomeSetting;
+use App\Services\Discord\Discord as DiscordSDK;
 use Carbon\Carbon;
 use Discord\Discord;
 use Discord\WebSockets\Event;
@@ -26,17 +26,19 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Process;
 use Monolog\Handler\StreamHandler;
 use Monolog\Level;
 use Monolog\Logger;
 use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\Component\Finder\Finder;
 
 #[AsCommand(name: 'neon:start')]
 final class StartNeonCommand extends Command
 {
     public string $environment;
 
-    protected $signature = 'neon:start';
+    protected $signature = 'neon:start {--watch : Watch for file changes and auto-restart}';
     protected $description = 'Run Neon';
 
     public function __construct()
@@ -47,6 +49,12 @@ final class StartNeonCommand extends Command
 
     public function handle(): void
     {
+        if ($this->option('watch')) {
+            $this->runWithWatcher();
+
+            return;
+        }
+
         $this->components->info('Starting Neon...');
 
         $pidFile = storage_path('app/neon.pid');
@@ -297,6 +305,7 @@ final class StartNeonCommand extends Command
 
     public function handleScheduledMessage(string $channelId, string $messageContent): void
     {
+        $discordSDK = new DiscordSDK;
         $parts = explode(' ', trim($messageContent), 5); // Allow 5 parts: channel, date, time, and message
 
         // Extract target channel, date, time, and message
@@ -309,10 +318,7 @@ final class StartNeonCommand extends Command
         if (preg_match('/<#(\d+)>/', $targetChannelMention, $channelMatches)) {
             $targetChannelId = $channelMatches[1];
         } else {
-            SendMessage::sendMessage($channelId, [
-                'is_embed' => false,
-                'response' => "❌ Invalid channel format. Please mention a valid channel.\n\n**Example:** `!scheduled-message #announcements 2025-02-07 18:48 Server maintenance Starting!`",
-            ]);
+            $discordSDK->channel($channelId)->send("❌ Invalid channel format. Please mention a valid channel.\n\n**Example:** `!scheduled-message #announcements 2025-02-07 18:48 Server maintenance Starting!`");
 
             return;
         }
@@ -344,10 +350,7 @@ final class StartNeonCommand extends Command
 
             // Ensure time is in the future
             if ($scheduledTime->isPast()) {
-                SendMessage::sendMessage($channelId, [
-                    'is_embed' => false,
-                    'response' => "❌ The scheduled time **must be in the future (UTC)**.\n\n**Your Input:** `{$dateTime}`\n**Parsed Time:** `{$scheduledTime->toDateTimeString()} UTC`\n**Current Time:** `" . Carbon::now('UTC')->toDateTimeString() . '`',
-                ]);
+                $discordSDK->channel($channelId)->send("❌ The scheduled time **must be in the future (UTC)**.\n\n**Your Input:** `{$dateTime}`\n**Parsed Time:** `{$scheduledTime->toDateTimeString()} UTC`\n**Current Time:** `" . Carbon::now('UTC')->toDateTimeString() . '`');
 
                 return;
             }
@@ -357,20 +360,14 @@ final class StartNeonCommand extends Command
             //     'input_time' => $dateTime,
             // ]);
 
-            SendMessage::sendMessage($channelId, [
-                'is_embed' => false,
-                'response' => "❌ Invalid date-time format. Use: `YYYY-MM-DD HH:MM` (UTC)\n\n**Example:** `!scheduled-message #announcements 2025-02-07 18:48 Server maintenance Starting!`",
-            ]);
+            $discordSDK->channel($channelId)->send("❌ Invalid date-time format. Use: `YYYY-MM-DD HH:MM` (UTC)\n\n**Example:** `!scheduled-message #announcements 2025-02-07 18:48 Server maintenance Starting!`");
 
             return;
         }
 
         // Validate message content
         if (! $messageText) {
-            SendMessage::sendMessage($channelId, [
-                'is_embed' => false,
-                'response' => "ℹ️ **Scheduled Message Help**\nSchedules a message to be sent later in a specific channel.\n\n**Usage:** `!scheduled-message <#channel> <YYYY-MM-DD HH:MM> <message>`\n\n**Example:** `!scheduled-message #announcements 2025-02-07 18:48 Server maintenance Starting!`",
-            ]);
+            $discordSDK->channel($channelId)->send("ℹ️ **Scheduled Message Help**\nSchedules a message to be sent later in a specific channel.\n\n**Usage:** `!scheduled-message <#channel> <YYYY-MM-DD HH:MM> <message>`\n\n**Example:** `!scheduled-message #announcements 2025-02-07 18:48 Server maintenance Starting!`");
 
             return;
         }
@@ -378,9 +375,122 @@ final class StartNeonCommand extends Command
         // Schedule the job
         ProcessScheduledMessageJob::dispatch($targetChannelId, $messageText)->delay($scheduledTime);
 
-        SendMessage::sendMessage($channelId, [
-            'is_embed' => false,
-            'response' => "✅ Your message has been scheduled for **<#{$targetChannelId}> at {$scheduledTime->toDateTimeString()} UTC**.",
-        ]);
+        $discordSDK->channel($channelId)->send("✅ Your message has been scheduled for **<#{$targetChannelId}> at {$scheduledTime->toDateTimeString()} UTC**.");
+    }
+
+    protected function runWithWatcher(): void
+    {
+        $this->components->info('Starting Neon with file watcher...');
+
+        $watchPaths = [
+            'app/Console/Commands/NativeCommands',
+            'app/Console/Commands/StartNeonCommand.php',
+            'app/Jobs/NeonDispatchHandler.php',
+            'app/Jobs/Process*.php',
+            'app/Jobs/RefreshNeonGuildsJob.php',
+            'app/Jobs/Cache*.php',
+            'app/Models',
+            'app/Services/Discord*.php',
+            'app/Helpers/Discord',
+            'app/Traits/Discord*.php',
+            'config',
+            '.env',
+        ];
+
+        $process = null;
+        $lastModified = time();
+
+        while (true) {
+            // Start the bot process if not running
+            if (! $process || ! $process->running()) {
+                if ($process) {
+                    $this->components->warn('Neon stopped. Restarting...');
+                }
+
+                $process = Process::timeout(0)->start('php artisan neon:start');
+                $pid = $process->id();
+                $pidInfo = $pid ? " (PID: {$pid})" : '';
+                $this->components->info('Neon started' . $pidInfo);
+            }
+
+            // Check for file changes
+            $changed = false;
+            foreach ($watchPaths as $path) {
+                if ($this->hasFileChanges($path, $lastModified)) {
+                    $changed = true;
+                    break;
+                }
+            }
+
+            if ($changed) {
+                $this->components->warn('File changes detected. Restarting Neon...');
+                $lastModified = time();
+
+                // Stop the current process
+                $process->signal(SIGTERM);
+                sleep(1);
+
+                if ($process->running()) {
+                    $process->signal(SIGKILL);
+                }
+            }
+
+            // Output process logs
+            $output = $process->latestOutput();
+            if ($output) {
+                echo $output;
+            }
+
+            $errorOutput = $process->latestErrorOutput();
+            if ($errorOutput) {
+                $this->components->error($errorOutput);
+            }
+
+            sleep(1);
+        }
+    }
+
+    protected function hasFileChanges(string $path, int $since): bool
+    {
+        $fullPath = base_path($path);
+
+        if (! file_exists($fullPath)) {
+            return false;
+        }
+
+        if (is_file($fullPath)) {
+            return filemtime($fullPath) > $since;
+        }
+
+        // Handle wildcards and directories
+        if (str_contains($path, '*')) {
+            $dir = dirname($fullPath);
+            $pattern = basename($path);
+
+            if (! is_dir($dir)) {
+                return false;
+            }
+
+            $finder = (new Finder)
+                ->files()
+                ->in($dir)
+                ->name($pattern)
+                ->date('>= @' . $since);
+
+            return $finder->hasResults();
+        }
+
+        // Regular directory
+        if (is_dir($fullPath)) {
+            $finder = (new Finder)
+                ->files()
+                ->in($fullPath)
+                ->name('*.php')
+                ->date('>= @' . $since);
+
+            return $finder->hasResults();
+        }
+
+        return false;
     }
 }

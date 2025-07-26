@@ -4,21 +4,25 @@ declare(strict_types=1);
 
 namespace App\Traits;
 
-use App\Helpers\Discord\GetGuildsByDiscordUserId;
-use App\Helpers\Discord\SendMessage;
 use Exception;
 
+/**
+ * Trait for handling Discord permission checks.
+ * Requires channelId, guildId, and discordUserId properties.
+ */
 trait DiscordPermissionTrait
 {
+    use DiscordBaseTrait;
+
     /**
      * Check if user has role management permissions and send error if not.
      */
     protected function requireRolePermission(): void
     {
-        $this->requirePermission(
-            GetGuildsByDiscordUserId::getIfUserCanManageRoles($this->guildId, $this->discordUserId),
-            'You do not have permission to manage roles in this server.'
-        );
+        $member = $this->getDiscord()->guild($this->guildId)->member($this->discordUserId);
+        if (! $member->canManageRoles()) {
+            $this->sendPermissionError('You do not have permission to manage roles in this server.');
+        }
     }
 
     /**
@@ -26,10 +30,10 @@ trait DiscordPermissionTrait
      */
     protected function requireChannelPermission(): void
     {
-        $this->requirePermission(
-            GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId),
-            'You do not have permission to manage channels in this server.'
-        );
+        $member = $this->getDiscord()->guild($this->guildId)->member($this->discordUserId);
+        if (! $member->canManageChannels()) {
+            $this->sendPermissionError('You do not have permission to manage channels in this server.');
+        }
     }
 
     /**
@@ -37,10 +41,10 @@ trait DiscordPermissionTrait
      */
     protected function requireMemberPermission(): void
     {
-        $this->requirePermission(
-            GetGuildsByDiscordUserId::getIfUserCanKickMembers($this->guildId, $this->discordUserId),
-            'You do not have permission to manage members in this server.'
-        );
+        $member = $this->getDiscord()->guild($this->guildId)->member($this->discordUserId);
+        if (! $member->canKickMembers()) {
+            $this->sendPermissionError('You do not have permission to manage members in this server.');
+        }
     }
 
     /**
@@ -48,10 +52,10 @@ trait DiscordPermissionTrait
      */
     protected function requireBanPermission(): void
     {
-        $this->requirePermission(
-            GetGuildsByDiscordUserId::getIfUserCanKickMembers($this->guildId, $this->discordUserId),
-            'You do not have permission to ban members in this server.'
-        );
+        $member = $this->getDiscord()->guild($this->guildId)->member($this->discordUserId);
+        if (! $member->canKickMembers()) {
+            $this->sendPermissionError('You do not have permission to ban members in this server.');
+        }
     }
 
     /**
@@ -59,23 +63,18 @@ trait DiscordPermissionTrait
      */
     protected function requireAdminPermission(): void
     {
-        $this->requirePermission(
-            GetGuildsByDiscordUserId::getIfUserIsAdmin($this->guildId, $this->discordUserId),
-            'You do not have administrator permissions in this server.'
-        );
+        $member = $this->getDiscord()->guild($this->guildId)->member($this->discordUserId);
+        if (! $member->isAdmin()) {
+            $this->sendPermissionError('You do not have administrator permissions in this server.');
+        }
     }
 
     /**
-     * Generic permission checker with error handling.
+     * Send permission error and throw exception.
      */
-    private function requirePermission(string $permissionCheck, string $errorMessage): void
+    private function sendPermissionError(string $errorMessage): void
     {
-        if ($permissionCheck !== 'success') {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "❌ {$errorMessage}",
-            ]);
-            throw new Exception($errorMessage, 403);
-        }
+        $this->getDiscord()->channel($this->channelId)->send("❌ {$errorMessage}");
+        throw new Exception($errorMessage, 403);
     }
 }

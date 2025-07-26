@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\DiscordApiService;
-use App\Services\DiscordParserService;
+
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\Discord\Discord;
 use Exception;
 use Illuminate\Support\Facades\Log;
 
@@ -20,7 +21,7 @@ final class ProcessMuteUserJob extends ProcessBaseJob
         $this->requireMemberPermission();
 
         // 2. Parse and validate input using service
-        $targetUserId = DiscordParserService::parseUserCommand($this->messageContent, 'mute');
+        $targetUserId = Discord::parseUserCommand($this->messageContent, 'mute');
 
         if (! $targetUserId) {
             $this->sendUsageAndExample();
@@ -55,42 +56,41 @@ final class ProcessMuteUserJob extends ProcessBaseJob
      */
     private function muteUserInVoiceChannels(string $userId): bool
     {
-        // Fetch all voice channels in the guild
-        $discordService = app(DiscordApiService::class);
-        $channelsResponse = retry($this->maxRetries, function () use ($discordService) {
-            return $discordService->get("/guilds/{$this->guildId}/channels");
-        }, $this->retryDelay);
 
-        if ($channelsResponse->failed()) {
-            Log::error("Failed to fetch channels for guild {$this->guildId}");
+        try {
+            $discord = new Discord;
+            $guild = $discord->guild($this->guildId);
+
+            // Get all voice channels
+            $channels = $guild->channels()->voice()->get();
+
+            // Extract channel IDs
+            $channelIds = $channels->pluck('id')->toArray();
+
+            // Use the member mute method
+            $member = $guild->member($userId);
+            $results = $member->muteInChannels($channelIds);
+
+            // Check if all operations were successful
+            $failedChannels = array_filter($results, fn ($success) => ! $success);
+
+            if (! empty($failedChannels)) {
+                Log::error('Failed to mute user in some channels', [
+                    'user_id' => $userId,
+                    'failed_channels' => array_keys($failedChannels),
+                ]);
+            }
+
+            return empty($failedChannels);
+        } catch (Exception $e) {
+            Log::error('Failed to mute user in voice channels', [
+                'user_id' => $userId,
+                'guild_id' => $this->guildId,
+                'error' => $e->getMessage(),
+            ]);
 
             return false;
         }
 
-        $channels = collect($channelsResponse->json());
-        $voiceChannels = $channels->filter(fn ($ch) => $ch['type'] === 2); // Voice channels only
-
-        $failedChannels = [];
-
-        foreach ($voiceChannels as $channel) {
-            $channelId = $channel['id'];
-            $permissionsUrl = "{$this->baseUrl}/channels/{$channelId}/permissions/{$userId}";
-
-            $payload = [
-                'deny' => (1 << 11) | (1 << 23), // Deny SPEAK and STREAM permissions
-                'type' => 1, // Member override
-            ];
-
-            $permissionsResponse = retry($this->maxRetries, function () use ($discordService, $channelId, $userId, $payload) {
-                return $discordService->put("/channels/{$channelId}/permissions/{$userId}", $payload);
-            }, $this->retryDelay);
-
-            if ($permissionsResponse->failed()) {
-                $failedChannels[] = $channelId;
-            }
-        }
-
-        // Return true if all channels were successfully processed (no failures)
-        return empty($failedChannels);
     }
 }

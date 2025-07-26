@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\DiscordParserService;
+
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\Discord\Discord;
 use Exception;
 
 final class ProcessNewRoleJob extends ProcessBaseJob
@@ -13,7 +15,7 @@ final class ProcessNewRoleJob extends ProcessBaseJob
     {
         $this->requireRolePermission();
 
-        $params = DiscordParserService::extractParameters($this->messageContent, 'new-role');
+        $params = Discord::extractParameters($this->messageContent, 'new-role');
         $this->validateRequiredParameters($params, 1, 'Role name is required.');
 
         $roleName = $params[0];

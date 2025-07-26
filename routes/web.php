@@ -1,21 +1,21 @@
 <?php
 
-use App\Http\Controllers\AssignLicenseController;
 use App\Http\Controllers\Auth\LoginCallbackController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\UserIntegrationController;
+use App\Http\Controllers\Billing\AssignLicenseController;
+use App\Http\Controllers\Billing\BillingPortalController;
+use App\Http\Controllers\Billing\ParkLicenseController;
+use App\Http\Controllers\Billing\TransferLicenseController;
 use App\Http\Controllers\BillingController;
-use App\Http\Controllers\BillingPortalController;
 use App\Http\Controllers\CommandController;
 use App\Http\Controllers\JoinServerController;
-use App\Http\Controllers\ParkLicenseController;
 use App\Http\Controllers\PrivacyPolicyController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Server\WelcomeSettingController;
 use App\Http\Controllers\ServerController;
 use App\Http\Controllers\TermsOfServiceController;
-use App\Http\Controllers\TransferLicenseController;
 use App\Http\Controllers\UnsubscribeController;
 use App\Http\Controllers\UserSettingsController;
 use Illuminate\Support\Facades\Route;

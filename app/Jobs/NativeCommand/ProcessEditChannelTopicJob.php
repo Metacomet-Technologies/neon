@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\DiscordParserService;
+
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\Discord\Discord;
 use Exception;
 
 final class ProcessEditChannelTopicJob extends ProcessBaseJob
@@ -27,7 +29,7 @@ final class ProcessEditChannelTopicJob extends ProcessBaseJob
         $this->requireChannelPermission();
 
         // 2. Parse channel edit command
-        [$channelId, $newValue] = DiscordParserService::parseChannelEditCommand($this->messageContent, 'edit-channel-topic');
+        [$channelId, $newValue] = Discord::parseChannelEditCommand($this->messageContent, 'edit-channel-topic');
 
         if (! $channelId || ! $newValue) {
             $this->sendUsageAndExample();

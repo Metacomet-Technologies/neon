@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\DiscordParserService;
+
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\Discord\Discord;
 use Exception;
 
 final class ProcessRemoveRoleJob extends ProcessBaseJob
@@ -15,7 +17,7 @@ final class ProcessRemoveRoleJob extends ProcessBaseJob
         $this->requireRolePermission();
 
         // 2. Parse and validate input using service
-        [$roleName, $userIds] = DiscordParserService::parseRoleCommand($this->messageContent, 'remove-role');
+        [$roleName, $userIds] = Discord::parseRoleCommand($this->messageContent, 'remove-role');
 
         if (! $roleName || empty($userIds)) {
             $this->sendUsageAndExample();

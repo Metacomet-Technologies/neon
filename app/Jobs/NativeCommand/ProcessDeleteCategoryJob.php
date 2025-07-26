@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Helpers\Discord\GetGuildsByDiscordUserId;
-use App\Helpers\Discord\SendMessage;
+
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\Discord\Discord;
 use Exception;
-use App\Services\DiscordApiService;
 use Illuminate\Support\Facades\Log;
 
 final class ProcessDeleteCategoryJob extends ProcessBaseJob
@@ -27,26 +27,11 @@ final class ProcessDeleteCategoryJob extends ProcessBaseJob
     protected function executeCommand(): void
     {
         // Ensure the user has permission to manage channels
-        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
-
-        if ($permissionCheck !== 'success') {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ You do not have permission to manage categories in this server.',
-            ]);
-
+        $discord = new Discord;
+        if (! $discord->guild($this->guildId)->member($this->discordUserId)->canManageChannels()) {
+            $discord->channel($this->channelId)->send('❌ You do not have permission to manage categories in this server.');
             throw new Exception('User does not have permission to manage categories in this server.', 403);
         }
-        //  Ensure the user has permission to delete categories
-        // $adminCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
-        // if ($adminCheck === 'failed') {
-        //     SendMessage::sendMessage($this->channelId, [
-        //         'is_embed' => false,
-        //         'response' => '❌ You are not allowed to delete categories.',
-        //     ]);
-        //     throw new \Exception('Operation failed', 500);
-
-        // }
         // Parse the command
         $parts = explode(' ', $this->messageContent);
 
@@ -59,44 +44,31 @@ final class ProcessDeleteCategoryJob extends ProcessBaseJob
 
         // Ensure the provided category ID is numeric
         if (! is_numeric($categoryId)) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Invalid category ID. Please provide a valid numeric ID.',
-            ]);
+            $discord->channel($this->channelId)->send('❌ Invalid category ID. Please provide a valid numeric ID.');
             throw new Exception('Operation failed', 500);
         }
         // Fetch all channels to verify the category exists and is a category
-        $discordService = app(DiscordApiService::class);
+        $discord = new Discord;
         
         try {
-            $apiResponse = $discordService->get("/guilds/{$this->guildId}/channels");
-
-            if ($apiResponse->failed()) {
+            $channels = collect($discord->guild($this->guildId)->channels());
+            
+            if (!$channels) {
                 Log::error("Failed to fetch channels for guild {$this->guildId}");
-                SendMessage::sendMessage($this->channelId, [
-                    'is_embed' => false,
-                    'response' => '❌ Failed to retrieve channels from the server.',
-                ]);
-                throw new Exception('Failed to fetch channels from the server.', 500);
+                $discord->channel($this->channelId)->send('❌ Failed to retrieve channels from the server.');
+                throw new Exception('Operation failed', 500);
             }
         } catch (Exception $e) {
-            Log::error("Exception while fetching channels for guild {$this->guildId}", ['error' => $e->getMessage()]);
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Failed to retrieve channels from the server.',
-            ]);
-            throw new Exception('Failed to fetch channels from the server.', 500);
+            Log::error("Failed to fetch channels for guild {$this->guildId}", ['error' => $e->getMessage()]);
+            $discord->channel($this->channelId)->send('❌ Failed to retrieve channels from the server.');
+            throw new Exception('Operation failed', 500);
         }
-        $channels = collect($apiResponse->json());
 
         // 4️⃣ Find the category by ID and confirm it is a category (Type 4)
         $category = $channels->first(fn ($c) => $c['id'] === $categoryId && $c['type'] === 4);
 
         if (! $category) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "❌ No category found with ID `{$categoryId}`.",
-            ]);
+            $discord->channel($this->channelId)->send("❌ No category found with ID `{$categoryId}`.");
             throw new Exception('Category not found in guild.', 404);
         }
         // 5️⃣ Check if category has child channels
@@ -105,42 +77,22 @@ final class ProcessDeleteCategoryJob extends ProcessBaseJob
         if ($childChannels->isNotEmpty()) {
             $channelList = $childChannels->map(fn ($c) => "`{$c['name']}` (ID: `{$c['id']}`)")->implode("\n");
 
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "❌ Category ID `{$categoryId}` contains channels:\n{$channelList}\nPlease delete or move them first.",
-            ]);
+            $discord->channel($this->channelId)->send("❌ Category ID `{$categoryId}` contains channels:\n{$channelList}\nPlease delete or move them first.");
             throw new Exception('Category contained child channels.', 400);
         }
         // Make the delete request
         try {
-            $deleteResponse = $discordService->delete("/channels/{$categoryId}");
-
-            if ($deleteResponse->failed()) {
-                Log::error("Failed to delete category '{$categoryId}' in guild {$this->guildId}", [
-                    'response' => $deleteResponse->json(),
-                ]);
-
-                SendMessage::sendMessage($this->channelId, [
-                    'is_embed' => false,
-                    'response' => "❌ Failed to delete category (ID: `{$categoryId}`).",
-                ]);
-                throw new Exception('Failed to delete category.', 500);
-            }
+            $discord->channel($categoryId)->delete();
         } catch (Exception $e) {
             Log::error("Exception while deleting category '{$categoryId}' in guild {$this->guildId}", ['error' => $e->getMessage()]);
-
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "❌ Failed to delete category (ID: `{$categoryId}`).",
-            ]);
-            throw new Exception('Failed to delete category.', 500);
+            $discord->channel($this->channelId)->send("❌ Failed to delete category (ID: `{$categoryId}`).");
+            throw new Exception('Operation failed', 500);
         }
         // ✅ Success! Send confirmation message
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => true,
-            'embed_title' => '✅ Category Deleted!',
-            'embed_description' => "**Category ID:** `{$categoryId}` has been successfully removed.",
-            'embed_color' => 15158332, // Red embed
-        ]);
+        $discord->channel($this->channelId)->sendEmbed(
+            '✅ Category Deleted!',
+            "**Category ID:** `{$categoryId}` has been successfully removed.",
+            15158332 // Red embed
+        );
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\User;
+use App\Services\Discord\Discord;
 use Exception;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Collection;
@@ -672,5 +674,138 @@ final class DiscordApiService
         }
 
         return $results;
+    }
+
+
+    /**
+     * Refresh Discord OAuth token for a user.
+     */
+    public function refreshUserToken(User $user): ?string
+    {
+        Log::info('Refreshing Discord token for user', [
+            'user_id' => $user->id,
+        ]);
+
+        $response = Http::post('https://discord.com/api/oauth2/token', [
+            'grant_type' => 'refresh_token',
+            'client_id' => config('services.discord.client_id'),
+            'client_secret' => config('services.discord.client_secret'),
+            'refresh_token' => $user->refresh_token,
+        ]);
+
+        if ($response->failed()) {
+            Log::error('Failed to refresh Discord token', [
+                'user_id' => $user->id,
+                'response' => $response->body(),
+            ]);
+
+            return null;
+        }
+
+        $data = $response->json();
+        $user->update([
+            'access_token' => $data['access_token'],
+            'refresh_token' => $data['refresh_token'],
+            'token_expires_at' => now()->addSeconds($data['expires_in'] ?? 0),
+            'updated_at' => now(),
+        ]);
+
+        Log::info('Discord token refreshed successfully', [
+            'user_id' => $user->id,
+        ]);
+
+        return $data['access_token'];
+    }
+
+    /**
+     * Validate if a Discord channel name is valid.
+     *
+     * @return array{is_valid: bool, message: string}
+     */
+    public function validateChannelName(string $channelName): array
+    {
+        $maxLength = 100;
+        $pattern = '/^[a-z0-9_-]+$/';
+
+        if (strlen($channelName) > $maxLength) {
+            return [
+                'is_valid' => false,
+                'message' => "The channel name must not exceed {$maxLength} characters.",
+            ];
+        }
+
+        if (! preg_match($pattern, $channelName)) {
+            return [
+                'is_valid' => false,
+                'message' => 'The channel name contains invalid characters. Only lowercase letters, numbers, hyphens, and underscores are allowed.',
+            ];
+        }
+
+        return [
+            'is_valid' => true,
+            'message' => 'The channel name is valid.',
+        ];
+    }
+
+    /**
+     * Move user to voice channel.
+     */
+    public function moveUserToChannel(string $guildId, string $userId, string $channelId): bool
+    {
+        return $this->discord->guild($guildId)->moveMemberToChannel($userId, $channelId);
+    }
+
+    /**
+     * Set guild AFK channel.
+     */
+    public function setGuildAfkChannel(string $guildId, string $channelId, int $timeout = 300): bool
+    {
+        return $this->discord->guild($guildId)->setAfkChannel($channelId, $timeout);
+    }
+
+    /**
+     * Set guild boost progress bar.
+     */
+    public function setGuildBoostProgressBar(string $guildId, bool $enabled): bool
+    {
+        return $this->discord->guild($guildId)->setBoostProgressBar($enabled);
+    }
+
+    /**
+     * Prune inactive members.
+     */
+    public function pruneInactiveMembers(string $guildId, int $days): array
+    {
+        return $this->discord->guild($guildId)->pruneMembers($days);
+    }
+
+    /**
+     * Update channel permissions.
+     */
+    public function updateChannelPermissions(string $channelId, string $overwriteId, array $permissions): bool
+    {
+        return $this->discord->channel($channelId)->editPermissions($overwriteId, $permissions, 0);
+    }
+
+    /**
+     * Send notification (alias for sending message).
+     */
+    public function sendNotification(string $channelId, array $data): bool
+    {
+        try {
+            $this->discord->channel($channelId)->send($data['message'] ?? $data);
+
+            return true;
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Get guild channels.
+     */
+    public function getGuildChannels(string $guildId): Collection
+    {
+        return $this->discord->guild($guildId)->channels()->get();
     }
 }

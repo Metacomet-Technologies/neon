@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Helpers\Discord\GetGuildsByDiscordUserId;
-use App\Helpers\Discord\SendMessage;
-use App\Services\DiscordApiService;
+
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\Discord\Discord;
 use Exception;
 use Illuminate\Support\Facades\Log;
 
@@ -41,21 +41,14 @@ final class ProcessEditChannelAutohideJob extends ProcessBaseJob
             throw new Exception('No user ID provided.', 400);
         }
         // Ensure the user has permission to manage channels
-        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
-
-        if ($permissionCheck !== 'success') {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ You do not have permission to edit channels in this server.',
-            ]);
+        $discord = new Discord;
+        if (! $discord->guild($this->guildId)->member($this->discordUserId)->canManageChannels()) {
+            $discord->channel($this->channelId)->send('❌ You do not have permission to edit channels in this server.');
             throw new Exception('User does not have permission to manage channels.', 403);
         }
         // Ensure the input is a valid Discord channel ID
         if (! preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Invalid channel ID. Please use `#channel-name` to select a valid channel.',
-            ]);
+            $discord->channel($this->channelId)->send('❌ Invalid channel ID. Please use `#channel-name` to select a valid channel.');
             throw new Exception('Invalid channel ID provided.', 400);
         }
         // Build API request
@@ -70,19 +63,15 @@ final class ProcessEditChannelAutohideJob extends ProcessBaseJob
 
         if ($apiResponse->failed()) {
             Log::error("Failed to update auto-hide setting (ID: `{$this->targetChannelId}`).");
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Failed to update auto-hide setting.',
-            ]);
+            $discord->channel($this->channelId)->send('❌ Failed to update auto-hide setting.');
             throw new Exception('Operation failed', 500);
         }
         // Success message
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => true,
-            'embed_title' => '✅ Auto-Hide Updated!',
-            'embed_description' => "**Auto-hide Duration:** ⏲️ `{$this->autoHideDuration} minutes`",
-            'embed_color' => 3447003,
-        ]);
+        $discord->channel($this->channelId)->sendEmbed(
+            '✅ Auto-Hide Updated!',
+            "**Auto-hide Duration:** ⏲️ `{$this->autoHideDuration} minutes`",
+            3447003
+        );
     }
 
     /**

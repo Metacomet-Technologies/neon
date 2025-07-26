@@ -4,22 +4,16 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Helpers\Discord\GetGuildsByDiscordUserId;
-use App\Helpers\Discord\SendMessage;
+// Helpers replaced by SDK
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\Discord\Discord;
 use Exception;
-use App\Services\DiscordApiService;
 
 final class ProcessArchiveChannelJob extends ProcessBaseJob
 {
-    public ?string $targetChannelId = null; // The actual Discord channel ID
-    public ?bool $archiveStatus = null; // Archive (true) or unarchive (false)
+    private readonly ?string $targetChannelId;
+    private readonly ?bool $archiveStatus;
 
-    private int $retryDelay = 2000; // ✅ 2-second delay before retrying
-    private int $maxRetries = 3;    // ✅ Max retries per request
-
-    /**
-     * Create a new job instance.
-     */
     public function __construct(
         string $discordUserId,
         string $channelId,
@@ -31,87 +25,76 @@ final class ProcessArchiveChannelJob extends ProcessBaseJob
     ) {
         parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
 
-        // Parse the message first
-        [$this->targetChannelId, $this->archiveStatus] = $this->parseMessage($this->messageContent);
+        // Parse the message in constructor
+        [$this->targetChannelId, $this->archiveStatus] = $this->parseMessage($messageContent);
     }
 
-    /**
-     * Execute the specific command logic.
-     */
     protected function executeCommand(): void
     {
-
-        // ✅ If invalid input, send help message and **exit early**
+        // Validate input
         if (! $this->targetChannelId || is_null($this->archiveStatus)) {
             $this->sendUsageAndExample();
 
             return;
         }
 
-        // Ensure the user has permission to manage channels
-        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
+        // Check permissions using SDK
+        $discord = new Discord;
+        $member = $discord->guild($this->guildId)->member($this->discordUserId);
 
-        if ($permissionCheck !== 'success') {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ You do not have permission to manage channels in this server.',
-            ]);
-
+        if (! $member->canManageChannels()) {
+            $discord->channel($this->channelId)->send('❌ You do not have permission to manage channels in this server.');
             throw new Exception('User does not have permission to manage channels.', 403);
         }
-        // Ensure the input is a valid Discord channel ID
-        if (! preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Invalid channel ID. Please use `#channel-name` to select a valid channel.',
-            ]);
 
+        // Validate channel ID format
+        if (! preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
+            $discord->channel($this->channelId)->send('❌ Invalid channel ID. Please use `#channel-name` to select a valid channel.');
             throw new Exception('Invalid channel ID provided.', 400);
         }
 
-        // Build API request
-        $url = "{$this->baseUrl}/channels/{$this->targetChannelId}";
-        $payload = ['archived' => $this->archiveStatus];
+        try {
+            // Use SDK to archive/unarchive channel
+            // Discord instance already created above
+            $channel = $discord->channel($this->targetChannelId);
 
-        // Send the request to Discord API
-        $discordService = app(DiscordApiService::class);
-        $apiResponse = retry($this->maxRetries, function () use ($discordService, $payload) {
-            return $discordService->patch("/channels/{$this->targetChannelId}", $payload);
-        }, $this->retryDelay);
+            if ($this->archiveStatus) {
+                $channel->archive();
+                $message = "✅ Channel <#{$this->targetChannelId}> has been **archived**.";
+            } else {
+                $channel->update(['archived' => false]);
+                $message = "✅ Channel <#{$this->targetChannelId}> has been **unarchived**.";
+            }
 
-        if ($apiResponse->failed()) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Failed to update channel archive status.',
-            ]);
+            $discord->channel($this->channelId)->sendEmbed(
+                '📁 Channel Archive Status Updated',
+                $message,
+                3066993 // Green color
+            );
 
-            throw new Exception('Failed to update channel archive status: ' . $apiResponse->body(), $apiResponse->status());
+        } catch (Exception $e) {
+            $discord->channel($this->channelId)->send('❌ Failed to update channel archive status.');
+            throw new Exception('Failed to update channel archive status: ' . $e->getMessage(), 500);
         }
-
-        // Success message
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => true,
-            'embed_title' => $this->archiveStatus ? '📂 Channel Archived' : '📂 Channel Unarchived',
-            'embed_description' => "✅ Channel <#{$this->targetChannelId}> has been " . ($this->archiveStatus ? 'archived' : 'unarchived') . '.',
-            'embed_color' => $this->archiveStatus ? 15158332 : 3066993, // Red for archive, Green for unarchive
-        ]);
     }
 
-    /**
-     * Parses the message content for command parameters.
-     */
     private function parseMessage(string $message): array
     {
-        // Use regex to extract the channel ID or mention and archive/unarchive flag
-        preg_match('/^!archive-channel\s+(<#?(\d{17,19})>)?\s*(true|false)?$/i', $message, $matches);
+        preg_match('/^!archive-channel\s*(<#(\d+)>|(\d+))?\s*(true|false)?$/i', $message, $matches);
 
-        if (! isset($matches[2], $matches[3])) {
-            return [null, null]; // Invalid input
+        $channelId = null;
+        $archiveStatus = null;
+
+        if (isset($matches[2]) && $matches[2]) {
+            $channelId = $matches[2];
+        } elseif (isset($matches[3]) && $matches[3]) {
+            $channelId = $matches[3];
         }
 
-        $channelIdentifier = trim($matches[2]);                    // Extracted numeric channel ID
-        $archiveStatus = strtolower(trim($matches[3])) === 'true'; // Convert to boolean
+        if (isset($matches[4])) {
+            $archiveStatus = strtolower($matches[4]) === 'true';
+        }
 
-        return [$channelIdentifier, $archiveStatus];
+        return [$channelId, $archiveStatus];
     }
 }

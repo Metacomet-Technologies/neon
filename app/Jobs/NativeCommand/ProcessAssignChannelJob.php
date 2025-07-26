@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Helpers\Discord\GetGuildsByDiscordUserId;
-use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\Discord\Discord;
 use Illuminate\Foundation\Queue\Queueable;
-use App\Services\DiscordApiService;
 use Illuminate\Support\Facades\Log;
 
 final class ProcessAssignChannelJob extends ProcessBaseJob
@@ -32,13 +31,9 @@ final class ProcessAssignChannelJob extends ProcessBaseJob
     protected function executeCommand(): void
     {
         // Ensure the user has permission to manage channels
-        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
-
-        if ($permissionCheck !== 'success') {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ You do not have permission to manage channels in this server.',
-            ]);
+        $discord = new Discord;
+        if (! $discord->guild($this->guildId)->member($this->discordUserId)->canManageChannels()) {
+            $discord->channel($this->channelId)->send('❌ You do not have permission to manage channels in this server.');
 
             $this->nativeCommandRequest->update([
                 'status' => 'unauthorized',
@@ -56,10 +51,7 @@ final class ProcessAssignChannelJob extends ProcessBaseJob
         [$channelInput, $categoryInput] = $this->parseMessage($this->messageContent);
 
         if (! $channelInput || ! $categoryInput) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->command['usage']}\n{$this->command['example']}",
-            ]);
+            $discord->channel($this->channelId)->send("{$this->command['usage']}\n{$this->command['example']}");
 
             $this->nativeCommandRequest->update([
                 'status' => 'failed',
@@ -75,25 +67,20 @@ final class ProcessAssignChannelJob extends ProcessBaseJob
         }
 
         // 2️⃣ Fetch all channels in the guild
-        $discordService = app(DiscordApiService::class);
-        
         try {
-            $channelsResponse = $discordService->get("/guilds/{$this->guildId}/channels");
+            $channelsResponse = $discord->guild($this->guildId)->channels();
             
-            if ($channelsResponse->failed()) {
+            if (!$channelsResponse) {
                 Log::error("Failed to fetch channels for guild {$this->guildId}");
-                SendMessage::sendMessage($this->channelId, [
-                    'is_embed' => false,
-                    'response' => '❌ Failed to retrieve channels from the server.',
-                ]);
+                $discord->channel($this->channelId)->send('❌ Failed to retrieve channels from the server.');
 
                 $this->nativeCommandRequest->update([
                     'status' => 'discord-api-error',
                     'failed_at' => now(),
                     'error_message' => [
                         'message' => 'Failed to fetch channels from the server.',
-                        'status_code' => $channelsResponse->status(),
-                        'response' => $channelsResponse->json(),
+                        'status_code' => 500,
+                        'response' => 'Failed to fetch channels',
                     ],
                 ]);
 
@@ -101,10 +88,7 @@ final class ProcessAssignChannelJob extends ProcessBaseJob
             }
         } catch (\Exception $e) {
             Log::error("Exception while fetching channels for guild {$this->guildId}", ['error' => $e->getMessage()]);
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Failed to retrieve channels from the server.',
-            ]);
+            $discord->channel($this->channelId)->send('❌ Failed to retrieve channels from the server.');
 
             $this->nativeCommandRequest->update([
                 'status' => 'discord-api-error',
@@ -119,16 +103,13 @@ final class ProcessAssignChannelJob extends ProcessBaseJob
             return;
         }
 
-        $channels = collect($channelsResponse->json());
+        $channels = collect($channelsResponse);
 
         // 3️⃣ Find the target channel
         $channel = $channels->first(fn ($c) => $c['id'] === $channelInput || strcasecmp($c['name'], $channelInput) === 0);
 
         if (! $channel) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "❌ Channel '{$channelInput}' not found.",
-            ]);
+            $discord->channel($this->channelId)->send("❌ Channel '{$channelInput}' not found.");
 
             $this->nativeCommandRequest->update([
                 'status' => 'failed',
@@ -150,10 +131,7 @@ final class ProcessAssignChannelJob extends ProcessBaseJob
         $category = $channels->first(fn ($c) => ($c['id'] === $categoryInput || strcasecmp($c['name'], $categoryInput) === 0) && $c['type'] === 4);
 
         if (! $category) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "❌ Category '{$categoryInput}' not found.",
-            ]);
+            $discord->channel($this->channelId)->send("❌ Category '{$categoryInput}' not found.");
 
             $this->nativeCommandRequest->update([
                 'status' => 'failed',
@@ -172,37 +150,11 @@ final class ProcessAssignChannelJob extends ProcessBaseJob
 
         // 5️⃣ Move the channel to the new category
         try {
-            $updateResponse = $discordService->patch("/channels/{$channelId}", ['parent_id' => $categoryId]);
-
-            if ($updateResponse->failed()) {
-                Log::error("Failed to move channel '{$channelInput}' to category '{$categoryInput}' in guild {$this->guildId}", [
-                    'response' => $updateResponse->json(),
-                ]);
-
-                SendMessage::sendMessage($this->channelId, [
-                    'is_embed' => false,
-                    'response' => "❌ Failed to move channel '{$channelInput}' to category '{$categoryInput}'.",
-                ]);
-
-                $this->nativeCommandRequest->update([
-                    'status' => 'discord-api-error',
-                    'failed_at' => now(),
-                    'error_message' => [
-                        'message' => 'Failed to move channel to category.',
-                        'status_code' => $updateResponse->status(),
-                        'response' => $updateResponse->json(),
-                    ],
-                ]);
-
-                return;
-            }
+            $discord->channel($channelId)->update(['parent_id' => $categoryId]);
         } catch (\Exception $e) {
             Log::error("Exception while moving channel '{$channelInput}' to category '{$categoryInput}' in guild {$this->guildId}", ['error' => $e->getMessage()]);
 
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "❌ Failed to move channel '{$channelInput}' to category '{$categoryInput}'.",
-            ]);
+            $discord->channel($this->channelId)->send("❌ Failed to move channel '{$channelInput}' to category '{$categoryInput}'.");
 
             $this->nativeCommandRequest->update([
                 'status' => 'discord-api-error',
@@ -218,12 +170,11 @@ final class ProcessAssignChannelJob extends ProcessBaseJob
         }
 
         // ✅ Success! Send confirmation message
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => true,
-            'embed_title' => '✅ Channel Moved!',
-            'embed_description' => "**Channel Name:** #{$channel['name']} (ID: `{$channelId}`)\n**New Category:** 📂 {$category['name']} (ID: `{$categoryId}`)",
-            'embed_color' => 3066993, // Green embed
-        ]);
+        $discord->channel($this->channelId)->sendEmbed(
+            '✅ Channel Moved!',
+            "**Channel Name:** #{$channel['name']} (ID: `{$channelId}`)\n**New Category:** 📂 {$category['name']} (ID: `{$categoryId}`)",
+            3066993 // Green embed
+        );
 
         // 6️⃣ Update the status of the command request
         $this->nativeCommandRequest->update([

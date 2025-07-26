@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Helpers\Discord\GetGuildsByDiscordUserId;
-use App\Helpers\Discord\SendMessage;
+
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\Discord\Discord;
 use Exception;
 use App\Services\DiscordApiService;
 use Illuminate\Support\Facades\Log;
@@ -42,13 +43,9 @@ final class ProcessDisconnectUserJob extends ProcessBaseJob
             throw new Exception('No user ID provided.', 400);
         }
         // Check if user has permission to manage channels
-        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
-
-        if ($permissionCheck !== 'success') {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ You do not have permission to disconnect users from voice channels in this server.',
-            ]);
+        $discord = new Discord;
+        if (! $discord->guild($this->guildId)->member($this->discordUserId)->canManageChannels()) {
+            $discord->channel($this->channelId)->send('❌ You do not have permission to disconnect users from voice channels in this server.');
             throw new Exception('User does not have permission to manage channels.', 403);
         }
         $failedUsers = [];
@@ -67,20 +64,18 @@ final class ProcessDisconnectUserJob extends ProcessBaseJob
         }
         // Send response message
         if (! empty($failedUsers)) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => true,
-                'embed_title' => '❌ Disconnect Failed',
-                'embed_description' => 'Failed to remove: ' . implode(', ', $failedUsers),
-                'embed_color' => 15158332, // Red
-            ]);
+            $discord->channel($this->channelId)->sendEmbed(
+                '❌ Disconnect Failed',
+                'Failed to remove: ' . implode(', ', $failedUsers),
+                15158332 // Red
+            );
             throw new Exception('Operation failed', 500);
         } else {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => true,
-                'embed_title' => '✅ Users Disconnected from Voice Channel',
-                'embed_description' => 'Successfully disconnected users from voice chat.',
-                'embed_color' => 3066993, // Green
-            ]);
+            $discord->channel($this->channelId)->sendEmbed(
+                '✅ Users Disconnected from Voice Channel',
+                'Successfully disconnected users from voice chat.',
+                3066993 // Green
+            );
         }
     }
 

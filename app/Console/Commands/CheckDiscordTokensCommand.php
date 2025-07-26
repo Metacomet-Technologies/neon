@@ -4,15 +4,21 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Helpers\DiscordRefreshToken;
 use App\Models\User;
+use App\Services\DiscordApiService;
 use Illuminate\Console\Command;
 
-final class CheckDiscordTokens extends Command
+final class CheckDiscordTokensCommand extends Command
 {
     protected $signature = 'discord:check-tokens';
 
     protected $description = 'Check and refresh expired Discord tokens for all users';
+
+    public function __construct(
+        private DiscordApiService $discordApiService
+    ) {
+        parent::__construct();
+    }
 
     public function handle(): int
     {
@@ -33,8 +39,7 @@ final class CheckDiscordTokens extends Command
         foreach ($users as $user) {
             $this->info("Checking user {$user->id} ({$user->email})");
 
-            $refreshHelper = new DiscordRefreshToken($user);
-            $newToken = $refreshHelper->refreshToken();
+            $newToken = $this->discordApiService->refreshUserToken($user);
 
             if ($newToken) {
                 $refreshed++;

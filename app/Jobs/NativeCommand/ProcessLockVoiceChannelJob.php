@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Helpers\Discord\GetGuildsByDiscordUserId;
-use App\Helpers\Discord\SendMessage;
+
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\Discord\Discord;
 use Exception;
-use App\Services\DiscordApiService;
 use Illuminate\Support\Facades\Log;
 
 // TODO: this job may not be locking vc's as expected. Something about the roles and permissions is off.
@@ -33,13 +33,9 @@ final class ProcessLockVoiceChannelJob extends ProcessBaseJob
 
     protected function executeCommand(): void
     {
-        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
-
-        if ($permissionCheck !== 'success') {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ You do not have permission to lock/unlock voice channels in this server.',
-            ]);
+        $discord = new Discord;
+        if (! $discord->guild($this->guildId)->member($this->discordUserId)->canManageChannels()) {
+            $discord->channel($this->channelId)->send('❌ You do not have permission to lock/unlock voice channels in this server.');
             throw new Exception('User does not have permission to manage channels', 403);
         }
         // Check if the user only typed "!lock-voice" with no arguments
@@ -58,28 +54,21 @@ final class ProcessLockVoiceChannelJob extends ProcessBaseJob
             throw new Exception('Invalid parameters provided.', 400);
         }
         // Get all roles in the guild
-        $discordService = app(DiscordApiService::class);
+        $discord = new Discord;
         
         try {
-            $rolesResponse = $discordService->get("/guilds/{$this->guildId}/roles");
-
-            if ($rolesResponse->failed()) {
+            $roles = $discord->guild($this->guildId)->roles();
+            
+            if (!$roles) {
                 Log::error("Failed to fetch roles for guild {$this->guildId}");
-                SendMessage::sendMessage($this->channelId, [
-                    'is_embed' => false,
-                    'response' => '❌ Failed to retrieve roles from the server.',
-                ]);
-                throw new Exception('Failed to fetch roles from the server.', 500);
+                $discord->channel($this->channelId)->send('❌ Failed to retrieve roles from the server.');
+                throw new Exception('Operation failed', 500);
             }
         } catch (Exception $e) {
-            Log::error("Exception while fetching roles for guild {$this->guildId}", ['error' => $e->getMessage()]);
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Failed to retrieve roles from the server.',
-            ]);
-            throw new Exception('Failed to fetch roles from the server.', 500);
+            Log::error("Failed to fetch roles for guild {$this->guildId}", ['error' => $e->getMessage()]);
+            $discord->channel($this->channelId)->send('❌ Failed to retrieve roles from the server.');
+            throw new Exception('Operation failed', 500);
         }
-        $roles = $rolesResponse->json();
         $failedRoles = [];
 
         // Lock or Unlock the voice channel by updating permissions for all roles
@@ -93,11 +82,7 @@ final class ProcessLockVoiceChannelJob extends ProcessBaseJob
             ];
 
             try {
-                $permissionsResponse = $discordService->put("/channels/{$this->targetChannelId}/permissions/{$roleId}", $payload);
-
-                if ($permissionsResponse->failed()) {
-                    $failedRoles[] = $role['name'];
-                }
+                $discord->channel($this->targetChannelId)->permissions()->update($roleId, $payload);
             } catch (Exception $e) {
                 Log::error("Exception while updating permissions for role {$roleId} in channel {$this->targetChannelId}", ['error' => $e->getMessage()]);
                 $failedRoles[] = $role['name'];
@@ -105,19 +90,17 @@ final class ProcessLockVoiceChannelJob extends ProcessBaseJob
         }
         // Send Response Message
         if (! empty($failedRoles)) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => true,
-                'embed_title' => $this->lockStatus ? '🔒 Lock Voice Channel Failed' : '🔓 Unlock Voice Channel Failed',
-                'embed_description' => '❌ Failed for roles: ' . implode(', ', $failedRoles),
-                'embed_color' => 15158332, // Red
-            ]);
+            $discord->channel($this->channelId)->sendEmbed(
+                $this->lockStatus ? '🔒 Lock Voice Channel Failed' : '🔓 Unlock Voice Channel Failed',
+                '❌ Failed for roles: ' . implode(', ', $failedRoles),
+                15158332 // Red
+            );
         } else {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => true,
-                'embed_title' => $this->lockStatus ? '🔒 Voice Channel Locked' : '🔓 Voice Channel Unlocked',
-                'embed_description' => "✅ Voice channel <#{$this->targetChannelId}> has been " . ($this->lockStatus ? 'locked' : 'unlocked') . '.',
-                'embed_color' => $this->lockStatus ? 15158332 : 3066993, // Red for lock, Green for unlock
-            ]);
+            $discord->channel($this->channelId)->sendEmbed(
+                $this->lockStatus ? '🔒 Voice Channel Locked' : '🔓 Voice Channel Unlocked',
+                "✅ Voice channel <#{$this->targetChannelId}> has been " . ($this->lockStatus ? 'locked' : 'unlocked') . '.',
+                $this->lockStatus ? 15158332 : 3066993 // Red for lock, Green for unlock
+            );
         }
     }
 

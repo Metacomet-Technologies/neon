@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Helpers\Discord\SendMessage;
 use App\Services\CommandAnalyticsService;
-use App\Services\DiscordApiService;
+use App\Services\Discord\Discord;
 use App\Traits\DiscordPermissionTrait;
 use App\Traits\DiscordResponseTrait;
 use App\Traits\DiscordValidatorTrait;
@@ -37,8 +36,6 @@ class ProcessBaseJob implements ShouldQueue
     public int $maxExceptions = 1;
     public int $timeout = 30;
 
-    protected DiscordApiService $discord;
-
     /**
      * Create a new job instance.
      */
@@ -59,7 +56,6 @@ class ProcessBaseJob implements ShouldQueue
         $this->commandSlug = $commandSlug;
         $this->parameters = $parameters;
         $this->baseUrl = config('services.discord.rest_api_url');
-        $this->discord = new DiscordApiService;
     }
 
     /**
@@ -136,10 +132,8 @@ class ProcessBaseJob implements ShouldQueue
         if ($additionalInfo) {
             $response .= "\n\n" . $additionalInfo;
         }
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => false,
-            'response' => $response,
-        ]);
+        $discord = new Discord;
+        $discord->channel($this->channelId)->send($response);
     }
 
     /**

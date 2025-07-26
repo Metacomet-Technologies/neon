@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Enums;
+namespace App\Services\Discord\Enums;
 
-enum DiscordPermissionEnum: int
+enum PermissionEnum: int
 {
     case CREATE_INSTANT_INVITE = 0x0000000000000001; // 1 << 0
     case KICK_MEMBERS = 0x0000000000000002; // 1 << 1

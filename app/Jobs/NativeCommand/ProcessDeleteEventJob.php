@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Helpers\Discord\GetGuildsByDiscordUserId;
-use App\Helpers\Discord\SendMessage;
+
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\Discord\Discord;
 use Exception;
 use Illuminate\Foundation\Queue\Queueable;
 use App\Services\DiscordApiService;
@@ -33,13 +34,9 @@ final class ProcessDeleteEventJob extends ProcessBaseJob
     protected function executeCommand(): void
     {
         // Ensure the user has permission to manage events
-        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanCreateEvents($this->guildId, $this->discordUserId);
-
-        if ($permissionCheck !== 'success') {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ You do not have permission to delete events in this server.',
-            ]);
+        $discord = new Discord;
+        if (! $discord->guild($this->guildId)->member($this->discordUserId)->canCreateEvents()) {
+            $discord->channel($this->channelId)->send('❌ You do not have permission to delete events in this server.');
             throw new Exception('User does not have permission to delete events.', 403);
         }
 
@@ -72,20 +69,17 @@ final class ProcessDeleteEventJob extends ProcessBaseJob
         } catch (Exception $e) {
             Log::error("Exception while deleting event '{$eventId}' in guild {$this->guildId}", ['error' => $e->getMessage()]);
 
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "❌ Failed to delete event (ID: `{$eventId}`).",
-            ]);
-            throw new Exception('Failed to delete event: ' . $e->getMessage(), 500);
+
+            $discord->channel($this->channelId)->send("❌ Failed to delete event (ID: `{$eventId}`).");
+            throw new Exception('Failed to delete event.', 500);
         }
 
         // ✅ Success! Send confirmation message
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => true,
-            'embed_title' => '✅ Event Deleted!',
-            'embed_description' => "**Event ID:** `{$eventId}` has been successfully removed.",
-            'embed_color' => 15158332, // Red embed
-        ]);
+        $discord->channel($this->channelId)->sendEmbed(
+            '✅ Event Deleted!',
+            "**Event ID:** `{$eventId}` has been successfully removed.",
+            15158332 // Red embed
+        );
     }
 
     /**

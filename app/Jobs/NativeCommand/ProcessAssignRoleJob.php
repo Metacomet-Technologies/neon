@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\DiscordParserService;
+
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\Discord\Discord;
 use Exception;
 
 final class ProcessAssignRoleJob extends ProcessBaseJob
@@ -15,7 +17,7 @@ final class ProcessAssignRoleJob extends ProcessBaseJob
         $this->requireRolePermission();
 
         // 2. Parse and validate input using service
-        [$roleName, $userIds] = DiscordParserService::parseRoleCommand($this->messageContent, 'assign-role');
+        [$roleName, $userIds] = Discord::parseRoleCommand($this->messageContent, 'assign-role');
 
         if (! $roleName || empty($userIds)) {
             $this->sendUsageAndExample();

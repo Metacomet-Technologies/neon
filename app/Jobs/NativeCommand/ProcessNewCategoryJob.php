@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Helpers\Discord\GetGuildsByDiscordUserId;
-use App\Helpers\Discord\SendMessage;
-use App\Services\DiscordApiService;
+
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\Discord\Discord;
 use Discord\Parts\Channel\Channel;
 use Exception;
 use Illuminate\Foundation\Queue\Queueable;
@@ -41,10 +41,8 @@ final class ProcessNewCategoryJob extends ProcessBaseJob
     {
         // Validate that required IDs are provided.
         if (! $this->discordUserId || ! $this->channelId) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->command['usage']}\n{$this->command['example']}",
-            ]);
+            $discord = new Discord;
+            $discord->channel($this->channelId)->send("{$this->command['usage']}\n{$this->command['example']}");
 
             $this->nativeCommandRequest->update([
                 'status' => 'failed',
@@ -61,12 +59,9 @@ final class ProcessNewCategoryJob extends ProcessBaseJob
         }
 
         // 1️⃣ Ensure the user has permission to create categories
-        $adminCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
-        if ($adminCheck === 'failed') {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ You are not allowed to create categories.',
-            ]);
+        $discord = new Discord;
+        if (! $discord->guild($this->guildId)->member($this->discordUserId)->canManageChannels()) {
+            $discord->channel($this->channelId)->send('❌ You are not allowed to create categories.');
 
             $this->nativeCommandRequest->update([
                 'status' => 'unauthorized',
@@ -84,14 +79,8 @@ final class ProcessNewCategoryJob extends ProcessBaseJob
         $parts = explode(' ', $this->messageContent, 2);
         if (count($parts) < 2) {
             // Send the usage and example messages if no category name is provided.
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => $this->command['usage'],
-            ]);
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => $this->command['example'],
-            ]);
+            $discord->channel($this->channelId)->send($this->command['usage']);
+            $discord->channel($this->channelId)->send($this->command['example']);
 
             $this->nativeCommandRequest->update([
                 'status' => 'help-request',
@@ -116,10 +105,7 @@ final class ProcessNewCategoryJob extends ProcessBaseJob
         ]);
 
         if ($jsonPayload === false) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Failed to create category.',
-            ]);
+            $discord->channel($this->channelId)->send('❌ Failed to create category.');
             $this->nativeCommandRequest->update([
                 'status' => 'failed',
                 'failed_at' => now(),
@@ -137,10 +123,7 @@ final class ProcessNewCategoryJob extends ProcessBaseJob
         $apiResponse = $discordService->post("/guilds/{$this->guildId}/channels", $payload);
 
         if ($apiResponse->failed()) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Failed to create category.',
-            ]);
+            $discord->channel($this->channelId)->send('❌ Failed to create category.');
             $this->nativeCommandRequest->update([
                 'status' => 'discord-api-error',
                 'failed_at' => now(),
@@ -154,12 +137,11 @@ final class ProcessNewCategoryJob extends ProcessBaseJob
         }
 
         // ✅ Send Embedded Confirmation Message
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => true,
-            'embed_title' => '✅ Category Created!',
-            'embed_description' => "**Category Name:** 📂 {$categoryName}",
-            'embed_color' => 3447003, // Blue embed
-        ]);
+        $discord->channel($this->channelId)->sendEmbed(
+            '✅ Category Created!',
+            "**Category Name:** 📂 {$categoryName}",
+            3447003 // Blue embed
+        );
 
         // 5️⃣ Update the status of the command request
         $this->nativeCommandRequest->update([

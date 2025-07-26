@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Helpers\Discord\GetBotGuilds;
-use App\Helpers\Discord\GetGuildChannels;
 use App\Models\WelcomeSetting;
+use App\Services\Discord\Discord;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -23,8 +22,10 @@ final class ServerController
             abort(403, 'You are not authorized to view this page.');
         }
 
+        $discord = new Discord;
+
         return Inertia::render('Servers/Index', [
-            'botGuilds' => GetBotGuilds::make(),
+            'botGuilds' => $discord->botGuilds(),
         ]);
     }
 
@@ -49,25 +50,21 @@ final class ServerController
         $user->current_server_id = $serverId;
         $user->save();
 
-        $channels = (new GetGuildChannels($serverId))->getTextChannels();
-        $channels = array_map(function ($channel) {
+        $discord = new Discord;
+        $channels = $discord->guild($serverId)->channels()->text()->get();
+
+        // Transform to array and sort by position
+        $channels = $channels->map(function ($channel) {
             return [
                 'id' => $channel['id'],
                 'name' => $channel['name'],
-                'position' => $channel['position'],
+                'position' => $channel['position'] ?? 0,
             ];
-        }, $channels);
-        $channels = array_values($channels);
-        // order by position
-        usort($channels, function ($a, $b) {
-            return $a['position'] <=> $b['position'];
-        });
-        // remove position
-        $channels = array_map(function ($channel) {
+        })->sortBy('position')->map(function ($channel) {
             unset($channel['position']);
 
             return $channel;
-        }, $channels);
+        })->values()->toArray();
 
         $existingSetting = WelcomeSetting::whereGuildId($serverId)
             ->first();

@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Helpers\Discord\GetGuildsByDiscordUserId;
-use App\Helpers\Discord\SendMessage;
-use App\Services\DiscordApiService;
+
+// Helpers replaced by SDK
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\Discord\Discord;
 use Exception;
 
 final class ProcessCreatePollJob extends ProcessBaseJob
 {
-    private string $question;
-    private array $options = [];
+    private readonly string $question;
+    private readonly array $options;
 
-    private int $maxRetries = 3;
-    private int $retryDelay = 2000;
+    // Retry logic handled by SDK
 
     public function __construct(
         string $discordUserId,
@@ -27,6 +27,9 @@ final class ProcessCreatePollJob extends ProcessBaseJob
         array $parameters = []
     ) {
         parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
+
+        // Parse the poll question and options in constructor
+        [$this->question, $this->options] = $this->parseMessage();
     }
 
     // TODO: Add ability for emojis to be included in text
@@ -35,61 +38,40 @@ final class ProcessCreatePollJob extends ProcessBaseJob
      */
     protected function executeCommand(): void
     {
-        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanSendPolls($this->guildId, $this->discordUserId);
+        // Check permissions using SDK
+        $discord = new Discord;
+        $member = $discord->guild($this->guildId)->member($this->discordUserId);
 
-        if ($permissionCheck !== 'success') {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ You do not have permission to send polls in this server.',
-            ]);
+        if (! $member->canSendPolls()) {
+            $discord->channel($this->channelId)->send('❌ You do not have permission to send polls in this server.');
             throw new Exception('User does not have permission to send polls in this server.', 403);
         }
-        // Parse the poll question and options
-        [$this->question, $this->options] = $this->parseMessage();
 
         // Validate input: Must have a question and at least two options
         if (! $this->question || count($this->options) < 2 || count($this->options) > 10) {
             $this->sendUsageAndExample();
             if (count($this->options) > 10) {
-                SendMessage::sendMessage($this->channelId, [
-                    'is_embed' => false,
-                    'response' => '❌ Polls can have a maximum of 10 options.',
-                ]);
+                $discord->channel($this->channelId)->send('❌ Polls can have a maximum of 10 options.');
             }
             throw new Exception('Operation failed', 500);
         }
-        // Construct the poll payload
-        $pollPayload = [
-            'content' => '**📊 Poll Created! Click below to vote!**',
-            'poll' => [
-                'question' => [
-                    'text' => $this->question,
-                ],
-                'answers' => array_map(fn ($index, $option) => [
-                    'poll_media' => [
-                        'text' => (string) $option,
-                        // 'emoji' => [
-                        //     'name' => $defaultEmojis[$index] ?? '✅',
-                        // ],
-                    ],
-                ], array_keys($this->options), $this->options),
-                'duration' => 24, // Default to 24 hours
-                'allow_multiselect' => false,
-                'layout_type' => 1,
-            ],
-        ];
+        try {
+            // Discord instance already created above
+            $channel = $discord->channel($this->channelId);
 
-        // Send the poll message
-        $discordService = app(DiscordApiService::class);
-        $apiResponse = retry($this->maxRetries, function () use ($discordService, $pollPayload) {
-            return $discordService->post("/channels/{$this->channelId}/messages", $pollPayload);
-        }, $this->retryDelay);
 
-        if ($apiResponse->failed()) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Failed to create the poll.',
-            ]);
+            // Create the poll using the SDK's sendPoll method
+            $channel->sendPoll(
+                $this->question,
+                $this->options,
+                duration: 24, // 24 hours
+                allowMultiselect: false
+            );
+
+            // The SDK automatically handles the formatting, so we don't need to send a separate success message
+            // The poll itself is the confirmation
+        } catch (Exception $e) {
+            $discord->channel($this->channelId)->send('❌ Failed to create the poll.');
             throw new Exception('Operation failed', 500);
         }
     }

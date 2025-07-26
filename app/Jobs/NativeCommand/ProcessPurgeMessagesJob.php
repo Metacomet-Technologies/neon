@@ -5,9 +5,9 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Helpers\Discord\GetGuildsByDiscordUserId;
-use App\Helpers\Discord\SendMessage;
-use App\Services\DiscordApiService;
+
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\Discord\Discord;
 use Exception;
 
 final class ProcessPurgeMessagesJob extends ProcessBaseJob
@@ -43,13 +43,9 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob
             throw new Exception('No arguments provided.', 400);
         }
         // Ensure the user has permission to manage messages in the target channel
-        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageMessages($this->guildId, $this->discordUserId);
-
-        if ($permissionCheck !== 'success') {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ You do not have permission to manage messages in this server.',
-            ]);
+        $discord = new Discord;
+        if (! $discord->guild($this->guildId)->member($this->discordUserId)->canManageMessages()) {
+            $discord->channel($this->channelId)->send('❌ You do not have permission to manage messages in this server.');
             throw new Exception('User does not have permission to manage messages in this server.', 403);
         }
         $this->purgeMessages();
@@ -64,17 +60,17 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob
 
     private function userHasPermission(string $userId): bool
     {
-        return GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $userId) === 'success'
-            || GetGuildsByDiscordUserId::getIfUserCanManageMessages($this->guildId, $userId) === 'success';
+        $discord = new Discord;
+        $member = $discord->guild($this->guildId)->member($userId);
+
+        return $member->canManageChannels() || $member->canManageMessages();
     }
 
     private function purgeMessages(): void
     {
         if ($this->messageCount < 2) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ The number of messages to purge must be at least 2.',
-            ]);
+            $discord = new Discord;
+            $discord->channel($this->channelId)->send('❌ The number of messages to purge must be at least 2.');
             throw new Exception('The number of messages to purge must be at least 2.', 400);
         }
         $messagesToFetch = $this->messageCount;
@@ -94,10 +90,7 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob
             }, [4000, 6000, 12000, 20000, 30000]); // Backoff strategy
 
             if ($response->failed()) {
-                SendMessage::sendMessage($this->channelId, [
-                    'is_embed' => false,
-                    'response' => '❌ Failed to fetch messages. Please try again later.',
-                ]);
+                $discord->channel($this->channelId)->send('❌ Failed to fetch messages. Please try again later.');
                 throw new Exception('Failed to fetch messages. Please try again later.', 400);
             }
             $messages = $response->json();
@@ -120,10 +113,7 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob
         $messageIds = array_column($allMessages, 'id');
 
         if (empty($messageIds)) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ No messages found to delete. Messages older than 14 days cannot be deleted in bulk.',
-            ]);
+            $discord->channel($this->channelId)->send('❌ No messages found to delete. Messages older than 14 days cannot be deleted in bulk.');
             throw new Exception('No messages found to delete. Messages older than 14 days cannot be deleted in bulk.', 400);
         }
         $batches = array_chunk($messageIds, 100);
@@ -140,18 +130,14 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob
             throw new Exception('Operation failed', 500);
         }
         if ($failedBatches === count($batches)) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Failed to delete all messages due to rate limits or API errors.',
-            ]);
+            $discord->channel($this->channelId)->send('❌ Failed to delete all messages due to rate limits or API errors.');
             throw new Exception('Operation failed', 500);
         } else {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => true,
-                'embed_title' => '🧹 Messages Purged',
-                'embed_description' => '✅ Successfully purged ' . count($messageIds) . " messages from <#{$this->targetChannelId}>.",
-                'embed_color' => 3066993,
-            ]);
+            $discord->channel($this->channelId)->sendEmbed(
+                '🧹 Messages Purged',
+                '✅ Successfully purged ' . count($messageIds) . " messages from <#{$this->targetChannelId}>.",
+                3066993
+            );
         }
     }
 }

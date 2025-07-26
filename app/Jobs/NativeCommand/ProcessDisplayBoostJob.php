@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\DiscordParserService;
+
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\Discord\Discord;
 use Exception;
 
 final class ProcessDisplayBoostJob extends ProcessBaseJob
@@ -13,7 +15,7 @@ final class ProcessDisplayBoostJob extends ProcessBaseJob
     {
         $this->requireChannelPermission();
 
-        $params = DiscordParserService::extractParameters($this->messageContent, 'display-boost');
+        $params = Discord::extractParameters($this->messageContent, 'display-boost');
         $this->validateRequiredParameters($params, 1, 'Boolean value (true/false) is required.');
 
         $displayBoost = $this->validateBoolean($params[0], 'display boost setting');

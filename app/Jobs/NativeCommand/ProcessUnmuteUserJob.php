@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\DiscordApiService;
-use App\Services\DiscordParserService;
+
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\Discord\Discord;
 use Exception;
 use Illuminate\Support\Facades\Log;
 
@@ -20,7 +21,7 @@ final class ProcessUnmuteUserJob extends ProcessBaseJob
         $this->requireMemberPermission();
 
         // 2. Parse and validate input using service
-        $targetUserId = DiscordParserService::parseUserCommand($this->messageContent, 'unmute');
+        $targetUserId = Discord::parseUserCommand($this->messageContent, 'unmute');
 
         if (! $targetUserId) {
             $this->sendUsageAndExample();

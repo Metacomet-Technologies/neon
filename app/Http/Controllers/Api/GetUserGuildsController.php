@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
-use App\Helpers\Discord\GetGuilds;
+use App\Services\Discord\Discord;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,10 +18,10 @@ final class GetUserGuildsController
     {
         try {
             $user = $request->user();
-            $getGuilds = new GetGuilds($user);
+            $discord = Discord::forUser($user);
 
             // Get guilds where user has admin permissions (can manage the bot)
-            $guilds = $getGuilds->getGuildsWhereUserHasPermission();
+            $guilds = $discord->userGuildsWithPermission();
 
             // Format for frontend
             $formattedGuilds = array_map(function ($guild) {
