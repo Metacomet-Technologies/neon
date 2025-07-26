@@ -116,6 +116,43 @@ final class StripeWebhookController extends CashierWebhookController
     }
 
     /**
+     * Handle payment intent payment failed events.
+     */
+    public function handlePaymentIntentPaymentFailed(array $payload): Response
+    {
+        $paymentIntent = $payload['data']['object'];
+        
+        Log::warning('Payment failed', [
+            'payment_intent_id' => $paymentIntent['id'],
+            'customer' => $paymentIntent['customer'],
+            'amount' => $paymentIntent['amount'],
+            'currency' => $paymentIntent['currency'],
+            'last_payment_error' => $paymentIntent['last_payment_error'],
+        ]);
+
+        return $this->successMethod();
+    }
+
+    /**
+     * Handle invoice payment failed events.
+     */
+    public function handleInvoicePaymentFailed(array $payload): Response
+    {
+        $invoice = $payload['data']['object'];
+        
+        Log::warning('Invoice payment failed', [
+            'invoice_id' => $invoice['id'],
+            'customer' => $invoice['customer'],
+            'subscription' => $invoice['subscription'],
+            'amount' => $invoice['amount_due'],
+            'currency' => $invoice['currency'],
+            'attempt_count' => $invoice['attempt_count'],
+        ]);
+
+        return parent::handleInvoicePaymentFailed($payload);
+    }
+
+    /**
      * Send purchase confirmation email for lifetime licenses.
      */
     private function sendPurchaseEmail(License $license, array $session): void

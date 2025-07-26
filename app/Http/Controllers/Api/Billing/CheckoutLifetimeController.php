@@ -32,7 +32,7 @@ final class CheckoutLifetimeController
                 $request->price_id => 1,
             ], [
                 'success_url' => url('/billing?session_id={CHECKOUT_SESSION_ID}&success=1'),
-                'cancel_url' => url('/checkout?cancelled=1'),
+                'cancel_url' => url('/billing?session_id={CHECKOUT_SESSION_ID}&cancelled=1'),
                 'metadata' => [
                     'user_id' => $user->id,
                     'license_type' => 'lifetime',

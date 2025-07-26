@@ -7,9 +7,12 @@ namespace App\Console\Commands;
 use App\Helpers\Discord\SendMessage;
 use App\Jobs\NeonDispatchHandler;
 use App\Jobs\ProcessGuildCommandJob;
+use App\Jobs\ProcessGuildJoin;
+use App\Jobs\ProcessGuildLeave;
 use App\Jobs\ProcessScheduledMessageJob;
 use App\Jobs\ProcessWelcomeMessageJob;
 use App\Jobs\RefreshNeonGuildsJob;
+use Illuminate\Support\Facades\Bus;
 use App\Models\NativeCommand;
 use App\Models\NeonCommand;
 use App\Models\WelcomeSetting;
@@ -117,12 +120,18 @@ final class StartNeonCommand extends Command
 
             });
 
-            $discord->on(Event::GUILD_DELETE, function ($guild, $discord) {
-                return RefreshNeonGuildsJob::dispatch();
+            $discord->on(Event::GUILD_DELETE, function ($guild) {
+                Bus::chain([
+                    new ProcessGuildLeave($guild->id, $guild->name ?? 'Unknown Guild'),
+                    new RefreshNeonGuildsJob(),
+                ])->dispatch();
             });
 
-            $discord->on(Event::GUILD_CREATE, function ($guild, $discord) {
-                return RefreshNeonGuildsJob::dispatch();
+            $discord->on(Event::GUILD_CREATE, function ($guild) {
+                Bus::chain([
+                    new ProcessGuildJoin($guild->id, $guild->name, $guild->icon),
+                    new RefreshNeonGuildsJob(),
+                ])->dispatch();
             });
         });
 

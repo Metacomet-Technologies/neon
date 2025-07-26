@@ -1,4 +1,4 @@
-import { Alert } from '@/Components/alert';
+import { InlineAlert } from '@/Components/InlineAlert';
 import { Badge } from '@/Components/badge';
 import { Button } from '@/Components/button';
 import { Heading, Subheading } from '@/Components/heading';
@@ -54,15 +54,15 @@ const CheckoutPage: React.FC = () => {
             </div>
 
             {error && (
-                <Alert color="red" className="mb-6">
+                <InlineAlert color="red" className="mb-6" onClose={() => setError(null)}>
                     {error}
-                </Alert>
+                </InlineAlert>
             )}
 
             {showCancelledMessage && (
-                <Alert color="amber" className="mb-6">
+                <InlineAlert color="amber" className="mb-6" onClose={() => setShowCancelledMessage(false)}>
                     Payment was cancelled. You can try again when you're ready!
-                </Alert>
+                </InlineAlert>
             )}
 
             <div className="grid lg:grid-cols-2 gap-8 max-w-4xl mx-auto">
@@ -191,6 +191,6 @@ const CheckoutPage: React.FC = () => {
     );
 };
 
-CheckoutPage.layout = (page: React.ReactNode) => <Layout>{page}</Layout>;
+(CheckoutPage as any).layout = (page: React.ReactNode) => <Layout>{page}</Layout>;
 
 export default CheckoutPage;

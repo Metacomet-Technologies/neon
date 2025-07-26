@@ -1,5 +1,6 @@
 import { Badge } from '@/Components/badge';
 import { Button } from '@/Components/button';
+import { Combobox, ComboboxOption, ComboboxLabel } from '@/Components/combobox';
 import { Divider } from '@/Components/divider';
 import { Heading, Subheading } from '@/Components/heading';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/table';
@@ -8,33 +9,45 @@ import { Layout } from '@/Layout/Layout';
 import { Head, router, usePage } from '@inertiajs/react';
 import React, { useState } from 'react';
 
+interface Guild {
+    id: string;
+    name: string;
+    icon?: string;
+    is_bot_member: boolean;
+}
+
 interface BillingProps {
     billing: {
         licenses: any[];
         subscriptions: any[];
         payment_methods: any[];
     };
-    guilds: any[];
+    guilds: Guild[];
+    checkout?: {
+        message?: string;
+        type?: 'success' | 'error';
+    };
 }
 
-const BillingDashboard: React.FC<BillingProps> = ({ billing, guilds }) => {
+const BillingDashboard: React.FC<BillingProps> = ({ billing, guilds, checkout }) => {
     const { props } = usePage();
     const [actionLoading, setActionLoading] = useState<string | null>(null);
-    const [assignGuild, setAssignGuild] = useState<{ [key: string]: string }>({});
-    const [transferGuild, setTransferGuild] = useState<{ [key: string]: string }>({});
+    const [assignGuild, setAssignGuild] = useState<{ [key: string]: Guild | null }>({});
+    const [transferGuild, setTransferGuild] = useState<{ [key: string]: Guild | null }>({});
 
     const openBillingPortal = () => {
         router.get('/billing/portal');
     };
 
     const handleAssign = (licenseId: string) => {
-        if (!assignGuild[licenseId]) return;
+        const selectedGuild = assignGuild[licenseId];
+        if (!selectedGuild) return;
 
         setActionLoading(licenseId + '-assign');
         router.post(
             `/billing/licenses/${licenseId}/assign`,
             {
-                guild_id: assignGuild[licenseId],
+                guild_id: selectedGuild.id,
             },
             {
                 onFinish: () => setActionLoading(null),
@@ -54,13 +67,14 @@ const BillingDashboard: React.FC<BillingProps> = ({ billing, guilds }) => {
     };
 
     const handleTransfer = (licenseId: string) => {
-        if (!transferGuild[licenseId]) return;
+        const selectedGuild = transferGuild[licenseId];
+        if (!selectedGuild) return;
 
         setActionLoading(licenseId + '-transfer');
         router.post(
             `/billing/licenses/${licenseId}/transfer`,
             {
-                guild_id: transferGuild[licenseId],
+                guild_id: selectedGuild.id,
             },
             {
                 onFinish: () => setActionLoading(null),
@@ -78,14 +92,33 @@ const BillingDashboard: React.FC<BillingProps> = ({ billing, guilds }) => {
                     <Text>Manage your Neon licenses and subscriptions</Text>
                 </div>
                 <div className="flex gap-4">
-                    <Button color="blue" onClick={openBillingPortal}>
-                        Billing Portal
-                    </Button>
+                    {billing.payment_methods.length > 0 && (
+                        <Button color="blue" onClick={openBillingPortal}>
+                            Billing Portal
+                        </Button>
+                    )}
                     <Button color="green" href="/checkout">
                         Buy License
                     </Button>
                 </div>
             </div>
+
+            {checkout?.message && (
+                <div className={`mb-6 border rounded-md p-4 ${
+                    checkout.type === 'success' 
+                        ? 'bg-green-50 border-green-200' 
+                        : 'bg-red-50 border-red-200'
+                }`}>
+                    <Text className={checkout.type === 'success' ? 'text-green-800' : 'text-red-800'}>
+                        {checkout.message}
+                    </Text>
+                    {checkout.type === 'error' && (
+                        <Text className="text-red-600 mt-2 text-sm">
+                            You can <a href="/checkout" className="underline">try purchasing again</a> or contact support if the issue persists.
+                        </Text>
+                    )}
+                </div>
+            )}
 
             {(props as any).flash?.success && (
                 <div className="mb-6 bg-green-50 border border-green-200 rounded-md p-4">
@@ -159,24 +192,29 @@ const BillingDashboard: React.FC<BillingProps> = ({ billing, guilds }) => {
                                                     }}
                                                     className="flex items-center gap-2"
                                                 >
-                                                    <select
-                                                        value={assignGuild[license.id] || ''}
-                                                        onChange={(e) =>
+                                                    <Combobox
+                                                        options={guilds}
+                                                        value={assignGuild[license.id] || null}
+                                                        onChange={(selectedGuild) =>
                                                             setAssignGuild({
                                                                 ...assignGuild,
-                                                                [license.id]: e.target.value,
+                                                                [license.id]: selectedGuild,
                                                             })
                                                         }
+                                                        displayValue={(guild) => guild?.name || ''}
+                                                        placeholder="Select server"
                                                         disabled={!!actionLoading}
-                                                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                                        className="block w-full"
                                                     >
-                                                        <option value="">Select server</option>
-                                                        {guilds.map((guild) => (
-                                                            <option key={guild.id} value={guild.id}>
-                                                                {guild.name}
-                                                            </option>
-                                                        ))}
-                                                    </select>
+                                                        {(guild) => (
+                                                            <ComboboxOption key={guild.id} value={guild} disabled={!guild.is_bot_member}>
+                                                                <ComboboxLabel>{guild.name}</ComboboxLabel>
+                                                                {!guild.is_bot_member && (
+                                                                    <span className="text-zinc-500 text-sm ml-2">(Bot not in server)</span>
+                                                                )}
+                                                            </ComboboxOption>
+                                                        )}
+                                                    </Combobox>
                                                     <Button type="submit" color="green" disabled={!!actionLoading}>
                                                         {actionLoading === license.id + '-assign'
                                                             ? 'Assigning...'
@@ -205,24 +243,29 @@ const BillingDashboard: React.FC<BillingProps> = ({ billing, guilds }) => {
                                                     }}
                                                     className="flex items-center gap-2"
                                                 >
-                                                    <select
-                                                        value={transferGuild[license.id] || ''}
-                                                        onChange={(e) =>
+                                                    <Combobox
+                                                        options={guilds}
+                                                        value={transferGuild[license.id] || null}
+                                                        onChange={(selectedGuild) =>
                                                             setTransferGuild({
                                                                 ...transferGuild,
-                                                                [license.id]: e.target.value,
+                                                                [license.id]: selectedGuild,
                                                             })
                                                         }
+                                                        displayValue={(guild) => guild?.name || ''}
+                                                        placeholder="New server"
                                                         disabled={!!actionLoading}
-                                                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                                        className="block w-full"
                                                     >
-                                                        <option value="">New server</option>
-                                                        {guilds.map((guild) => (
-                                                            <option key={guild.id} value={guild.id}>
-                                                                {guild.name}
-                                                            </option>
-                                                        ))}
-                                                    </select>
+                                                        {(guild) => (
+                                                            <ComboboxOption key={guild.id} value={guild} disabled={!guild.is_bot_member}>
+                                                                <ComboboxLabel>{guild.name}</ComboboxLabel>
+                                                                {!guild.is_bot_member && (
+                                                                    <span className="text-zinc-500 text-sm ml-2">(Bot not in server)</span>
+                                                                )}
+                                                            </ComboboxOption>
+                                                        )}
+                                                    </Combobox>
                                                     <Button type="submit" color="purple" disabled={!!actionLoading}>
                                                         {actionLoading === license.id + '-transfer'
                                                             ? 'Transferring...'

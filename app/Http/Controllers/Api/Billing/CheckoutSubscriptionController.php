@@ -31,7 +31,7 @@ final class CheckoutSubscriptionController
             $checkout = $user->newSubscription('default', $request->price_id)
                 ->checkout([
                     'success_url' => url('/billing?session_id={CHECKOUT_SESSION_ID}&success=1'),
-                    'cancel_url' => url('/checkout?cancelled=1'),
+                    'cancel_url' => url('/billing?session_id={CHECKOUT_SESSION_ID}&cancelled=1'),
                     'metadata' => [
                         'user_id' => $user->id,
                         'license_type' => 'subscription',
