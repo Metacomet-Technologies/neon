@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace App\Console\Commands;
 
@@ -11,7 +11,9 @@ use App\Jobs\ProcessGuildJoin;
 use App\Jobs\ProcessGuildLeave;
 use App\Jobs\ProcessImageAnalysisJob;
 use App\Jobs\ProcessNeonDiscordExecutionJob;
+
 use App\Jobs\ProcessNeonSQLExecutionJob;
+
 use App\Jobs\ProcessScheduledMessageJob;
 use App\Jobs\ProcessWelcomeMessageJob;
 use App\Jobs\RefreshNeonGuildsJob;
@@ -25,6 +27,7 @@ use Discord\WebSockets\Event;
 use Discord\WebSockets\Intents;
 use Exception;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Monolog\Handler\StreamHandler;
@@ -37,7 +40,7 @@ final class StartNeonCommand extends Command
 {
     public string $environment;
 
-    protected $signature = 'neon:start';
+    protected $signature   = 'neon:start';
     protected $description = 'Run Neon';
 
     public function __construct()
@@ -72,7 +75,7 @@ final class StartNeonCommand extends Command
                     return;
                 }
 
-                if (! str_starts_with($message->content, '!')) {
+                if (!str_starts_with($message->content, '!')) {
                     return;
                 }
 
@@ -150,7 +153,7 @@ final class StartNeonCommand extends Command
                 $guildId = $member->guild_id;
                 // check if guild has welcome message enabled
                 $welcomeSettings = $this->getGuildsWithWelcomeSettings();
-                if (! in_array($guildId, $welcomeSettings)) {
+                if (!in_array($guildId, $welcomeSettings)) {
                     return;
                 }
                 $newMemberId = $member->user->id;
@@ -364,7 +367,7 @@ final class StartNeonCommand extends Command
         }
 
         // Validate message content
-        if (! $messageText) {
+        if (!$messageText) {
             SendMessage::sendMessage($channelId, [
                 'is_embed' => false,
                 'response' => "ℹ️ **Scheduled Message Help**\nSchedules a message to be sent later in a specific channel.\n\n**Usage:** `!scheduled-message <#channel> <YYYY-MM-DD HH:MM> <message>`\n\n**Example:** `!scheduled-message #announcements 2025-02-07 18:48 Server maintenance Starting!`",

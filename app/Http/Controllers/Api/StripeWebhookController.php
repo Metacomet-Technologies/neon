@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace App\Http\Controllers\Api;
 
@@ -121,7 +121,7 @@ final class StripeWebhookController extends CashierWebhookController
     public function handlePaymentIntentPaymentFailed(array $payload): Response
     {
         $paymentIntent = $payload['data']['object'];
-        
+
         Log::warning('Payment failed', [
             'payment_intent_id' => $paymentIntent['id'],
             'customer' => $paymentIntent['customer'],
@@ -139,7 +139,7 @@ final class StripeWebhookController extends CashierWebhookController
     public function handleInvoicePaymentFailed(array $payload): Response
     {
         $invoice = $payload['data']['object'];
-        
+
         Log::warning('Invoice payment failed', [
             'invoice_id' => $invoice['id'],
             'customer' => $invoice['customer'],

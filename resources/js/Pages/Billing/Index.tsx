@@ -105,8 +105,9 @@ const BillingDashboard: React.FC<BillingProps> = ({ billing, guilds, checkout })
 
             {checkout?.message && (
                 <div className={`mb-6 border rounded-md p-4 ${
-                    checkout.type === 'success' 
-                        ? 'bg-green-50 border-green-200' 
+                    checkout.type === 'success'
+                        ? 'bg-green-50 border-green-200'
+
                         : 'bg-red-50 border-red-200'
                 }`}>
                     <Text className={checkout.type === 'success' ? 'text-green-800' : 'text-red-800'}>
