@@ -183,17 +183,47 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob
         }
         $batches = array_chunk($messageIds, 100);
         $failedBatches = 0;
+        $successfullyDeletedMessages = 0;
 
         foreach ($batches as $batchIndex => $batch) {
-            $deleteUrl = "{$this->baseUrl}/channels/{$this->targetChannelId}/messages/bulk-delete";
+            if (count($batch) === 1) {
+                // Single message deletion
+                $deleteUrl = "{$this->baseUrl}/channels/{$this->targetChannelId}/messages/{$batch[0]}";
 
-            $deleteResponse = retry(5, function () use ($deleteUrl, $batch) {
-                return Http::withToken(config('discord.token'), 'Bot')
-                    ->post($deleteUrl, ['messages' => $batch]);
-            }, [6000, 8000, 12000, 20000, 30000]);
+                $deleteResponse = retry(3, function () use ($deleteUrl) {
+                    return Http::withToken(config('discord.token'), 'Bot')->delete($deleteUrl);
+                }, [2000, 4000, 6000]);
+            } else {
+                // Bulk message deletion (2-100 messages)
+                $deleteUrl = "{$this->baseUrl}/channels/{$this->targetChannelId}/messages/bulk-delete";
+
+                $deleteResponse = retry(5, function () use ($deleteUrl, $batch) {
+                    return Http::withToken(config('discord.token'), 'Bot')
+                        ->post($deleteUrl, ['messages' => $batch]);
+                }, [6000, 8000, 12000, 20000, 30000]);
+            }
 
             if ($deleteResponse->failed()) {
                 $failedBatches++;
+                \Illuminate\Support\Facades\Log::error("Failed to delete message batch", [
+                    'batch_index' => $batchIndex,
+                    'batch_size' => count($batch),
+                    'status_code' => $deleteResponse->status(),
+                    'response' => $deleteResponse->json(),
+                    'channel_id' => $this->targetChannelId
+                ]);
+            } else {
+                $successfullyDeletedMessages += count($batch);
+                \Illuminate\Support\Facades\Log::info("Successfully deleted message batch", [
+                    'batch_index' => $batchIndex,
+                    'batch_size' => count($batch),
+                    'total_deleted_so_far' => $successfullyDeletedMessages
+                ]);
+            }
+
+            // Add delay between batches to avoid rate limits
+            if ($batchIndex < count($batches) - 1) {
+                sleep(2);
             }
             throw new Exception('Operation failed', 500);
         }
@@ -207,7 +237,7 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => true,
                 'embed_title' => '🧹 Messages Purged',
-                'embed_description' => '✅ Successfully purged ' . count($messageIds) . " messages from <#{$this->targetChannelId}>.",
+                'embed_description' => "✅ Successfully purged {$successfullyDeletedMessages} messages from <#{$this->targetChannelId}>.",
                 'embed_color' => 3066993,
             ]);
         }
