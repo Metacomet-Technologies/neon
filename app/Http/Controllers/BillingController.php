@@ -61,6 +61,39 @@ final class BillingController
             }
         }
 
+        // Handle Stripe checkout success/failure
+        $checkoutMessage = null;
+        $checkoutType = null;
+
+        if ($request->has('session_id') && $request->has('success')) {
+            $checkoutMessage = 'Payment successful! Your license has been created and is ready to assign.';
+            $checkoutType = 'success';
+        } elseif ($request->has('session_id') && $request->has('cancelled')) {
+            $checkoutMessage = 'Payment was cancelled. You can try again when you\'re ready.';
+            $checkoutType = 'error';
+        } elseif ($request->has('session_id')) {
+            // Check the session status to provide better error details
+            try {
+                Stripe::setApiKey(config('cashier.secret'));
+                $session = Session::retrieve($request->session_id);
+
+                if ($session->payment_status === 'unpaid') {
+                    $checkoutMessage = 'Payment was not completed. Please try again or contact support if you continue to have issues.';
+                    $checkoutType = 'error';
+                } elseif ($session->status === 'expired') {
+                    $checkoutMessage = 'Your checkout session has expired. Please start a new purchase.';
+                    $checkoutType = 'error';
+                }
+            } catch (Exception $e) {
+                Log::error('Failed to retrieve checkout session', [
+                    'session_id' => $request->session_id,
+                    'error' => $e->getMessage(),
+                ]);
+                $checkoutMessage = 'There was an issue processing your payment. Please contact support.';
+                $checkoutType = 'error';
+            }
+        }
+
         // Get billing information
         $licenses = $user->licenses()->with(['guild'])->get();
         $subscriptions = $user->subscriptions()->get();
@@ -91,7 +124,6 @@ final class BillingController
             $discordGuilds = $getGuilds->getGuildsWhereUserHasPermission();
 
             $botChecker = new CheckBotMembership();
-
             // Sync guilds with database and check bot membership
             foreach ($discordGuilds as $discordGuild) {
                 $guild = Guild::updateOrCreate(
@@ -207,7 +239,6 @@ final class BillingController
                 'user_id' => auth()->id(),
                 'error' => $e->getMessage(),
             ]);
-
             return redirect()->back()->with('error', $e->getMessage());
         }
     }

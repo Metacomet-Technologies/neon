@@ -14,6 +14,7 @@ use App\Jobs\ProcessNeonDiscordExecutionJob;
 use App\Jobs\ProcessScheduledMessageJob;
 use App\Jobs\ProcessWelcomeMessageJob;
 use App\Jobs\RefreshNeonGuildsJob;
+use Illuminate\Support\Facades\Bus;
 use App\Models\NativeCommand;
 use App\Models\NeonCommand;
 use App\Models\WelcomeSetting;
