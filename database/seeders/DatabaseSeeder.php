@@ -9,15 +9,16 @@ use Illuminate\Database\Seeder;
 /**
  * Class DatabaseSeeder
  */
-final class DatabaseSeeder extends Seeder
+class DatabaseSeeder extends Seeder
 {
     /**
      * Seed the application's database.
      */
     public function run(): void
     {
-        $this->call([
-            NativeCommandSeeder::class,
-        ]);
+        // Native commands are now handled via individual migrations
+        // $this->call([
+        //     NativeCommandSeeder::class,
+        // ]);
     }
 }

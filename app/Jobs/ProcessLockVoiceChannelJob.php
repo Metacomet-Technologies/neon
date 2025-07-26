@@ -7,29 +7,32 @@ namespace App\Jobs;
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use App\Jobs\NativeCommand\ProcessBaseJob;
-use App\Models\NativeCommandRequest;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
+use Exception;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 // TODO: this job may not be locking vc's as expected. Something about the roles and permissions is off.
-final class ProcessLockVoiceChannelJob extends ProcessBaseJob implements ShouldQueue
+final class ProcessLockVoiceChannelJob extends ProcessBaseJob
 {
-    use Queueable;
-
     private ?string $targetChannelId = null;
     private ?bool $lockStatus = null;
 
     private int $retryDelay = 2000;
     private int $maxRetries = 3;
 
-    public function __construct(public NativeCommandRequest $nativeCommandRequest)
-    {
-        parent::__construct($nativeCommandRequest);
+    public function __construct(
+        string $discordUserId,
+        string $channelId,
+        string $guildId,
+        string $messageContent,
+        array $command,
+        string $commandSlug,
+        array $parameters = []
+    ) {
+        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
     }
 
-    public function handle(): void
+    protected function executeCommand(): void
     {
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
 
@@ -38,28 +41,14 @@ final class ProcessLockVoiceChannelJob extends ProcessBaseJob implements ShouldQ
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to lock/unlock voice channels in this server.',
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'unauthorized',
-                message: 'User does not have permission to manage channels',
-                statusCode: 403,
-            );
-
-            return;
+            throw new Exception('User does not have permission to manage channels', 403);
         }
-
         // Check if the user only typed "!lock-voice" with no arguments
         if (trim($this->messageContent) === '!lock-voice') {
             $this->sendUsageAndExample();
 
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'No parameters provided.',
-                statusCode: 400,
-            );
-
-            return;
+            throw new Exception('No parameters provided.', 400);
         }
-
         // Parse the message
         [$this->targetChannelId, $this->lockStatus] = $this->parseMessage($this->messageContent);
 
@@ -67,15 +56,8 @@ final class ProcessLockVoiceChannelJob extends ProcessBaseJob implements ShouldQ
         if (! $this->targetChannelId || ! is_bool($this->lockStatus)) {
             $this->sendUsageAndExample();
 
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'Invalid parameters provided.',
-                statusCode: 400,
-            );
-
-            return;
+            throw new Exception('Invalid parameters provided.', 400);
         }
-
         // Get all roles in the guild
         $rolesUrl = "{$this->baseUrl}/guilds/{$this->guildId}/roles";
 
@@ -89,16 +71,8 @@ final class ProcessLockVoiceChannelJob extends ProcessBaseJob implements ShouldQ
                 'is_embed' => false,
                 'response' => '❌ Failed to retrieve roles from the server.',
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'discord_api_error',
-                message: 'Failed to rename channel.',
-                statusCode: $rolesResponse->status(),
-                details: $rolesResponse->json(),
-            );
-
-            return;
+            throw new Exception('Operation failed', 500);
         }
-
         $roles = $rolesResponse->json();
         $failedRoles = [];
 
@@ -121,7 +95,6 @@ final class ProcessLockVoiceChannelJob extends ProcessBaseJob implements ShouldQ
                 $failedRoles[] = $role['name'];
             }
         }
-
         // Send Response Message
         if (! empty($failedRoles)) {
             SendMessage::sendMessage($this->channelId, [
@@ -138,7 +111,6 @@ final class ProcessLockVoiceChannelJob extends ProcessBaseJob implements ShouldQ
                 'embed_color' => $this->lockStatus ? 15158332 : 3066993, // Red for lock, Green for unlock
             ]);
         }
-        $this->updateNativeCommandRequestComplete();
     }
 
     /**

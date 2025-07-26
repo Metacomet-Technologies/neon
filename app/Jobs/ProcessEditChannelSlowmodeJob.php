@@ -4,153 +4,51 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Helpers\Discord\GetGuildsByDiscordUserId;
-use App\Helpers\Discord\SendMessage;
 use App\Jobs\NativeCommand\ProcessBaseJob;
-use App\Models\NativeCommandRequest;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
+use App\Services\DiscordParserService;
+use Exception;
 
-final class ProcessEditChannelSlowmodeJob extends ProcessBaseJob implements ShouldQueue
+final class ProcessEditChannelSlowmodeJob extends ProcessBaseJob
 {
-    use Queueable;
-
-    public ?string $targetChannelId = null;
-    public ?int $slowmodeSetting = null;
-
-    public array $slowmodeRange = [0, 21600]; // 0 - 6 hours
-
-    public function __construct(public NativeCommandRequest $nativeCommandRequest)
-    {
-        parent::__construct($nativeCommandRequest);
+    public function __construct(
+        string $discordUserId,
+        string $channelId,
+        string $guildId,
+        string $messageContent,
+        array $command,
+        string $commandSlug,
+        array $parameters = []
+    ) {
+        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
     }
 
-    public function handle(): void
+    protected function executeCommand(): void
     {
-        // Parse the message
-        [$this->targetChannelId, $this->slowmodeSetting] = $this->parseMessage($this->messageContent);
+        // 1. Check permissions
+        $this->requireChannelPermission();
 
-        // Ensure the user has permission to manage channels
-        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
+        // 2. Parse channel edit command
+        [$channelId, $newValue] = DiscordParserService::parseChannelEditCommand($this->messageContent, 'edit-channel-slowmode');
 
-        if ($permissionCheck !== 'success') {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ You do not have permission to edit channels in this server.',
-            ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'unauthorized',
-                message: 'User does not have permission to manage channels.',
-                statusCode: 403,
-            );
-
-            return;
-        }
-
-        // ✅ If the command was used without parameters, send the help message
-        if (! $this->targetChannelId || is_null($this->slowmodeSetting)) {
+        if (! $channelId || ! $newValue) {
             $this->sendUsageAndExample();
-
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'No user ID provided.',
-                statusCode: 400,
-            );
-
-            return;
+            throw new Exception('Missing required parameters.', 400);
         }
 
-        // Ensure the input is a valid Discord channel ID
-        if (! preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Invalid channel ID. Please use `#channel-name` to select a valid channel.',
-            ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'Invalid channel ID provided.',
-                statusCode: 400,
-            );
+        $this->validateChannelId($channelId);
 
-            return;
+        // 3. Validate numeric range (0-21600 seconds / 6 hours)
+        $slowmodeSetting = $this->validateNumericRange($newValue, 0, 21600, 'Slowmode');
+
+        // 4. Perform update using service
+        $success = $this->discord->updateChannel($channelId, ['rate_limit_per_user' => $slowmodeSetting]);
+
+        if (! $success) {
+            $this->sendApiError('update channel');
+            throw new Exception('Failed to update channel.', 500);
         }
 
-        // Ensure slowmode setting is within Discord's allowed range (0-21600 seconds)
-        if ($this->slowmodeSetting < $this->slowmodeRange[0] || $this->slowmodeSetting > $this->slowmodeRange[1]) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "❌ Slowmode must be between {$this->slowmodeRange[0]} and {$this->slowmodeRange[1]} seconds (6 hours).",
-            ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'Invalid slowmode setting provided.',
-                statusCode: 400,
-            );
-
-            return;
-        }
-
-        // Build API request
-        $url = "{$this->baseUrl}/channels/{$this->targetChannelId}";
-        $payload = ['rate_limit_per_user' => $this->slowmodeSetting];
-
-        // Send the request to Discord API
-        $apiResponse = retry(3, function () use ($url, $payload) {
-            return Http::withToken(config('discord.token'), 'Bot')->patch($url, $payload);
-        }, 200);
-
-        if ($apiResponse->failed()) {
-            Log::error("Failed to update slowmode setting (ID: `{$this->targetChannelId}`).");
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Failed to update slowmode setting.',
-            ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'discord_api_error',
-                message: 'Failed to update auto-hide setting.',
-                statusCode: $apiResponse->status(),
-                details: $apiResponse->json(),
-            );
-
-            return;
-        }
-
-        // Success message
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => true,
-            'embed_title' => '✅ Slowmode Updated!',
-            'embed_description' => "**Slowmode Duration:** {$this->slowmodeSetting} seconds",
-            'embed_color' => 3447003,
-        ]);
-        $this->updateNativeCommandRequestComplete();
-    }
-
-    /**
-     * Parses the message content for command parameters.
-     */
-    private function parseMessage(string $message): array
-    {
-        // Normalize curly quotes to straight quotes for mobile compatibility
-        $message = str_replace(['“', '”'], '"', $message);
-
-        // Use regex to parse the command properly
-        preg_match('/^!edit-channel-slowmode\s+(<#\d{17,19}>|\d{17,19})\s+(\d+)$/', $message, $matches);
-
-        // Validate if both channel and slowmode duration were provided
-        if (! isset($matches[1], $matches[2])) {
-            return [null, null]; // Ensure we return null values explicitly
-        }
-
-        $channelIdentifier = trim($matches[1]); // Extracted channel mention or ID
-        $slowmodeSetting = (int) trim($matches[2]); // Convert to integer
-
-        // If the channel is mentioned as <#channelID>, extract just the numeric ID
-        if (preg_match('/^<#(\d{17,19})>$/', $channelIdentifier, $idMatches)) {
-            $channelIdentifier = $idMatches[1]; // Extract just the ID
-        }
-
-        return [$channelIdentifier, $slowmodeSetting];
+        // 5. Send confirmation
+        $this->sendChannelActionConfirmation('updated', $channelId, "Slowmode: {$slowmodeSetting} seconds");
     }
 }

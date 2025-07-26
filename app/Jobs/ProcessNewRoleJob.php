@@ -4,153 +4,61 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Helpers\Discord\GetGuildsByDiscordUserId;
-use App\Helpers\Discord\SendMessage;
 use App\Jobs\NativeCommand\ProcessBaseJob;
-use App\Models\NativeCommandRequest;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Http;
+use App\Services\DiscordParserService;
+use Exception;
 
-final class ProcessNewRoleJob extends ProcessBaseJob implements ShouldQueue
+final class ProcessNewRoleJob extends ProcessBaseJob
 {
-    use Queueable;
-
-    public array $defaultRoleSettings;
-
-    public function __construct(public NativeCommandRequest $nativeCommandRequest)
+    protected function executeCommand(): void
     {
-        parent::__construct($nativeCommandRequest);
+        $this->requireRolePermission();
 
-        // Set default role settings
-        $this->defaultRoleSettings = [
-            'color' => hexdec('FFFFFF'), // Default white color
-            'hoist' => false,
-        ];
+        $params = DiscordParserService::extractParameters($this->messageContent, 'new-role');
+        $this->validateRequiredParameters($params, 1, 'Role name is required.');
+
+        $roleName = $params[0];
+        $color = isset($params[1]) ? $this->parseColorValue($params[1]) : 0xFFFFFF;
+        $hoist = isset($params[2]) ? $this->validateBoolean($params[2], 'hoist') : false;
+
+        // Check if role already exists
+        $existingRole = $this->discord->findRoleByName($this->guildId, $roleName);
+        if ($existingRole) {
+            $this->sendErrorMessage("Role '{$roleName}' already exists.");
+            throw new Exception('Role already exists.', 409);
+        }
+
+        $roleData = ['name' => $roleName, 'color' => $color, 'hoist' => $hoist];
+        $role = $this->discord->createRole($this->guildId, $roleData);
+
+        if (! $role) {
+            $this->sendApiError('create role');
+            throw new Exception('Failed to create role.', 500);
+        }
+
+        $colorHex = '#' . strtoupper(str_pad(dechex($role['color']), 6, '0', STR_PAD_LEFT));
+        $hoistText = $role['hoist'] ? '✅ Yes' : '❌ No';
+
+        $this->sendSuccessMessage(
+            'Role Created!',
+            "**Role Name:** {$role['name']}\n**Color:** {$colorHex}\n**Displayed Separately:** {$hoistText}",
+            $role['color']
+        );
     }
 
-    public function handle(): void
+    /**
+     * Parse color value from string input.
+     */
+    private function parseColorValue(string $input): int
     {
-        // Ensure the user has permission to manage roles
-        if (! GetGuildsByDiscordUserId::getIfUserCanManageRoles($this->guildId, $this->discordUserId)) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ You do not have permission to manage roles in this server.',
-            ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'unauthorized',
-                message: 'User does not have permission to manage roles.',
-                statusCode: 403,
-            );
+        // Remove # if present and validate hex format
+        $cleanHex = ltrim($input, '#');
 
-            return;
+        if (! preg_match('/^[0-9a-fA-F]{6}$/', $cleanHex)) {
+            $this->sendErrorMessage('Invalid color format. Use hex format like #FF0000 or FF0000.');
+            throw new Exception('Invalid color format.', 400);
         }
 
-        // Parse command arguments
-        $parts = explode(' ', trim($this->messageContent));
-
-        // If not enough parameters, send usage message
-        if (count($parts) < 2) {
-            $this->sendUsageAndExample();
-
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'No user ID provided.',
-                statusCode: 400,
-            );
-
-            return;
-        }
-
-        // Extract role details
-        $roleName = $parts[1];
-        $roleColor = (int) $this->defaultRoleSettings['color']; // Convert to integer
-        $roleHoist = $this->defaultRoleSettings['hoist'];
-
-        // Handle optional color argument
-        if (isset($parts[2]) && preg_match('/^#?([0-9a-fA-F]{6})$/', $parts[2], $matches)) {
-            $roleColor = hexdec($matches[1]);
-        }
-
-        // Handle optional hoist argument
-        if (isset($parts[3]) && strtolower($parts[3]) === 'yes') {
-            $roleHoist = true;
-        }
-
-        // Fetch existing roles
-        $rolesResponse = Http::withToken(config('discord.token'), 'Bot')
-            ->get("{$this->baseUrl}/guilds/{$this->guildId}/roles");
-
-        if ($rolesResponse->failed()) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Failed to retrieve roles from the server.',
-            ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'Failed to retrieve roles from the server.',
-                statusCode: 500,
-            );
-
-            return;
-        }
-
-        $existingRoles = $rolesResponse->json();
-
-        // Check if the role exists
-        foreach ($existingRoles as $role) {
-            if (strcasecmp($role['name'], $roleName) === 0) { // Case-insensitive comparison
-                // dump("❌ Role '{$roleName}' already exists.");
-                SendMessage::sendMessage($this->channelId, [
-                    'is_embed' => false,
-                    'response' => "❌ Role '{$roleName}' already exists.",
-                ]);
-                $this->updateNativeCommandRequestFailed(
-                    status: 'failed',
-                    message: 'Role already exists.',
-                    statusCode: 409,
-                );
-
-                return;
-            }
-        }
-
-        // Create the role via Discord API
-        $url = "{$this->baseUrl}/guilds/{$this->guildId}/roles";
-        $apiResponse = Http::withToken(config('discord.token'), 'Bot')
-            ->post($url, [
-                'name' => $roleName,
-                'color' => $roleColor,
-                'hoist' => $roleHoist,
-                'mentionable' => false,
-            ]);
-
-        // Handle API Response
-        if ($apiResponse->failed()) {
-            // dump("❌ Failed to create role '{$roleName}' in guild {$this->guildId}", $apiResponse->json());
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "❌ Failed to create role '{$roleName}'.",
-            ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'discord_api_error',
-                message: 'Failed to create role.',
-                statusCode: 500,
-            );
-
-            return;
-        }
-
-        // ✅ Success! Send confirmation message
-        $createdRole = $apiResponse->json();
-        // dump('✅ Role Created Successfully:', $createdRole);
-
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => true,
-            'embed_title' => '✅ Role Created!',
-            'embed_description' => "**Role Name:** {$createdRole['name']}\n**Color:** #" . strtoupper(str_pad(dechex($createdRole['color']), 6, '0', STR_PAD_LEFT)) . "\n**Displayed Separately:** " . ($createdRole['hoist'] ? '✅ Yes' : '❌ No'),
-            'embed_color' => $createdRole['color'],
-        ]);
-        $this->updateNativeCommandRequestComplete();
+        return hexdec($cleanHex);
     }
 }

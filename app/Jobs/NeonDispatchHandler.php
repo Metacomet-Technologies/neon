@@ -1,13 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Jobs;
 
-use App\Models\NativeCommandRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Bus;
 
-class NeonDispatchHandler implements ShouldQueue
+final class NeonDispatchHandler implements ShouldQueue
 {
     use Queueable;
 
@@ -20,6 +21,8 @@ class NeonDispatchHandler implements ShouldQueue
         public string $guildId,
         public string $messageContent,
         public array $command,
+        public string $commandSlug,
+        public array $parameters = []
     ) {}
 
     /**
@@ -27,23 +30,15 @@ class NeonDispatchHandler implements ShouldQueue
      */
     public function handle(): void
     {
-        $now = now();
-        $nativeCommandRequest = NativeCommandRequest::create([
-            'guild_id' => $this->guildId,
-            'channel_id' => $this->channelId,
-            'discord_user_id' => $this->discordUserId,
-            'message_content' => $this->messageContent,
-            'command' => $this->command,
-            // TODO: Add additional parameters here
-            // 'additional_parameters' => $this->additionalParameters,
-            'status' => 'pending',
-            'executed_at' => null,
-            'failed_at' => null,
-            'error_message' => null,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
-
-        Bus::dispatch(new $this->command['class']($nativeCommandRequest));
+        // Dispatch the job with the new constructor pattern
+        Bus::dispatch(new $this->command['class'](
+            $this->discordUserId,
+            $this->channelId,
+            $this->guildId,
+            $this->messageContent,
+            $this->command,
+            $this->commandSlug,
+            $this->parameters
+        ));
     }
 }

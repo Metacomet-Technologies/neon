@@ -8,7 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Stripe\Exception\ApiErrorException;
 
-class CheckoutSubscriptionController
+final class CheckoutSubscriptionController
 {
     /**
      * Create a subscription checkout session.
@@ -30,8 +30,8 @@ class CheckoutSubscriptionController
             // Create checkout session for subscription
             $checkout = $user->newSubscription('default', $request->price_id)
                 ->checkout([
-                    'success_url' => 'https://neon.test/dashboard?session_id={CHECKOUT_SESSION_ID}',
-                    'cancel_url' => 'https://neon.test/dashboard',
+                    'success_url' => url('/billing?session_id={CHECKOUT_SESSION_ID}&success=1'),
+                    'cancel_url' => url('/checkout?cancelled=1'),
                     'metadata' => [
                         'user_id' => $user->id,
                         'license_type' => 'subscription',

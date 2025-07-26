@@ -6,7 +6,7 @@ namespace App\Exceptions\License;
 
 use Exception;
 
-class GuildAlreadyHasLicenseException extends Exception
+final class GuildAlreadyHasLicenseException extends Exception
 {
     public function __construct(string $guildId)
     {

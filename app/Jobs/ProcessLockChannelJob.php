@@ -4,175 +4,78 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Helpers\Discord\GetGuildsByDiscordUserId;
-use App\Helpers\Discord\SendMessage;
 use App\Jobs\NativeCommand\ProcessBaseJob;
-use App\Models\NativeCommandRequest;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
+use App\Services\DiscordParserService;
+use Exception;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
-final class ProcessLockChannelJob extends ProcessBaseJob implements ShouldQueue
+final class ProcessLockChannelJob extends ProcessBaseJob
 {
-    use Queueable;
-
-    private ?string $targetChannelId = null;
-    private ?bool $lockStatus = null;
-    private int $retryDelay = 2000;
-    private int $maxRetries = 3;
-
-    public function __construct(public NativeCommandRequest $nativeCommandRequest)
-    {
-        parent::__construct($nativeCommandRequest);
+    public function __construct(
+        string $discordUserId,
+        string $channelId,
+        string $guildId,
+        string $messageContent,
+        array $command,
+        string $commandSlug,
+        array $parameters = []
+    ) {
+        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
     }
 
-    public function handle(): void
+    protected function executeCommand(): void
     {
-        // Parse the message
-        [$this->targetChannelId, $this->lockStatus] = $this->parseMessage($this->messageContent);
+        // 1. Check permissions
+        $this->requireChannelPermission();
 
-        // Ensure the user has permission to manage channels
-        $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
+        // 2. Parse channel edit command
+        [$channelId, $newValue] = DiscordParserService::parseChannelEditCommand($this->messageContent, 'lock-channel');
 
-        if ($permissionCheck !== 'success') {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ You do not have permission to lock channels in this server.',
-            ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'unauthorized',
-                message: 'User does not have permission to manage channels',
-                statusCode: 403,
-            );
-
-            return;
-        }
-
-        // If the message is just "!lock-channel" with no additional arguments, send help
-        if (trim($this->messageContent) === '!lock-channel') {
+        if (! $channelId || ! $newValue) {
             $this->sendUsageAndExample();
-
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'No parameters provided.',
-                statusCode: 400,
-            );
-
-            return;
+            throw new Exception('Missing required parameters.', 400);
         }
 
-        // Ensure proper usage message is sent if no parameters are provided
-        if (! $this->targetChannelId || ! is_bool($this->lockStatus)) {
-            $this->sendUsageAndExample();
+        $this->validateChannelId($channelId);
 
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'Invalid parameters provided.',
-                statusCode: 400,
-            );
+        // 3. Validate boolean input
+        $lockStatus = $this->validateBoolean($newValue, 'Lock status');
 
-            return;
-        }
-
-        // Ensure the input is a valid Discord channel ID
-        if (! preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Invalid channel ID. Please use `#channel-name` to select a valid channel.',
-            ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'Invalid channel ID provided.',
-                statusCode: 400,
-            );
-
-            return;
-        }
-
-        // Retrieve all roles in the guild
-        $rolesUrl = "{$this->baseUrl}/guilds/{$this->guildId}/roles";
-        $rolesResponse = retry($this->maxRetries, function () use ($rolesUrl) {
-            return Http::withToken(config('discord.token'), 'Bot')->get($rolesUrl);
-        }, $this->retryDelay);
-
-        if ($rolesResponse->failed()) {
-            Log::error("Failed to fetch roles for guild {$this->guildId}");
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Failed to retrieve roles from the server.',
-            ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'discord_api_error',
-                message: 'Failed to rename channel.',
-                statusCode: $rolesResponse->status(),
-                details: $rolesResponse->json(),
-            );
-
-            return;
-        }
-
-        $roles = $rolesResponse->json();
+        // 4. Get guild roles and update permissions
+        $roles = $this->discord->getGuildRoles($this->guildId);
         $failedRoles = [];
 
-        // Lock or Unlock the channel by updating permissions for all roles
         foreach ($roles as $role) {
             $roleId = $role['id'];
-            $permissionsUrl = "{$this->baseUrl}/channels/{$this->targetChannelId}/permissions/{$roleId}";
+            $permissionsUrl = "{$this->baseUrl}/channels/{$channelId}/permissions/{$roleId}";
 
             $payload = [
-                'deny' => $this->lockStatus ? (1 << 11) : 0, // Deny or allow SEND_MESSAGES
+                'deny' => $lockStatus ? (1 << 11) : 0, // Deny or allow SEND_MESSAGES
                 'type' => 0, // Role
             ];
 
-            $permissionsResponse = retry($this->maxRetries, function () use ($permissionsUrl, $payload) {
+            $response = retry(3, function () use ($permissionsUrl, $payload) {
                 return Http::withToken(config('discord.token'), 'Bot')->put($permissionsUrl, $payload);
-            }, $this->retryDelay);
+            }, 2000);
 
-            if ($permissionsResponse->failed()) {
+            if ($response->failed()) {
                 $failedRoles[] = $role['name'];
             }
         }
 
-        // Send response message
+        // 5. Send confirmation
         if (! empty($failedRoles)) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => true,
-                'embed_title' => $this->lockStatus ? '🔒 Lock Channel Failed' : '🔓 Unlock Channel Failed',
-                'embed_description' => '❌ Failed for roles: ' . implode(', ', $failedRoles),
-                'embed_color' => 15158332, // Red
-            ]);
+            $action = $lockStatus ? 'Lock' : 'Unlock';
+            $this->sendBatchResults(
+                $action . ' Channel',
+                [],
+                $failedRoles,
+                'role'
+            );
         } else {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => true,
-                'embed_title' => $this->lockStatus ? '🔒 Channel Locked' : '🔓 Channel Unlocked',
-                'embed_description' => "✅ Channel <#{$this->targetChannelId}> has been " . ($this->lockStatus ? 'locked' : 'unlocked') . '.',
-                'embed_color' => $this->lockStatus ? 15158332 : 3066993, // Red for lock, Green for unlock
-            ]);
+            $action = $lockStatus ? 'locked' : 'unlocked';
+            $emoji = $lockStatus ? '🔒' : '🔓';
+            $this->sendChannelActionConfirmation($action, $channelId, "{$emoji} Channel access updated");
         }
-        $this->updateNativeCommandRequestComplete();
-    }
-
-    /**
-     * Parses the message content for command parameters.
-     */
-    private function parseMessage(string $message): array
-    {
-        // Use regex to extract the channel ID or mention and lock/unlock flag
-        preg_match('/^!lock-channel\s+(<#\d{17,19}>|\d{17,19})\s+(true|false)$/i', $message, $matches);
-
-        if (! isset($matches[1], $matches[2])) {
-            return [null, null]; // Invalid input
-        }
-
-        $channelIdentifier = trim($matches[1]);
-        $lockStatus = strtolower(trim($matches[2])) === 'true'; // Convert to boolean
-
-        // If the channel is mentioned as <#channelID>, extract just the numeric ID
-        if (preg_match('/^<#(\d{17,19})>$/', $channelIdentifier, $idMatches)) {
-            $channelIdentifier = $idMatches[1];
-        }
-
-        return [$channelIdentifier, $lockStatus];
     }
 }

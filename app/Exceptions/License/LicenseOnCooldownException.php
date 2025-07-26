@@ -6,7 +6,7 @@ namespace App\Exceptions\License;
 
 use Exception;
 
-class LicenseOnCooldownException extends Exception
+final class LicenseOnCooldownException extends Exception
 {
     public function __construct(int $daysRemaining)
     {

@@ -1,7 +1,7 @@
 import { Button } from '@/Components/button';
 import { Link } from '@/Components/link';
-import { useTheme } from '@/Layout/ThemeContext';
-import ThemeToggleButton from '@/Layout/ThemeToggleButton';
+import { useTheme } from '@/Contexts/ThemeContext';
+import ThemeToggle from '@/Components/ThemeToggle';
 import { PageProps } from '@/types';
 import { ArrowRightIcon } from '@heroicons/react/16/solid';
 import { Head, usePage } from '@inertiajs/react';
@@ -44,7 +44,7 @@ export default function Home() {
                                         {auth.user ? 'Dashboard' : 'Login'}
                                     </Button>
 
-                                    <ThemeToggleButton name="theme-toggle-button" />
+                                    <ThemeToggle />
                                 </div>
                             </nav>
                         </div>

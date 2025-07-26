@@ -6,24 +6,12 @@ namespace App\Jobs;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
-use App\Models\NativeCommandRequest;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use Exception;
 use Illuminate\Support\Facades\Http;
 
-final class ProcessArchiveChannelJob implements ShouldQueue
+final class ProcessArchiveChannelJob extends ProcessBaseJob
 {
-    use Queueable;
-
-    public string $baseUrl;
-    public string $discordUserId;
-    public string $channelId; // The channel where the command was sent
-    public string $guildId;
-    public string $messageContent;
-    public array $command;
-    public string $usageMessage;
-    public string $exampleMessage;
-
     public ?string $targetChannelId = null; // The actual Discord channel ID
     public ?bool $archiveStatus = null; // Archive (true) or unarchive (false)
 
@@ -33,43 +21,30 @@ final class ProcessArchiveChannelJob implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct(public NativeCommandRequest $nativeCommandRequest)
-    {
-        // Fetch command details from the database
-        $this->discordUserId = $nativeCommandRequest->discord_user_id;
-        $this->channelId = $nativeCommandRequest->channel_id;
-        $this->guildId = $nativeCommandRequest->guild_id;
-        $this->messageContent = $nativeCommandRequest->message_content;
-        $this->command = $nativeCommandRequest->command;
-        $this->baseUrl = config('services.discord.rest_api_url');
+    public function __construct(
+        string $discordUserId,
+        string $channelId,
+        string $guildId,
+        string $messageContent,
+        array $command,
+        string $commandSlug,
+        array $parameters = []
+    ) {
+        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
 
         // Parse the message first
         [$this->targetChannelId, $this->archiveStatus] = $this->parseMessage($this->messageContent);
-
     }
 
     /**
-     * Handles the job execution.
+     * Execute the specific command logic.
      */
-    public function handle(): void
+    protected function executeCommand(): void
     {
 
         // ✅ If invalid input, send help message and **exit early**
         if (! $this->targetChannelId || is_null($this->archiveStatus)) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => "{$this->command['usage']}\n{$this->command['example']}",
-            ]);
-
-            $this->nativeCommandRequest->update([
-                'status' => 'failed',
-                'failed_at' => now(),
-                'error_message' => [
-                    'message' => 'Missing required IDs.',
-                    'details' => 'Required Ids lost in the process.',
-                    'status_code' => 500,
-                ],
-            ]);
+            $this->sendUsageAndExample();
 
             return;
         }
@@ -83,16 +58,7 @@ final class ProcessArchiveChannelJob implements ShouldQueue
                 'response' => '❌ You do not have permission to manage channels in this server.',
             ]);
 
-            $this->nativeCommandRequest->update([
-                'status' => 'unauthorized',
-                'failed_at' => now(),
-                'error_message' => [
-                    'message' => 'User does not have permission to manage channels.',
-                    'status_code' => 403,
-                ],
-            ]);
-
-            return;
+            throw new Exception('User does not have permission to manage channels.', 403);
         }
         // Ensure the input is a valid Discord channel ID
         if (! preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
@@ -101,17 +67,7 @@ final class ProcessArchiveChannelJob implements ShouldQueue
                 'response' => '❌ Invalid channel ID. Please use `#channel-name` to select a valid channel.',
             ]);
 
-            $this->nativeCommandRequest->update([
-                'status' => 'failed',
-                'failed_at' => now(),
-                'error_message' => [
-                    'message' => 'Invalid channel ID provided.',
-                    'details' => 'Channel ID must be a valid Discord channel ID.',
-                    'status_code' => 400,
-                ],
-            ]);
-
-            return;
+            throw new Exception('Invalid channel ID provided.', 400);
         }
 
         // Build API request
@@ -129,17 +85,7 @@ final class ProcessArchiveChannelJob implements ShouldQueue
                 'response' => '❌ Failed to update channel archive status.',
             ]);
 
-            $this->nativeCommandRequest->update([
-                'status' => 'discord-api-error',
-                'failed_at' => now(),
-                'error_message' => [
-                    'message' => 'Failed to update channel archive status.',
-                    'details' => $apiResponse->json(),
-                    'status_code' => $apiResponse->status(),
-                ],
-            ]);
-
-            return;
+            throw new Exception('Failed to update channel archive status: ' . $apiResponse->body(), $apiResponse->status());
         }
 
         // Success message
@@ -148,12 +94,6 @@ final class ProcessArchiveChannelJob implements ShouldQueue
             'embed_title' => $this->archiveStatus ? '📂 Channel Archived' : '📂 Channel Unarchived',
             'embed_description' => "✅ Channel <#{$this->targetChannelId}> has been " . ($this->archiveStatus ? 'archived' : 'unarchived') . '.',
             'embed_color' => $this->archiveStatus ? 15158332 : 3066993, // Red for archive, Green for unarchive
-        ]);
-
-        // 5️⃣ Update the status of the command request
-        $this->nativeCommandRequest->update([
-            'status' => 'executed',
-            'executed_at' => now(),
         ]);
     }
 

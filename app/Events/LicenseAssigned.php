@@ -10,7 +10,7 @@ use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class LicenseAssigned
+final class LicenseAssigned
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 

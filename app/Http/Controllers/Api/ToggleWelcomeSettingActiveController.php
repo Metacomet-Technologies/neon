@@ -7,7 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Models\WelcomeSetting;
 use Illuminate\Http\Request;
 
-class ToggleWelcomeSettingActiveController
+final class ToggleWelcomeSettingActiveController
 {
     /**
      * Handle the incoming request.

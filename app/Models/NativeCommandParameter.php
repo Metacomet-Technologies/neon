@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -31,20 +33,13 @@ use Illuminate\Database\Eloquent\Model;
  *
  * @mixin \Eloquent
  */
-class NativeCommandParameter extends Model
+final class NativeCommandParameter extends Model
 {
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
-    protected $guarded = [];
-
     /**
      * Get the command that owns the NativeCommandParameter
      */
     public function command(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
-        return $this->belongsTo(NativeCommand::class);
+        return $this->belongsTo(NativeCommand::class, 'native_command_id');
     }
 }

@@ -8,15 +8,15 @@ namespace App\Jobs;
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use App\Jobs\NativeCommand\ProcessBaseJob;
-use App\Models\NativeCommandRequest;
+
 use Exception;
-use Illuminate\Contracts\Queue\ShouldQueue;
+
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
 
-final class ProcessUserNicknameJob extends ProcessBaseJob implements ShouldQueue
+final class ProcessUserNicknameJob extends ProcessBaseJob
 {
     use Dispatchable, InteractsWithQueue, SerializesModels;
 
@@ -26,12 +26,18 @@ final class ProcessUserNicknameJob extends ProcessBaseJob implements ShouldQueue
     private int $retryDelay = 2000;
     private int $maxRetries = 3;
 
-    public function __construct(public NativeCommandRequest $nativeCommandRequest)
-    {
-        parent::__construct($nativeCommandRequest);
+    public function __construct(
+        string $discordUserId,
+        string $channelId,
+        string $guildId,
+        string $messageContent,
+        array $command,
+        string $commandSlug,
+        array $parameters = []
+    ) {
+        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
     }
-
-    public function handle(): void
+    protected function executeCommand(): void
     {
         // Parse message content
         [$parsedUserId, $parsedNickname] = $this->parseMessage($this->messageContent);
@@ -40,35 +46,22 @@ final class ProcessUserNicknameJob extends ProcessBaseJob implements ShouldQueue
         if (is_null($parsedUserId) || is_null($parsedNickname)) {
             $this->sendUsageAndExample();
 
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'No user ID provided.',
-                statusCode: 400,
-            );
+            throw new \Exception('Operation failed', 500);
 
             throw new Exception('Invalid input for !set-nickname. Expected a valid user mention and nickname.');
         }
-
         // Assign parsed values
         $this->targetUserId = $parsedUserId;
         $this->newNickname = $parsedNickname;
 
         // Check if the user has permission to change nicknames
         if (! GetGuildsByDiscordUserId::getIfUserCanManageNicknames($this->guildId, $this->discordUserId)) {
-
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to change nicknames in this server.',
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'User lacks permission to change nicknames.',
-                statusCode: 403,
-            );
-
-            return;
+            throw new \Exception('User lacks permission to change nicknames.', 403);
         }
-
         // Validate target user ID format
         if (! preg_match('/^\d{17,19}$/', $this->targetUserId)) {
             // dump("❌ Invalid user ID format: {$this->targetUserId}");
@@ -77,15 +70,8 @@ final class ProcessUserNicknameJob extends ProcessBaseJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Invalid user ID format. Please mention a valid user.',
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'Invalid user ID format.',
-                statusCode: 400,
-            );
-
-            return;
+            throw new \Exception('Invalid user ID format.', 400);
         }
-
         // API Request to change nickname
         $url = "{$this->baseUrl}/guilds/{$this->guildId}/members/{$this->targetUserId}";
         $payload = ['nick' => $this->newNickname];
@@ -105,43 +91,27 @@ final class ProcessUserNicknameJob extends ProcessBaseJob implements ShouldQueue
                 } else {
                     $errorMessage = "❌ Failed to update nickname for <@{$this->targetUserId}>.";
                 }
-
                 SendMessage::sendMessage($this->channelId, [
                     'is_embed' => false,
                     'response' => $errorMessage,
                 ]);
-                $this->updateNativeCommandRequestFailed(
-                    status: 'failed',
-                    message: 'Failed to update nickname.',
-                    statusCode: $statusCode,
-                );
-
-                return;
+                throw new \Exception('Operation failed', 500);
             }
-
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => true,
                 'embed_title' => '📝 Nickname Updated',
                 'embed_description' => "✅ <@{$this->targetUserId}>'s nickname has been updated to **{$this->newNickname}**.",
                 'embed_color' => 3447003,
             ]);
-            $this->updateNativeCommandRequestComplete();
-
-        } catch (Exception $e) {
+            } catch (Exception $e) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ An unexpected error occurred while updating the nickname.',
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'An unexpected error occurred while updating the nickname.',
-                details: $e->getMessage(),
-                statusCode: 500,
+            throw new \Exception("Operation failed", 500);
                 unicorn: true,
-            );
         }
     }
-
     /**
      * Parses the message content for command parameters.
      */
@@ -160,7 +130,6 @@ final class ProcessUserNicknameJob extends ProcessBaseJob implements ShouldQueue
 
             return [null, null];
         }
-
         // dump("✅ Successfully parsed user ID: {$matches[1]}, New Nickname: {$matches[2]}");
 
         return [$matches[1], trim($matches[2])];

@@ -33,7 +33,7 @@ import { usePage } from '@inertiajs/react';
 import { Toaster } from '@/Components/ui/toaster';
 import { useCallback } from 'react';
 import Flash from './Flash';
-import ThemeToggleButton from './ThemeToggleButton';
+import ThemeToggle from '@/Components/ThemeToggle';
 
 /**
  * Layout component that provides the structure for the application.
@@ -88,6 +88,11 @@ export function Layout({
                                 Commands
                             </NavbarItem>
                         )}
+                        {auth.user && (
+                            <NavbarItem href={route('billing.index')} current={component.startsWith('Billing')}>
+                                Billing
+                            </NavbarItem>
+                        )}
                     </NavbarSection>
                     <NavbarSpacer />
                     <NavbarSection>
@@ -129,7 +134,7 @@ export function Layout({
                             </DropdownMenu>
                         </Dropdown>
 
-                        <ThemeToggleButton name="theme-toggle-button" />
+                        <ThemeToggle />
                     </NavbarSection>
                 </Navbar>
             }
@@ -160,6 +165,11 @@ export function Layout({
                                     current={component.startsWith('Commands')}
                                 >
                                     Commands
+                                </SidebarItem>
+                            )}
+                            {auth.user && (
+                                <SidebarItem href={route('billing.index')} current={component.startsWith('Billing')}>
+                                    Billing
                                 </SidebarItem>
                             )}
                         </SidebarSection>

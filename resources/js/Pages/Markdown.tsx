@@ -1,7 +1,7 @@
 import { Button } from '@/Components/button';
 import { StackedLayout } from '@/Components/stacked-layout';
 import { Text } from '@/Components/text';
-import ThemeToggleButton from '@/Layout/ThemeToggleButton';
+import ThemeToggle from '@/Components/ThemeToggle';
 import { ArrowLeftIcon } from '@heroicons/react/16/solid';
 import ReactMarkdown from 'react-markdown';
 
@@ -38,7 +38,7 @@ function Topbar(): React.JSX.Element {
                 <Text>Home</Text>
             </Button>
 
-            <ThemeToggleButton />
+            <ThemeToggle />
         </div>
     );
 }

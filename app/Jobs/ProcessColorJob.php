@@ -4,17 +4,13 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Helpers\Discord\SendMessage;
-use App\Models\NativeCommandRequest;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Queue\InteractsWithQueue;
+use App\Jobs\NativeCommand\ProcessBaseJob;
+use App\Services\DiscordParserService;
+use Exception;
 
-final class ProcessColorJob implements ShouldQueue
+final class ProcessColorJob extends ProcessBaseJob
 {
-    use InteractsWithQueue, Queueable;
-
-    public array $colors = [
+    private array $colors = [
         'White' => '#FFFFFF', 'Black' => '#000000', 'Red' => '#FF0000', 'Green' => '#00FF00',
         'Blue' => '#0000FF', 'Yellow' => '#FFFF00', 'Cyan' => '#00FFFF', 'Magenta' => '#FF00FF',
         'Orange' => '#FFA500', 'Purple' => '#800080', 'Teal' => '#008080', 'Olive' => '#808000',
@@ -30,98 +26,76 @@ final class ProcessColorJob implements ShouldQueue
         'Medium Sea Green' => '#3CB371', 'Midnight Blue' => '#191970', 'Honeydew' => '#F0FFF0',
     ];
 
-    public array $command;
+    protected function executeCommand(): void
+    {
+        // No permission check needed for color lookup
 
-    public function __construct(
-        public NativeCommandRequest $nativeCommandRequest
-    ) {
-        $this->command = $this->nativeCommandRequest->command;
+        $params = DiscordParserService::extractParameters($this->messageContent, 'color');
+
+        // If no parameters, show usage
+        if (empty($params)) {
+            $this->sendUsageAndExample();
+            throw new Exception('No color specified in the command.', 400);
+        }
+
+        $query = strtolower(implode(' ', $params));
+
+        // Handle "list" request
+        if ($query === 'list') {
+            $this->displayColorList();
+
+            return;
+        }
+
+        // Find specific color
+        $matchedColor = $this->findColor($query);
+
+        if ($matchedColor) {
+            $this->displayColor($matchedColor);
+        } else {
+            $this->sendErrorMessage("Color '{$query}' not found. Try `!color list` to see available colors.");
+            throw new Exception("Color '{$query}' not found.", 400);
+        }
     }
 
-    public function handle(): void
+    /**
+     * Display the list of available colors.
+     */
+    private function displayColorList(): void
     {
-        $trimmedMessage = strtolower(trim($this->nativeCommandRequest->message_content));
-        $parts = explode(' ', $trimmedMessage);
-
-        // If the user sends only "!color", return the usage and example message
-        if (count($parts) < 2) {
-            SendMessage::sendMessage($this->nativeCommandRequest->channel_id, [
-                'is_embed' => false,
-                'response' => $this->command['usage'] . "\n" . $this->command['example'],
-            ]);
-
-            $this->nativeCommandRequest->update([
-                'status' => 'failed',
-                'failed_at' => now(),
-                'error_message' => [
-                    'message' => 'No color specified in the command.',
-                    'status_code' => 418, // "I'm a teapot" (fun but meaningful)
-                ],
-            ]);
-
-            return;
-        }
-
-        // If the user requests "!color list"
-        if ($parts[1] === 'list') {
-            $responseLines = array_map(fn ($name, $hex) => "**{$name}** : `{$hex}`", array_keys($this->colors), $this->colors);
-            SendMessage::sendMessage($this->nativeCommandRequest->channel_id, [
-                'is_embed' => false,
-                'response' => implode("\n", $responseLines),
-            ]);
-
-            $this->nativeCommandRequest->update([
-                'status' => 'completed',
-                'executed_at' => now(),
-            ]);
-
-            return;
-        }
-
-        // Get the requested color name
-        $requestedColor = trim(strtolower(implode(' ', array_slice($parts, 1))));
-
-        // Search for the color
-        $matchedColor = null;
+        $colorList = [];
         foreach ($this->colors as $name => $hex) {
-            if (strcasecmp($name, $requestedColor) === 0) {
-                $matchedColor = ['name' => $name, 'hex' => $hex];
-                break;
+            $colorList[] = "**{$name}** : `{$hex}`";
+        }
+
+        $this->sendListMessage('Available Colors', $colorList);
+    }
+
+    /**
+     * Find a color by name (case-insensitive).
+     */
+    private function findColor(string $query): ?array
+    {
+        foreach ($this->colors as $name => $hex) {
+            if (strcasecmp($name, $query) === 0) {
+                return ['name' => $name, 'hex' => $hex];
             }
         }
 
-        if ($matchedColor) {
-            $hexCode = $matchedColor['hex'];
-            $colorName = $matchedColor['name'];
-            $colorDecimal = hexdec(ltrim($hexCode, '#'));
+        return null;
+    }
 
-            SendMessage::sendMessage($this->nativeCommandRequest->channel_id, [
-                'is_embed' => true,
-                'embed_title' => "🎨 {$colorName}",
-                'embed_description' => "Here is the hex code for **{$colorName}**: {$hexCode}",
-                'embed_color' => $colorDecimal,
-            ]);
+    /**
+     * Display a specific color with its information.
+     */
+    private function displayColor(array $color): void
+    {
+        $colorDecimal = hexdec(ltrim($color['hex'], '#'));
 
-            $this->nativeCommandRequest->update([
-                'status' => 'completed',
-                'executed_at' => now(),
-            ]);
-
-            return;
-        }
-
-        SendMessage::sendMessage($this->nativeCommandRequest->channel_id, [
-            'is_embed' => false,
-            'response' => "❌ Color **{$requestedColor}** not found. Try `!color list` to see available colors.",
-        ]);
-
-        $this->nativeCommandRequest->update([
-            'status' => 'color-not-found',
-            'failed_at' => now(),
-            'error_message' => [
-                'message' => "Color '{$requestedColor}' not found.",
-                'status_code' => 400,
-            ],
-        ]);
+        $this->sendSuccessMessage(
+            "🎨 {$color['name']}",
+            "Here is the hex code for **{$color['name']}**: {$color['hex']}",
+            $colorDecimal
+        );
     }
 }

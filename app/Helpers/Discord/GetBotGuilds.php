@@ -7,7 +7,7 @@ namespace App\Helpers\Discord;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
-class GetBotGuilds
+final class GetBotGuilds
 {
     public function __invoke()
     {

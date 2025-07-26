@@ -7,14 +7,12 @@ namespace App\Jobs;
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use App\Jobs\NativeCommand\ProcessBaseJob;
-use App\Models\NativeCommandRequest;
 use Discord\Parts\Channel\Channel;
 use Exception;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
 
-final class ProcessNewCategoryJob extends ProcessBaseJob implements ShouldQueue
+final class ProcessNewCategoryJob extends ProcessBaseJob
 {
     use Queueable;
 
@@ -25,15 +23,22 @@ final class ProcessNewCategoryJob extends ProcessBaseJob implements ShouldQueue
     public string $messageContent;
     public array $command;
 
-    public function __construct(public NativeCommandRequest $nativeCommandRequest)
-    {
-        parent::__construct($nativeCommandRequest);
+    public function __construct(
+        string $discordUserId,
+        string $channelId,
+        string $guildId,
+        string $messageContent,
+        array $command,
+        string $commandSlug,
+        array $parameters = []
+    ) {
+        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
     }
 
     /**
      * Execute the job.
      */
-    public function handle(): void
+    protected function executeCommand(): void
     {
         // Validate that required IDs are provided.
         if (! $this->discordUserId || ! $this->channelId) {

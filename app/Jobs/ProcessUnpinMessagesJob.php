@@ -7,28 +7,30 @@ namespace App\Jobs;
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use App\Jobs\NativeCommand\ProcessBaseJob;
-use App\Models\NativeCommandRequest;
 use Exception;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
 
-final class ProcessUnpinMessagesJob extends ProcessBaseJob implements ShouldQueue
+final class ProcessUnpinMessagesJob extends ProcessBaseJob
 {
-    use Queueable;
-
     private ?string $messageId = null;
     private ?string $unpinType = null; // "latest" or "oldest"
 
     private int $retryDelay = 2000;
     private int $maxRetries = 3;
 
-    public function __construct(public NativeCommandRequest $nativeCommandRequest)
-    {
-        parent::__construct($nativeCommandRequest);
+    public function __construct(
+        string $discordUserId,
+        string $channelId,
+        string $guildId,
+        string $messageContent,
+        array $command,
+        string $commandSlug,
+        array $parameters = []
+    ) {
+        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
     }
 
-    public function handle(): void
+    protected function executeCommand(): void
     {
         // Parse the message content
         [$this->messageId, $this->unpinType] = $this->parseMessage($this->messageContent);
@@ -37,14 +39,9 @@ final class ProcessUnpinMessagesJob extends ProcessBaseJob implements ShouldQueu
         if (empty(trim($this->messageContent)) || ($this->messageId === null && $this->unpinType === null)) {
             $this->sendUsageAndExample();
 
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'No message ID provided.',
-                statusCode: 400,
-            );
+            throw new Exception('Operation failed', 500);
             throw new Exception('Invalid input for !unpin. Expected a valid message ID, "latest", or "oldest".');
         }
-
         // 1️⃣ Ensure the user has permission to pin messages
         $adminCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
         if ($adminCheck === 'failed') {
@@ -52,22 +49,13 @@ final class ProcessUnpinMessagesJob extends ProcessBaseJob implements ShouldQueu
                 'is_embed' => false,
                 'response' => '❌ You are not allowed to pin messages.',
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'unauthorized',
-                message: 'User does not have permission to manage channels',
-                statusCode: 403,
-            );
-
-            return;
+            throw new Exception('User does not have permission to manage channels', 403);
         }
-
         // 2️⃣ Handle specific unpin types (latest/oldest)
         if ($this->unpinType) {
             $this->unpinPinnedMessage($this->unpinType);
 
-            return;
         }
-
         // 3️⃣ Unpin specific message by ID
         $this->unpinMessage($this->messageId);
     }
@@ -82,7 +70,6 @@ final class ProcessUnpinMessagesJob extends ProcessBaseJob implements ShouldQueu
         } elseif ($message === '!unpin oldest') {
             return [null, 'oldest'];
         }
-
         // Handle direct message ID
         preg_match('/^!unpin\s+(\d{17,19})$/', $message, $matches);
 
@@ -105,16 +92,8 @@ final class ProcessUnpinMessagesJob extends ProcessBaseJob implements ShouldQueu
                 'is_embed' => false,
                 'response' => "❌ Failed to unpin message ID `{$messageId}`. Please try again later.",
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'discord_api_error',
-                message: 'Failed to rename channel.',
-                statusCode: $response->status(),
-                details: $response->json(),
-            );
-
-            return;
+            throw new Exception('Operation failed', 500);
         }
-
         // ✅ Success
         SendMessage::sendMessage($this->channelId, [
             'is_embed' => true,
@@ -122,7 +101,6 @@ final class ProcessUnpinMessagesJob extends ProcessBaseJob implements ShouldQueu
             'embed_description' => "✅ Successfully unpinned message ID `{$messageId}` in this channel.",
             'embed_color' => 3066993,
         ]);
-        $this->updateNativeCommandRequestComplete();
     }
 
     private function unpinPinnedMessage(string $type): void
@@ -135,16 +113,8 @@ final class ProcessUnpinMessagesJob extends ProcessBaseJob implements ShouldQueu
                 'is_embed' => false,
                 'response' => '❌ Failed to fetch pinned messages. Please try again later.',
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'discord_api_error',
-                message: 'Failed to fetch pinned messages.',
-                statusCode: $response->status(),
-                details: $response->json(),
-            );
-
-            return;
+            throw new Exception('Operation failed', 500);
         }
-
         $pinnedMessages = $response->json();
 
         if (empty($pinnedMessages)) {
@@ -152,15 +122,8 @@ final class ProcessUnpinMessagesJob extends ProcessBaseJob implements ShouldQueu
                 'is_embed' => false,
                 'response' => '❌ There are no pinned messages in this channel.',
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'No pinned messages found.',
-                statusCode: 400,
-            );
-
-            return;
+            throw new Exception('No pinned messages found.', 400);
         }
-
         // Determine which message to unpin
         $messageToUnpin = ($type === 'latest')
             ? end($pinnedMessages) // Most recent pinned message

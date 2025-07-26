@@ -6,6 +6,8 @@ use App\Http\Controllers\Api\Billing\CheckoutLifetimeController;
 use App\Http\Controllers\Api\Billing\CheckoutSubscriptionController;
 use App\Http\Controllers\Api\Billing\GetBillingInfoController;
 use App\Http\Controllers\Api\Billing\ResumeSubscriptionController;
+use App\Http\Controllers\Api\GetUserGuildsController;
+use App\Http\Controllers\Api\LicenseController;
 use App\Http\Controllers\Api\StripeWebhookController;
 use App\Http\Controllers\Api\Twitch\EventSubWebhookController;
 use App\Http\Controllers\Api\UpdateUserCurrentServerController;
@@ -35,4 +37,10 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
         Route::post('subscription/cancel', CancelSubscriptionController::class)->name('billing.subscription.cancel');
         Route::post('subscription/resume', ResumeSubscriptionController::class)->name('billing.subscription.resume');
     });
+
+    // License routes (keeping for external API access if needed)
+    Route::apiResource('licenses', LicenseController::class)->only(['index', 'show']);
+
+    // Guild routes
+    Route::get('guilds', GetUserGuildsController::class)->name('guilds.index');
 });

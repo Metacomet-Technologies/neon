@@ -6,7 +6,7 @@ namespace App\Exceptions\License;
 
 use Exception;
 
-class LicenseNotAssignedException extends Exception
+final class LicenseNotAssignedException extends Exception
 {
     public function __construct()
     {

@@ -9,7 +9,7 @@ use App\Models\WelcomeSetting;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
-class WelcomeSettingController
+final class WelcomeSettingController
 {
     public function index(Request $request, string $serverId)
     {

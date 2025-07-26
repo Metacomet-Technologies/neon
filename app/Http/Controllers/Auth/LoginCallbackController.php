@@ -37,12 +37,13 @@ final class LoginCallbackController
             'discord_id' => $socialiteUser->getId(),
             'access_token' => $socialiteUser->token,
             'refresh_token' => $socialiteUser->refreshToken,
-            'refresh_token_expires_at' => $now->addSeconds($socialiteUser->expiresIn),
+            'token_expires_at' => $now->addSeconds($socialiteUser->expiresIn ?? 3600),
+            'refresh_token_expires_at' => $now->addDays(30), // Discord refresh tokens last ~30 days
             'is_on_mailing_list' => true,
         ]);
 
         if ($user->wasRecentlyCreated) {
-            Mail::to($user)->queue(new WelcomeEmail);
+            Mail::to($user)->queue(new WelcomeEmail($user->email));
         }
 
         try {

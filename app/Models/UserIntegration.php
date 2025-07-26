@@ -34,8 +34,6 @@ use Illuminate\Database\Eloquent\Model;
 #[ObservedBy(TimeStampObserver::class)]
 final class UserIntegration extends Model
 {
-    protected $guarded = [];
-
     protected $casts = [
         'data' => 'array',
     ];
