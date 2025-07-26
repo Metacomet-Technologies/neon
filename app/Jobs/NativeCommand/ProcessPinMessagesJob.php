@@ -6,8 +6,8 @@ namespace App\Jobs\NativeCommand;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Services\DiscordApiService;
 use Exception;
-use Illuminate\Support\Facades\Http;
 
 final class ProcessPinMessagesJob extends ProcessBaseJob
 {
@@ -66,8 +66,8 @@ final class ProcessPinMessagesJob extends ProcessBaseJob
     private function getLastMessageId(): ?string
     {
         // Fetch the most recent messages (2 messages to avoid the current command message)
-        $url = "{$this->baseUrl}/channels/{$this->channelId}/messages?limit=2";
-        $response = Http::withToken(config('discord.token'), 'Bot')->get($url);
+        $discordService = app(DiscordApiService::class);
+        $response = $discordService->get("/channels/{$this->channelId}/messages", ['limit' => 2]);
 
         if ($response->failed()) {
             SendMessage::sendMessage($this->channelId, [
@@ -111,8 +111,8 @@ final class ProcessPinMessagesJob extends ProcessBaseJob
 
     private function pinMessage(): void
     {
-        $url = "{$this->baseUrl}/channels/{$this->channelId}/pins/{$this->messageId}";
-        $response = Http::withToken(config('discord.token'), 'Bot')->put($url);
+        $discordService = app(DiscordApiService::class);
+        $response = $discordService->put("/channels/{$this->channelId}/pins/{$this->messageId}");
 
         if ($response->failed()) {
             SendMessage::sendMessage($this->channelId, [

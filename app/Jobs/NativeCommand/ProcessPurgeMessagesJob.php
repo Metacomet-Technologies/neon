@@ -7,8 +7,8 @@ namespace App\Jobs\NativeCommand;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Services\DiscordApiService;
 use Exception;
-use Illuminate\Support\Facades\Http;
 
 final class ProcessPurgeMessagesJob extends ProcessBaseJob
 {
@@ -81,13 +81,16 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob
         $allMessages = [];
         $lastMessageId = null;
 
+        $discordService = app(DiscordApiService::class);
         while ($messagesToFetch > 0) {
             $limit = min($messagesToFetch, 100);
-            $url = "{$this->baseUrl}/channels/{$this->targetChannelId}/messages?limit={$limit}"
-                   . ($lastMessageId ? "&before={$lastMessageId}" : '');
+            $queryParams = ['limit' => $limit];
+            if ($lastMessageId) {
+                $queryParams['before'] = $lastMessageId;
+            }
 
-            $response = retry(5, function () use ($url) {
-                return Http::withToken(config('discord.token'), 'Bot')->get($url);
+            $response = retry(5, function () use ($discordService, $queryParams) {
+                return $discordService->get("/channels/{$this->targetChannelId}/messages", $queryParams);
             }, [4000, 6000, 12000, 20000, 30000]); // Backoff strategy
 
             if ($response->failed()) {
@@ -127,11 +130,8 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob
         $failedBatches = 0;
 
         foreach ($batches as $batchIndex => $batch) {
-            $deleteUrl = "{$this->baseUrl}/channels/{$this->targetChannelId}/messages/bulk-delete";
-
-            $deleteResponse = retry(5, function () use ($deleteUrl, $batch) {
-                return Http::withToken(config('discord.token'), 'Bot')
-                    ->post($deleteUrl, ['messages' => $batch]);
+            $deleteResponse = retry(5, function () use ($discordService, $batch) {
+                return $discordService->post("/channels/{$this->targetChannelId}/messages/bulk-delete", ['messages' => $batch]);
             }, [6000, 8000, 12000, 20000, 30000]);
 
             if ($deleteResponse->failed()) {

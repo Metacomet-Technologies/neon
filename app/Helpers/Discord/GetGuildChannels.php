@@ -4,31 +4,29 @@ declare(strict_types=1);
 
 namespace App\Helpers\Discord;
 
+use App\Services\DiscordApiService;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
 
 final class GetGuildChannels
 {
-    public string $baseUrl;
-
-    public string $token;
-
-    public string $cacheKey;
+    private DiscordApiService $discordService;
+    private string $cacheKey;
 
     public function __construct(public string $guildId)
     {
-        $this->baseUrl = config('services.discord.rest_api_url');
-        $this->token = config('discord.token');
+        $this->discordService = app(DiscordApiService::class);
         $this->cacheKey = 'guild_channels_' . $this->guildId;
     }
 
     public function getChannels(): array
     {
         $channels = Cache::remember($this->cacheKey, now()->addSeconds(90), function () {
-            $response = Http::withToken($this->token, 'Bot')
-                ->get("{$this->baseUrl}/guilds/{$this->guildId}/channels");
-
-            return $response->successful() ? $response->json() : [];
+            try {
+                $response = $this->discordService->get("/guilds/{$this->guildId}/channels");
+                return $response->successful() ? $response->json() : [];
+            } catch (\Exception) {
+                return [];
+            }
         });
 
         return $channels;

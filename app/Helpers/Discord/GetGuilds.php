@@ -7,6 +7,7 @@ namespace App\Helpers\Discord;
 use App\Enums\DiscordPermissionEnum;
 use App\Helpers\DiscordRefreshToken;
 use App\Models\User;
+use App\Services\DiscordApiService;
 use DateInterval;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -72,22 +73,33 @@ final class GetGuilds
         }
 
         $guilds = Cache::remember($this->cacheKey, $this->dateInterval, function () {
-            $url = $this->baseUrl . '/users/@me/guilds';
-            $response = Http::withToken($this->token ?? '')->get($url);
-
-            if ($response->status() === 401 || $response->status() === 403) {
+            $discordService = app(DiscordApiService::class);
+            
+            try {
+                $response = $discordService->getAsUser('/users/@me/guilds', $this->token ?? '');
+                return $response->successful() ? $response->json() : [];
+            } catch (\Exception $e) {
+                // Try to refresh token if request failed
                 $newToken = (new DiscordRefreshToken($this->user))->refreshToken();
                 if (! $newToken) {
                     Log::error('Failed to get user token', [
                         'user_id' => $this->user->id,
+                        'error' => $e->getMessage(),
                     ]);
-
                     return [];
                 }
-                $response = Http::withToken($newToken)->get($url);
+                
+                try {
+                    $response = $discordService->getAsUser('/users/@me/guilds', $newToken);
+                    return $response->successful() ? $response->json() : [];
+                } catch (\Exception $e) {
+                    Log::error('Failed to get user guilds after token refresh', [
+                        'user_id' => $this->user->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    return [];
+                }
             }
-
-            return $response->successful() ? $response->json() : [];
         });
 
         return $guilds;

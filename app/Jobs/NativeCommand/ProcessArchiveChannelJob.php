@@ -7,7 +7,7 @@ namespace App\Jobs\NativeCommand;
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Exception;
-use Illuminate\Support\Facades\Http;
+use App\Services\DiscordApiService;
 
 final class ProcessArchiveChannelJob extends ProcessBaseJob
 {
@@ -74,8 +74,9 @@ final class ProcessArchiveChannelJob extends ProcessBaseJob
         $payload = ['archived' => $this->archiveStatus];
 
         // Send the request to Discord API
-        $apiResponse = retry($this->maxRetries, function () use ($url, $payload) {
-            return Http::withToken(config('discord.token'), 'Bot')->patch($url, $payload);
+        $discordService = app(DiscordApiService::class);
+        $apiResponse = retry($this->maxRetries, function () use ($discordService, $payload) {
+            return $discordService->patch("/channels/{$this->targetChannelId}", $payload);
         }, $this->retryDelay);
 
         if ($apiResponse->failed()) {

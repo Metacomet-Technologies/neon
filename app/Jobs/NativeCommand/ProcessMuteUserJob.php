@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
+use App\Services\DiscordApiService;
 use App\Services\DiscordParserService;
 use Exception;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 final class ProcessMuteUserJob extends ProcessBaseJob
@@ -56,9 +56,9 @@ final class ProcessMuteUserJob extends ProcessBaseJob
     private function muteUserInVoiceChannels(string $userId): bool
     {
         // Fetch all voice channels in the guild
-        $channelsUrl = "{$this->baseUrl}/guilds/{$this->guildId}/channels";
-        $channelsResponse = retry($this->maxRetries, function () use ($channelsUrl) {
-            return Http::withToken(config('discord.token'), 'Bot')->get($channelsUrl);
+        $discordService = app(DiscordApiService::class);
+        $channelsResponse = retry($this->maxRetries, function () use ($discordService) {
+            return $discordService->get("/guilds/{$this->guildId}/channels");
         }, $this->retryDelay);
 
         if ($channelsResponse->failed()) {
@@ -81,8 +81,8 @@ final class ProcessMuteUserJob extends ProcessBaseJob
                 'type' => 1, // Member override
             ];
 
-            $permissionsResponse = retry($this->maxRetries, function () use ($permissionsUrl, $payload) {
-                return Http::withToken(config('discord.token'), 'Bot')->put($permissionsUrl, $payload);
+            $permissionsResponse = retry($this->maxRetries, function () use ($discordService, $channelId, $userId, $payload) {
+                return $discordService->put("/channels/{$channelId}/permissions/{$userId}", $payload);
             }, $this->retryDelay);
 
             if ($permissionsResponse->failed()) {

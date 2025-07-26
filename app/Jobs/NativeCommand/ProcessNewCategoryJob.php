@@ -6,10 +6,10 @@ namespace App\Jobs\NativeCommand;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Services\DiscordApiService;
 use Discord\Parts\Channel\Channel;
 use Exception;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Http;
 
 final class ProcessNewCategoryJob extends ProcessBaseJob
 {
@@ -132,9 +132,9 @@ final class ProcessNewCategoryJob extends ProcessBaseJob
             throw new Exception('Failed to create category.');
         }
 
-        $apiResponse = Http::withToken(config('discord.token'), 'Bot')
-            ->withBody($jsonPayload, 'application/json')
-            ->post($url);
+        $discordService = app(DiscordApiService::class);
+        $payload = json_decode($jsonPayload, true);
+        $apiResponse = $discordService->post("/guilds/{$this->guildId}/channels", $payload);
 
         if ($apiResponse->failed()) {
             SendMessage::sendMessage($this->channelId, [

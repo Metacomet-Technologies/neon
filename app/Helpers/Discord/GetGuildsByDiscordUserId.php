@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Helpers\Discord;
 
 use App\Enums\DiscordPermissionEnum;
-use Illuminate\Support\Facades\Http;
+use App\Services\DiscordApiService;
 
 final class GetGuildsByDiscordUserId
 {
@@ -16,9 +16,8 @@ final class GetGuildsByDiscordUserId
      */
     public static function getGuildRoles(string $guildId, string $userId): array
     {
-        $baseUrl = config('services.discord.rest_api_url');
-        $url = $baseUrl . '/guilds/' . $guildId . '/members/' . $userId;
-        $response = Http::withToken(config('discord.token'), 'Bot')->get($url);
+        $discordService = app(DiscordApiService::class);
+        $response = $discordService->get("/guilds/{$guildId}/members/{$userId}");
 
         if ($response->failed()) {
             return [];
@@ -35,9 +34,8 @@ final class GetGuildsByDiscordUserId
 
     public static function getRoleFromGuild(string $guildId, string $roleId): ?string
     {
-        $baseUrl = config('services.discord.rest_api_url');
-        $url = $baseUrl . '/guilds/' . $guildId . '/roles/' . $roleId;
-        $response = Http::withToken(config('discord.token'), 'Bot')->get($url);
+        $discordService = app(DiscordApiService::class);
+        $response = $discordService->get("/guilds/{$guildId}/roles/{$roleId}");
 
         if ($response->failed()) {
             return null;

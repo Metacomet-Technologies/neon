@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Helpers\Discord;
 
+use App\Services\DiscordApiService;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
 
 final class GetBotGuilds
 {
@@ -28,9 +28,8 @@ final class GetBotGuilds
 
     public function getGuildsFromDiscord()
     {
-        $response = Http::withToken(config('discord.token'), 'Bot')
-            ->baseUrl(config('services.discord.rest_api_url'))
-            ->get('/users/@me/guilds');
+        $discordService = app(DiscordApiService::class);
+        $response = $discordService->get('/users/@me/guilds');
 
         return $response->successful() ? $response->json() : [];
     }

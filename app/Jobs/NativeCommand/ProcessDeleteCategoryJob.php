@@ -7,7 +7,7 @@ namespace App\Jobs\NativeCommand;
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Exception;
-use Illuminate\Support\Facades\Http;
+use App\Services\DiscordApiService;
 use Illuminate\Support\Facades\Log;
 
 final class ProcessDeleteCategoryJob extends ProcessBaseJob
@@ -66,19 +66,26 @@ final class ProcessDeleteCategoryJob extends ProcessBaseJob
             throw new Exception('Operation failed', 500);
         }
         // Fetch all channels to verify the category exists and is a category
-        $channelsUrl = $this->baseUrl . "/guilds/{$this->guildId}/channels";
+        $discordService = app(DiscordApiService::class);
+        
+        try {
+            $apiResponse = $discordService->get("/guilds/{$this->guildId}/channels");
 
-        $apiResponse = retry(3, function () use ($channelsUrl) {
-            return Http::withToken(config('discord.token'), 'Bot')->get($channelsUrl);
-        }, 200);
-
-        if ($apiResponse->failed()) {
-            Log::error("Failed to fetch channels for guild {$this->guildId}");
+            if ($apiResponse->failed()) {
+                Log::error("Failed to fetch channels for guild {$this->guildId}");
+                SendMessage::sendMessage($this->channelId, [
+                    'is_embed' => false,
+                    'response' => '❌ Failed to retrieve channels from the server.',
+                ]);
+                throw new Exception('Failed to fetch channels from the server.', 500);
+            }
+        } catch (Exception $e) {
+            Log::error("Exception while fetching channels for guild {$this->guildId}", ['error' => $e->getMessage()]);
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ Failed to retrieve channels from the server.',
             ]);
-            throw new Exception('Operation failed', 500);
+            throw new Exception('Failed to fetch channels from the server.', 500);
         }
         $channels = collect($apiResponse->json());
 
@@ -104,24 +111,29 @@ final class ProcessDeleteCategoryJob extends ProcessBaseJob
             ]);
             throw new Exception('Category contained child channels.', 400);
         }
-        // Construct the delete API request
-        $deleteUrl = $this->baseUrl . "/channels/{$categoryId}";
+        // Make the delete request
+        try {
+            $deleteResponse = $discordService->delete("/channels/{$categoryId}");
 
-        // Make the delete request with retries
-        $deleteResponse = retry(3, function () use ($deleteUrl) {
-            return Http::withToken(config('discord.token'), 'Bot')->delete($deleteUrl);
-        }, 200);
+            if ($deleteResponse->failed()) {
+                Log::error("Failed to delete category '{$categoryId}' in guild {$this->guildId}", [
+                    'response' => $deleteResponse->json(),
+                ]);
 
-        if ($deleteResponse->failed()) {
-            Log::error("Failed to delete category '{$categoryId}' in guild {$this->guildId}", [
-                'response' => $deleteResponse->json(),
-            ]);
+                SendMessage::sendMessage($this->channelId, [
+                    'is_embed' => false,
+                    'response' => "❌ Failed to delete category (ID: `{$categoryId}`).",
+                ]);
+                throw new Exception('Failed to delete category.', 500);
+            }
+        } catch (Exception $e) {
+            Log::error("Exception while deleting category '{$categoryId}' in guild {$this->guildId}", ['error' => $e->getMessage()]);
 
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => "❌ Failed to delete category (ID: `{$categoryId}`).",
             ]);
-            throw new Exception('Operation failed', 500);
+            throw new Exception('Failed to delete category.', 500);
         }
         // ✅ Success! Send confirmation message
         SendMessage::sendMessage($this->channelId, [

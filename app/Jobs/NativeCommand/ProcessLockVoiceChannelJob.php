@@ -7,7 +7,7 @@ namespace App\Jobs\NativeCommand;
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Exception;
-use Illuminate\Support\Facades\Http;
+use App\Services\DiscordApiService;
 use Illuminate\Support\Facades\Log;
 
 // TODO: this job may not be locking vc's as expected. Something about the roles and permissions is off.
@@ -58,19 +58,26 @@ final class ProcessLockVoiceChannelJob extends ProcessBaseJob
             throw new Exception('Invalid parameters provided.', 400);
         }
         // Get all roles in the guild
-        $rolesUrl = "{$this->baseUrl}/guilds/{$this->guildId}/roles";
+        $discordService = app(DiscordApiService::class);
+        
+        try {
+            $rolesResponse = $discordService->get("/guilds/{$this->guildId}/roles");
 
-        $rolesResponse = retry($this->maxRetries, function () use ($rolesUrl) {
-            return Http::withToken(config('discord.token'), 'Bot')->get($rolesUrl);
-        }, $this->retryDelay);
-
-        if ($rolesResponse->failed()) {
-            Log::error("Failed to fetch roles for guild {$this->guildId}");
+            if ($rolesResponse->failed()) {
+                Log::error("Failed to fetch roles for guild {$this->guildId}");
+                SendMessage::sendMessage($this->channelId, [
+                    'is_embed' => false,
+                    'response' => '❌ Failed to retrieve roles from the server.',
+                ]);
+                throw new Exception('Failed to fetch roles from the server.', 500);
+            }
+        } catch (Exception $e) {
+            Log::error("Exception while fetching roles for guild {$this->guildId}", ['error' => $e->getMessage()]);
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ Failed to retrieve roles from the server.',
             ]);
-            throw new Exception('Operation failed', 500);
+            throw new Exception('Failed to fetch roles from the server.', 500);
         }
         $roles = $rolesResponse->json();
         $failedRoles = [];
@@ -78,7 +85,6 @@ final class ProcessLockVoiceChannelJob extends ProcessBaseJob
         // Lock or Unlock the voice channel by updating permissions for all roles
         foreach ($roles as $role) {
             $roleId = $role['id'];
-            $permissionsUrl = "{$this->baseUrl}/channels/{$this->targetChannelId}/permissions/{$roleId}";
 
             $payload = [
                 'deny' => $this->lockStatus ? (1 << 13) : 0, // Deny CONNECT if locking, remove if unlocking
@@ -86,11 +92,14 @@ final class ProcessLockVoiceChannelJob extends ProcessBaseJob
                 'type' => 0, // Role
             ];
 
-            $permissionsResponse = retry($this->maxRetries, function () use ($permissionsUrl, $payload) {
-                return Http::withToken(config('discord.token'), 'Bot')->put($permissionsUrl, $payload);
-            }, $this->retryDelay);
+            try {
+                $permissionsResponse = $discordService->put("/channels/{$this->targetChannelId}/permissions/{$roleId}", $payload);
 
-            if ($permissionsResponse->failed()) {
+                if ($permissionsResponse->failed()) {
+                    $failedRoles[] = $role['name'];
+                }
+            } catch (Exception $e) {
+                Log::error("Exception while updating permissions for role {$roleId} in channel {$this->targetChannelId}", ['error' => $e->getMessage()]);
                 $failedRoles[] = $role['name'];
             }
         }

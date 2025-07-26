@@ -6,7 +6,7 @@ namespace App\Jobs\NativeCommand;
 
 use App\Helpers\Discord\SendMessage;
 use App\Services\CommandAnalyticsService;
-use Illuminate\Support\Facades\Http;
+use App\Services\DiscordApiService;
 
 // TODO: this may not work, needs testing. Currently set isactive to false. not updateded with processbasejob
 final class ProcessSupportCommandJob extends ProcessBaseJob
@@ -48,9 +48,10 @@ final class ProcessSupportCommandJob extends ProcessBaseJob
             'embed_color' => 3447003, // Blue color
         ];
 
-        // ✅ Ensure Neon sends the message
-        $response = Http::withToken(config('services.discord.bot_token'), 'Bot')
-            ->post("{$this->baseUrl}/channels/{$this->supportChannelId}/messages", [
+        // ✅ Ensure Neon sends the message using rate-limited service
+        try {
+            $discordService = app(DiscordApiService::class);
+            $response = $discordService->post("/channels/{$this->supportChannelId}/messages", [
                 'content' => '',
                 'embeds' => [[
                     'title' => $messagePayload['embed_title'],
@@ -59,13 +60,19 @@ final class ProcessSupportCommandJob extends ProcessBaseJob
                 ]],
             ]);
 
-        // Check response
-        if ($response->failed()) {
+            // Check response
+            if ($response->failed()) {
+                SendMessage::sendMessage($this->channelId, [
+                    'is_embed' => false,
+                    'response' => '❌ Failed to send the support request. Please try again later.',
+                ]);
+                return;
+            }
+        } catch (\Exception $e) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
-                'response' => '❌ Failed to send the support request. Please try again later.',
+                'response' => '❌ Failed to send the support request due to rate limiting or other error. Please try again later.',
             ]);
-
             return;
         }
 

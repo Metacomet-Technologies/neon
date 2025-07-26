@@ -6,12 +6,12 @@ namespace App\Jobs\NativeCommand;
 
 use App\Helpers\Discord\SendMessage;
 use App\Services\CommandAnalyticsService;
+use App\Services\DiscordApiService;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use OpenAI\Laravel\Facades\OpenAI;
 
@@ -240,9 +240,8 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
 
         return Cache::remember($cacheKey, now()->addMinutes(5), function () {
             try {
-                $baseUrl = config('services.discord.rest_api_url');
-                $response = Http::withToken(config('discord.token'), 'Bot')
-                    ->get("{$baseUrl}/guilds/{$this->guildId}/channels");
+                $discordService = app(DiscordApiService::class);
+                $response = $discordService->get("/guilds/{$this->guildId}/channels");
 
                 if ($response->failed()) {
                     Log::error('Failed to fetch Discord server structure', [
@@ -683,9 +682,8 @@ For action requests: Generate practical, working Discord commands using ONLY the
             $commandsText .= ($index + 1) . ". `{$command}`\n";
         }
 
-        // Send the confirmation message using HTTP client to get message ID
-        $baseUrl = config('services.discord.rest_api_url');
-        $url = $baseUrl . '/channels/' . $this->channelId . '/messages';
+        // Send the confirmation message using DiscordApiService to get message ID
+        $discordService = app(DiscordApiService::class);
 
         $embed = [
             'title' => '🤖 Neon AI - Action Plan',
@@ -696,10 +694,9 @@ For action requests: Generate practical, working Discord commands using ONLY the
             ],
         ];
 
-        $response = Http::withToken(config('discord.token'), 'Bot')
-            ->post($url, [
-                'embeds' => [$embed],
-            ]);
+        $response = $discordService->post("/channels/{$this->channelId}/messages", [
+            'embeds' => [$embed],
+        ]);
 
         if ($response->successful()) {
             $messageData = $response->json();
@@ -718,11 +715,10 @@ For action requests: Generate practical, working Discord commands using ONLY the
 
     private function addReactionToMessage(string $messageId, string $emoji): void
     {
-        $baseUrl = config('services.discord.rest_api_url');
+        $discordService = app(DiscordApiService::class);
         $encodedEmoji = urlencode($emoji);
-        $url = "{$baseUrl}/channels/{$this->channelId}/messages/{$messageId}/reactions/{$encodedEmoji}/@me";
 
-        Http::withToken(config('discord.token'), 'Bot')->put($url);
+        $discordService->put("/channels/{$this->channelId}/messages/{$messageId}/reactions/{$encodedEmoji}/@me");
     }
 
     private function sendInformationalResponse(string $synopsis, string $information): void

@@ -9,7 +9,7 @@ use App\Helpers\Discord\SendMessage;
 use DateTime;
 use DateTimeZone;
 use Exception;
-use Illuminate\Support\Facades\Http;
+use App\Services\DiscordApiService;
 
 final class ProcessNewEventJob extends ProcessBaseJob
 {
@@ -56,9 +56,21 @@ final class ProcessNewEventJob extends ProcessBaseJob
         $coverImage = $parts[6] ?? null;
 
         // 3️⃣ Fetch all channels in the guild to check if location is a voice channel
-        $guildChannelsUrl = config('services.discord.rest_api_url') . "/guilds/{$this->guildId}/channels";
-        $channelsResponse = Http::withToken(config('discord.token'), 'Bot')->get($guildChannelsUrl);
-        $channels = $channelsResponse->json() ?? [];
+        $discordService = app(DiscordApiService::class);
+        
+        try {
+            $channelsResponse = $discordService->get("/guilds/{$this->guildId}/channels");
+            if ($channelsResponse->failed()) {
+                throw new Exception('Failed to fetch channels from the server.');
+            }
+            $channels = $channelsResponse->json() ?? [];
+        } catch (Exception $e) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => false,
+                'response' => '❌ Failed to retrieve channels from the server.',
+            ]);
+            throw new Exception('Failed to fetch channels from the server.', 500);
+        }
 
         // 4️⃣ Find the channel ID if it's a voice channel
         $channelId = null;
@@ -95,29 +107,23 @@ final class ProcessNewEventJob extends ProcessBaseJob
             $eventData['entity_metadata'] = ['location' => $location];
         }
         // 9️⃣ Send API request to create the event
-        $url = config('services.discord.rest_api_url') . "/guilds/{$this->guildId}/scheduled-events";
-        $eventDataJson = json_encode($eventData);
+        try {
+            $apiResponse = $discordService->post("/guilds/{$this->guildId}/scheduled-events", $eventData);
 
-        if ($eventDataJson === false) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ Failed to encode event data.',
-            ]);
-            throw new Exception('Operation failed', 500);
-            throw new Exception('Failed to encode event data.');
-        }
-        $apiResponse = Http::withToken(config('discord.token'), 'Bot')
-            ->withBody($eventDataJson, 'application/json')
-            ->post($url);
-
-        // 🔟 Check for API errors
-        if ($apiResponse->failed()) {
+            // 🔟 Check for API errors
+            if ($apiResponse->failed()) {
+                SendMessage::sendMessage($this->channelId, [
+                    'is_embed' => false,
+                    'response' => '❌ Failed to create event.',
+                ]);
+                throw new Exception('Failed to create event. ' . json_encode($apiResponse->json()), 500);
+            }
+        } catch (Exception $e) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ Failed to create event.',
             ]);
-            throw new Exception('Operation failed', 500);
-            throw new Exception('Failed to create event. ' . json_encode($apiResponse->json()));
+            throw new Exception('Failed to create event: ' . $e->getMessage(), 500);
         }
         // Extract Event ID from response
         $responseData = $apiResponse->json();

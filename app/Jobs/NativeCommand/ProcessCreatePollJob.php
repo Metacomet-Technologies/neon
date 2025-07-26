@@ -6,8 +6,8 @@ namespace App\Jobs\NativeCommand;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Services\DiscordApiService;
 use Exception;
-use Illuminate\Support\Facades\Http;
 
 final class ProcessCreatePollJob extends ProcessBaseJob
 {
@@ -80,10 +80,9 @@ final class ProcessCreatePollJob extends ProcessBaseJob
         ];
 
         // Send the poll message
-        $pollUrl = "{$this->baseUrl}/channels/{$this->channelId}/messages";
-        $apiResponse = retry($this->maxRetries, function () use ($pollUrl, $pollPayload) {
-            return Http::withToken(config('discord.token'), 'Bot')
-                ->post($pollUrl, $pollPayload);
+        $discordService = app(DiscordApiService::class);
+        $apiResponse = retry($this->maxRetries, function () use ($discordService, $pollPayload) {
+            return $discordService->post("/channels/{$this->channelId}/messages", $pollPayload);
         }, $this->retryDelay);
 
         if ($apiResponse->failed()) {

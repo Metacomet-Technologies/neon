@@ -7,7 +7,7 @@ namespace App\Jobs\NativeCommand;
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Http;
+use App\Services\DiscordApiService;
 use Illuminate\Support\Facades\Log;
 
 final class ProcessAssignChannelJob extends ProcessBaseJob
@@ -75,14 +75,32 @@ final class ProcessAssignChannelJob extends ProcessBaseJob
         }
 
         // 2️⃣ Fetch all channels in the guild
-        $channelsUrl = $this->baseUrl . "/guilds/{$this->guildId}/channels";
+        $discordService = app(DiscordApiService::class);
+        
+        try {
+            $channelsResponse = $discordService->get("/guilds/{$this->guildId}/channels");
+            
+            if ($channelsResponse->failed()) {
+                Log::error("Failed to fetch channels for guild {$this->guildId}");
+                SendMessage::sendMessage($this->channelId, [
+                    'is_embed' => false,
+                    'response' => '❌ Failed to retrieve channels from the server.',
+                ]);
 
-        $channelsResponse = retry(3, function () use ($channelsUrl) {
-            return Http::withToken(config('discord.token'), 'Bot')->get($channelsUrl);
-        }, 200);
+                $this->nativeCommandRequest->update([
+                    'status' => 'discord-api-error',
+                    'failed_at' => now(),
+                    'error_message' => [
+                        'message' => 'Failed to fetch channels from the server.',
+                        'status_code' => $channelsResponse->status(),
+                        'response' => $channelsResponse->json(),
+                    ],
+                ]);
 
-        if ($channelsResponse->failed()) {
-            Log::error("Failed to fetch channels for guild {$this->guildId}");
+                return;
+            }
+        } catch (\Exception $e) {
+            Log::error("Exception while fetching channels for guild {$this->guildId}", ['error' => $e->getMessage()]);
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ Failed to retrieve channels from the server.',
@@ -93,8 +111,8 @@ final class ProcessAssignChannelJob extends ProcessBaseJob
                 'failed_at' => now(),
                 'error_message' => [
                     'message' => 'Failed to fetch channels from the server.',
-                    'status_code' => $channelsResponse->status(),
-                    'response' => $channelsResponse->json(),
+                    'details' => $e->getMessage(),
+                    'status_code' => 500,
                 ],
             ]);
 
@@ -153,17 +171,33 @@ final class ProcessAssignChannelJob extends ProcessBaseJob
         $categoryId = $category['id'];
 
         // 5️⃣ Move the channel to the new category
-        $updateUrl = $this->baseUrl . "/channels/{$channelId}";
+        try {
+            $updateResponse = $discordService->patch("/channels/{$channelId}", ['parent_id' => $categoryId]);
 
-        $updateResponse = retry(3, function () use ($updateUrl, $categoryId) {
-            return Http::withToken(config('discord.token'), 'Bot')
-                ->patch($updateUrl, ['parent_id' => $categoryId]);
-        }, 200);
+            if ($updateResponse->failed()) {
+                Log::error("Failed to move channel '{$channelInput}' to category '{$categoryInput}' in guild {$this->guildId}", [
+                    'response' => $updateResponse->json(),
+                ]);
 
-        if ($updateResponse->failed()) {
-            Log::error("Failed to move channel '{$channelInput}' to category '{$categoryInput}' in guild {$this->guildId}", [
-                'response' => $updateResponse->json(),
-            ]);
+                SendMessage::sendMessage($this->channelId, [
+                    'is_embed' => false,
+                    'response' => "❌ Failed to move channel '{$channelInput}' to category '{$categoryInput}'.",
+                ]);
+
+                $this->nativeCommandRequest->update([
+                    'status' => 'discord-api-error',
+                    'failed_at' => now(),
+                    'error_message' => [
+                        'message' => 'Failed to move channel to category.',
+                        'status_code' => $updateResponse->status(),
+                        'response' => $updateResponse->json(),
+                    ],
+                ]);
+
+                return;
+            }
+        } catch (\Exception $e) {
+            Log::error("Exception while moving channel '{$channelInput}' to category '{$categoryInput}' in guild {$this->guildId}", ['error' => $e->getMessage()]);
 
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
@@ -175,8 +209,8 @@ final class ProcessAssignChannelJob extends ProcessBaseJob
                 'failed_at' => now(),
                 'error_message' => [
                     'message' => 'Failed to move channel to category.',
-                    'status_code' => $updateResponse->status(),
-                    'response' => $updateResponse->json(),
+                    'details' => $e->getMessage(),
+                    'status_code' => 500,
                 ],
             ]);
 

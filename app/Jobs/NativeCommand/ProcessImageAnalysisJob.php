@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs\NativeCommand;
 
 use App\Helpers\Discord\SendMessage;
+use App\Services\DiscordApiService;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -475,10 +476,10 @@ Focus on recreating the essence and organization of the analyzed server while us
             ],
         ];
 
-        $response = Http::withToken(config('discord.token'), 'Bot')
-            ->post($url, [
-                'embeds' => [$embed],
-            ]);
+        $discordService = app(DiscordApiService::class);
+        $response = $discordService->post("/channels/{$this->channelId}/messages", [
+            'embeds' => [$embed],
+        ]);
 
         if ($response->successful()) {
             $messageData = $response->json();
@@ -497,10 +498,17 @@ Focus on recreating the essence and organization of the analyzed server while us
 
     private function addReactionToMessage(string $messageId, string $emoji): void
     {
-        $baseUrl = config('services.discord.rest_api_url');
         $encodedEmoji = urlencode($emoji);
-        $url = "{$baseUrl}/channels/{$this->channelId}/messages/{$messageId}/reactions/{$encodedEmoji}/@me";
-
-        Http::withToken(config('discord.token'), 'Bot')->put($url);
+        $discordService = app(DiscordApiService::class);
+        
+        try {
+            $discordService->put("/channels/{$this->channelId}/messages/{$messageId}/reactions/{$encodedEmoji}/@me");
+        } catch (Exception $e) {
+            Log::warning('Failed to add reaction to message', [
+                'message_id' => $messageId,
+                'emoji' => $emoji,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }

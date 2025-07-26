@@ -7,7 +7,7 @@ namespace App\Jobs\NativeCommand;
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Exception;
-use Illuminate\Support\Facades\Http;
+use App\Services\DiscordApiService;
 use Illuminate\Support\Facades\Log;
 
 final class ProcessDisconnectUserJob extends ProcessBaseJob
@@ -54,11 +54,10 @@ final class ProcessDisconnectUserJob extends ProcessBaseJob
         $failedUsers = [];
 
         // Disconnect each user from their current voice channel
+        $discordService = app(DiscordApiService::class);
         foreach ($this->targetUserIds as $userId) {
-            $kickUrl = "{$this->baseUrl}/guilds/{$this->guildId}/members/{$userId}";
-
-            $response = retry($this->maxRetries, function () use ($kickUrl) {
-                return Http::withToken(config('discord.token'), 'Bot')->patch($kickUrl, ['channel_id' => null]);
+            $response = retry($this->maxRetries, function () use ($discordService, $userId) {
+                return $discordService->patch("/guilds/{$this->guildId}/members/{$userId}", ['channel_id' => null]);
             }, $this->retryDelay);
 
             if ($response->failed()) {

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
+use App\Services\DiscordApiService;
 use App\Services\DiscordParserService;
 use Exception;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 final class ProcessUnmuteUserJob extends ProcessBaseJob
@@ -47,9 +47,9 @@ final class ProcessUnmuteUserJob extends ProcessBaseJob
     private function unmuteUserInVoiceChannels(string $userId): bool
     {
         // Fetch all voice channels in the guild
-        $channelsUrl = "{$this->baseUrl}/guilds/{$this->guildId}/channels";
-        $channelsResponse = retry($this->maxRetries, function () use ($channelsUrl) {
-            return Http::withToken(config('discord.token'), 'Bot')->get($channelsUrl);
+        $discordService = app(DiscordApiService::class);
+        $channelsResponse = retry($this->maxRetries, function () use ($discordService) {
+            return $discordService->get("/guilds/{$this->guildId}/channels");
         }, $this->retryDelay);
 
         if ($channelsResponse->failed()) {
@@ -65,11 +65,10 @@ final class ProcessUnmuteUserJob extends ProcessBaseJob
 
         foreach ($voiceChannels as $channel) {
             $channelId = $channel['id'];
-            $permissionsUrl = "{$this->baseUrl}/channels/{$channelId}/permissions/{$userId}";
 
             // Delete the permission override to restore default permissions
-            $permissionsResponse = retry($this->maxRetries, function () use ($permissionsUrl) {
-                return Http::withToken(config('discord.token'), 'Bot')->delete($permissionsUrl);
+            $permissionsResponse = retry($this->maxRetries, function () use ($discordService, $channelId, $userId) {
+                return $discordService->delete("/channels/{$channelId}/permissions/{$userId}");
             }, $this->retryDelay);
 
             if ($permissionsResponse->failed()) {

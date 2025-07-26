@@ -6,8 +6,8 @@ namespace App\Jobs\NativeCommand;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Services\DiscordApiService;
 use Exception;
-use Illuminate\Support\Facades\Http;
 
 final class ProcessUnpinMessagesJob extends ProcessBaseJob
 {
@@ -83,8 +83,8 @@ final class ProcessUnpinMessagesJob extends ProcessBaseJob
 
     private function unpinMessage(string $messageId): void
     {
-        $url = "{$this->baseUrl}/channels/{$this->channelId}/pins/{$messageId}";
-        $response = Http::withToken(config('discord.token'), 'Bot')->delete($url);
+        $discordService = app(DiscordApiService::class);
+        $response = $discordService->delete("/channels/{$this->channelId}/pins/{$messageId}");
 
         if ($response->failed()) {
             SendMessage::sendMessage($this->channelId, [
@@ -104,8 +104,8 @@ final class ProcessUnpinMessagesJob extends ProcessBaseJob
 
     private function unpinPinnedMessage(string $type): void
     {
-        $url = "{$this->baseUrl}/channels/{$this->channelId}/pins";
-        $response = Http::withToken(config('discord.token'), 'Bot')->get($url);
+        $discordService = app(DiscordApiService::class);
+        $response = $discordService->get("/channels/{$this->channelId}/pins");
 
         if ($response->failed()) {
             SendMessage::sendMessage($this->channelId, [

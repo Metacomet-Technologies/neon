@@ -7,11 +7,11 @@ namespace App\Jobs\NativeCommand;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Services\DiscordApiService;
 use Exception;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Http;
 
 final class ProcessUserNicknameJob extends ProcessBaseJob
 {
@@ -70,12 +70,12 @@ final class ProcessUserNicknameJob extends ProcessBaseJob
             throw new Exception('Invalid user ID format.', 400);
         }
         // API Request to change nickname
-        $url = "{$this->baseUrl}/guilds/{$this->guildId}/members/{$this->targetUserId}";
+        $discordService = app(DiscordApiService::class);
         $payload = ['nick' => $this->newNickname];
 
         try {
-            $apiResponse = retry($this->maxRetries, function () use ($url, $payload) {
-                return Http::withToken(config('discord.token'), 'Bot')->patch($url, $payload);
+            $apiResponse = retry($this->maxRetries, function () use ($discordService, $payload) {
+                return $discordService->patch("/guilds/{$this->guildId}/members/{$this->targetUserId}", $payload);
             }, $this->retryDelay);
 
             if ($apiResponse->failed()) {

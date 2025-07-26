@@ -7,9 +7,9 @@ namespace App\Jobs\NativeCommand;
 use App\Helpers\Discord\SendMessage;
 use App\Models\NativeCommand;
 use App\Services\CommandAnalyticsService;
+use App\Services\DiscordApiService;
 use Exception;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 final class ProcessNeonDiscordExecutionJob extends ProcessBaseJob
@@ -436,10 +436,8 @@ final class ProcessNeonDiscordExecutionJob extends ProcessBaseJob
     protected function categoryExists(string $categoryName): bool
     {
         try {
-            // Use Discord REST API to check categories with timeout
-            $response = Http::timeout(10)
-                ->withToken(config('discord.token'), 'Bot')
-                ->get("https://discord.com/api/v10/guilds/{$this->guildId}/channels");
+            $discordService = app(DiscordApiService::class);
+            $response = $discordService->get("/guilds/{$this->guildId}/channels");
 
             if ($response->successful()) {
                 $channels = $response->json();
@@ -468,9 +466,8 @@ final class ProcessNeonDiscordExecutionJob extends ProcessBaseJob
     protected function channelExists(string $channelName): bool
     {
         try {
-            $response = Http::timeout(10)
-                ->withToken(config('discord.token'), 'Bot')
-                ->get("https://discord.com/api/v10/guilds/{$this->guildId}/channels");
+            $discordService = app(DiscordApiService::class);
+            $response = $discordService->get("/guilds/{$this->guildId}/channels");
 
             if ($response->successful()) {
                 $channels = $response->json();
@@ -499,9 +496,8 @@ final class ProcessNeonDiscordExecutionJob extends ProcessBaseJob
     protected function roleExists(string $roleName): bool
     {
         try {
-            $response = Http::timeout(10)
-                ->withToken(config('discord.token'), 'Bot')
-                ->get("https://discord.com/api/v10/guilds/{$this->guildId}/roles");
+            $discordService = app(DiscordApiService::class);
+            $response = $discordService->get("/guilds/{$this->guildId}/roles");
 
             if ($response->successful()) {
                 $roles = $response->json();

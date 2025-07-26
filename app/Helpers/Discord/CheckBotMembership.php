@@ -4,19 +4,17 @@ declare(strict_types=1);
 
 namespace App\Helpers\Discord;
 
+use App\Services\DiscordApiService;
 use Exception;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 final class CheckBotMembership
 {
-    private string $botToken;
-    private string $apiUrl;
+    private DiscordApiService $discordService;
 
     public function __construct()
     {
-        $this->botToken = config('services.discord.bot_token', '');
-        $this->apiUrl = config('services.discord.rest_api_url', 'https://discord.com/api/v10');
+        $this->discordService = app(DiscordApiService::class);
     }
 
     /**
@@ -25,9 +23,7 @@ final class CheckBotMembership
     public function isBotInGuild(string $guildId): bool
     {
         try {
-            $response = Http::withToken($this->botToken, 'Bot')
-                ->get("{$this->apiUrl}/guilds/{$guildId}");
-
+            $response = $this->discordService->get("/guilds/{$guildId}");
             return $response->successful();
         } catch (Exception $e) {
             Log::error('Failed to check bot membership for guild', [
@@ -45,8 +41,7 @@ final class CheckBotMembership
     public function getBotGuilds(): array
     {
         try {
-            $response = Http::withToken($this->botToken, 'Bot')
-                ->get("{$this->apiUrl}/users/@me/guilds");
+            $response = $this->discordService->get("/users/@me/guilds");
 
             if ($response->successful()) {
                 return $response->json();
@@ -68,8 +63,7 @@ final class CheckBotMembership
     public function getGuildDetails(string $guildId): ?array
     {
         try {
-            $response = Http::withToken($this->botToken, 'Bot')
-                ->get("{$this->apiUrl}/guilds/{$guildId}");
+            $response = $this->discordService->get("/guilds/{$guildId}");
 
             if ($response->successful()) {
                 return $response->json();

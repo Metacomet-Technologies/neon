@@ -1,12 +1,15 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace App\Http\Controllers;
 
 use App\Helpers\Discord\CheckBotMembership;
 use App\Helpers\Discord\GetGuilds;
+use App\Models\Guild;
+use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 use Stripe\Checkout\Session;
@@ -19,7 +22,7 @@ final class BillingController
      */
     public function index(Request $request): Response
     {
-        $user = Auth::user();
+        $user = $request->user();
 
         // Handle Stripe checkout success/failure
         $checkoutMessage = null;
@@ -135,8 +138,8 @@ final class BillingController
                         $guild->update([
                             'is_bot_member' => $isBotMember,
                             'last_bot_check_at' => now(),
-                            'bot_joined_at' => $isBotMember && ! $guild->is_bot_member ? now() : $guild->bot_joined_at,
-                            'bot_left_at' => ! $isBotMember && $guild->is_bot_member ? now() : $guild->bot_left_at,
+                            'bot_joined_at' => $isBotMember && !$guild->is_bot_member ? now() : $guild->bot_joined_at,
+                            'bot_left_at' => !$isBotMember && $guild->is_bot_member ? now() : $guild->bot_left_at,
                         ]);
                     } catch (Exception $e) {
                         Log::warning('Failed to check bot membership for guild', [

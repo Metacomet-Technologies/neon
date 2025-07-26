@@ -6,8 +6,8 @@ namespace App\Jobs\NativeCommand;
 
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
+use App\Services\DiscordApiService;
 use Exception;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 final class ProcessEditChannelAutohideJob extends ProcessBaseJob
@@ -63,8 +63,9 @@ final class ProcessEditChannelAutohideJob extends ProcessBaseJob
         $payload = ['default_auto_archive_duration' => $this->autoHideDuration];
 
         // Send the request to Discord API
-        $apiResponse = retry(3, function () use ($url, $payload) {
-            return Http::withToken(config('discord.token'), 'Bot')->patch($url, $payload);
+        $discordService = app(DiscordApiService::class);
+        $apiResponse = retry(3, function () use ($discordService, $payload) {
+            return $discordService->patch("/channels/{$this->targetChannelId}", $payload);
         }, 200);
 
         if ($apiResponse->failed()) {

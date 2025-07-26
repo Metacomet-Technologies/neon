@@ -8,7 +8,7 @@ use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use Exception;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Http;
+use App\Services\DiscordApiService;
 use Illuminate\Support\Facades\Log;
 
 final class ProcessDeleteEventJob extends ProcessBaseJob
@@ -52,24 +52,31 @@ final class ProcessDeleteEventJob extends ProcessBaseJob
             throw new Exception('No user ID provided.', 400);
         }
 
-        // Construct the delete API request
-        $deleteUrl = $this->baseUrl . "/guilds/{$this->guildId}/scheduled-events/{$eventId}";
+        // Make the delete request
+        $discordService = app(DiscordApiService::class);
+        
+        try {
+            $deleteResponse = $discordService->delete("/guilds/{$this->guildId}/scheduled-events/{$eventId}");
 
-        // Make the delete request with retries
-        $deleteResponse = retry(3, function () use ($deleteUrl) {
-            return Http::withToken(config('discord.token'), 'Bot')->delete($deleteUrl);
-        }, 200);
+            if ($deleteResponse->failed()) {
+                Log::error("Failed to delete event '{$eventId}' in guild {$this->guildId}", [
+                    'response' => $deleteResponse->json(),
+                ]);
 
-        if ($deleteResponse->failed()) {
-            Log::error("Failed to delete event '{$eventId}' in guild {$this->guildId}", [
-                'response' => $deleteResponse->json(),
-            ]);
+                SendMessage::sendMessage($this->channelId, [
+                    'is_embed' => false,
+                    'response' => "❌ Failed to delete event (ID: `{$eventId}`).",
+                ]);
+                throw new Exception('Failed to delete event.', 500);
+            }
+        } catch (Exception $e) {
+            Log::error("Exception while deleting event '{$eventId}' in guild {$this->guildId}", ['error' => $e->getMessage()]);
 
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => "❌ Failed to delete event (ID: `{$eventId}`).",
             ]);
-            throw new Exception('Failed to delete event.', 500);
+            throw new Exception('Failed to delete event: ' . $e->getMessage(), 500);
         }
 
         // ✅ Success! Send confirmation message

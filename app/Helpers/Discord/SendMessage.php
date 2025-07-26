@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Helpers\Discord;
 
-use Illuminate\Support\Facades\Http;
+use App\Services\DiscordApiService;
 use Illuminate\Support\Facades\Log;
 
 final class SendMessage
@@ -16,8 +16,7 @@ final class SendMessage
      */
     public static function sendMessage(string $channelId, array $command): string
     {
-        $baseUrl = config('services.discord.rest_api_url');
-        $url = $baseUrl . '/channels/' . $channelId . '/messages';
+        $service = app(DiscordApiService::class);
 
         $body = [];
         if ($command['is_embed']) {
@@ -54,27 +53,36 @@ final class SendMessage
         }
 
         // Send the embedded message
-        $apiResponse = Http::withToken(config('discord.token'), 'Bot')
-            ->post($url, $body);
+        try {
+            $apiResponse = $service->post("/channels/{$channelId}/messages", $body);
 
-        // Log result and return status
-        if ($apiResponse->failed()) {
-            Log::error('Failed to send embedded message', [
+            // Log result and return status
+            if ($apiResponse->failed()) {
+                Log::error('Failed to send embedded message', [
+                    'channel_id' => $channelId,
+                    'body' => $body,
+                    'api_response' => $apiResponse->json(),
+                ]);
+
+                return 'failed';
+            }
+
+            Log::info('Sent embedded message', [
                 'channel_id' => $channelId,
                 'body' => $body,
                 'api_response' => $apiResponse->json(),
             ]);
 
+            return 'sent';
+        } catch (\Exception $e) {
+            Log::error('Failed to send message due to rate limiting or other error', [
+                'channel_id' => $channelId,
+                'body' => $body,
+                'error' => $e->getMessage(),
+            ]);
+
             return 'failed';
         }
-
-        Log::info('Sent embedded message', [
-            'channel_id' => $channelId,
-            'body' => $body,
-            'api_response' => $apiResponse->json(),
-        ]);
-
-        return 'sent';
     }
 
     /**

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
+use App\Services\DiscordApiService;
 use App\Services\DiscordParserService;
 use Exception;
-use Illuminate\Support\Facades\Http;
 
 final class ProcessLockChannelJob extends ProcessBaseJob
 {
@@ -53,8 +53,9 @@ final class ProcessLockChannelJob extends ProcessBaseJob
                 'type' => 0, // Role
             ];
 
-            $response = retry(3, function () use ($permissionsUrl, $payload) {
-                return Http::withToken(config('discord.token'), 'Bot')->put($permissionsUrl, $payload);
+            $discordService = app(DiscordApiService::class);
+            $response = retry(3, function () use ($discordService, $targetChannelId, $everyoneRoleId, $payload) {
+                return $discordService->put("/channels/{$targetChannelId}/permissions/{$everyoneRoleId}", $payload);
             }, 2000);
 
             if ($response->failed()) {
