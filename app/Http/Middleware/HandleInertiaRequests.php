@@ -54,9 +54,11 @@ final class HandleInertiaRequests extends Middleware
             ],
             'appName' => config('app.name'),
             'theme' => function () use ($request) {
-                $theme = $request->cookie('theme', 'dark');
-
-                return $theme;
+                if ($request->user()) {
+                    $settings = $request->user()->getOrCreateSettings();
+                    return $settings->theme;
+                }
+                return 'system';
             },
         ];
     }
