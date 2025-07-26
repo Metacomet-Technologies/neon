@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-
-use App\Jobs\NativeCommand\ProcessBaseJob;
 use App\Services\Discord\Discord;
+use App\Services\DiscordApiService;
 use Exception;
 use Illuminate\Foundation\Queue\Queueable;
-use App\Services\DiscordApiService;
 use Illuminate\Support\Facades\Log;
 
 final class ProcessDeleteEventJob extends ProcessBaseJob
@@ -51,7 +49,7 @@ final class ProcessDeleteEventJob extends ProcessBaseJob
 
         // Make the delete request
         $discordService = app(DiscordApiService::class);
-        
+
         try {
             $deleteResponse = $discordService->delete("/guilds/{$this->guildId}/scheduled-events/{$eventId}");
 
@@ -68,7 +66,6 @@ final class ProcessDeleteEventJob extends ProcessBaseJob
             }
         } catch (Exception $e) {
             Log::error("Exception while deleting event '{$eventId}' in guild {$this->guildId}", ['error' => $e->getMessage()]);
-
 
             $discord->channel($this->channelId)->send("❌ Failed to delete event (ID: `{$eventId}`).");
             throw new Exception('Failed to delete event.', 500);

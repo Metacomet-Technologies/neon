@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-
 use App\Services\Discord\Discord;
 use Exception;
 use Illuminate\Support\Facades\Log;

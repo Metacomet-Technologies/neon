@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-
-use App\Jobs\NativeCommand\ProcessBaseJob;
 use App\Services\Discord\Discord;
-use Exception;
 use App\Services\DiscordApiService;
+use Exception;
 use Illuminate\Support\Facades\Log;
 
 final class ProcessDisconnectUserJob extends ProcessBaseJob

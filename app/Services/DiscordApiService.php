@@ -12,6 +12,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
 use JsonException;
 
 /**
@@ -24,22 +25,24 @@ final class DiscordApiService
     private const INVALID_REQUESTS_KEY = 'discord_invalid_requests';
     private const CIRCUIT_BREAKER_KEY = 'discord_circuit_breaker';
     private const CLOUDFLARE_BAN_THRESHOLD = 10000;
-    
+
     // Circuit breaker states
     private const CIRCUIT_CLOSED = 'closed';
     private const CIRCUIT_OPEN = 'open';
     private const CIRCUIT_HALF_OPEN = 'half_open';
-    
+
     // Retry configuration
     private const MAX_RETRIES = 3;
     private const BASE_BACKOFF_MS = 1000;
     private const MAX_BACKOFF_MS = 32000;
 
     private string $baseUrl;
+    private Discord $discord;
 
     public function __construct()
     {
         $this->baseUrl = config('services.discord.rest_api_url', self::DISCORD_API_BASE);
+        $this->discord = new Discord();
     }
 
     /**
@@ -145,7 +148,7 @@ final class DiscordApiService
     {
         try {
             $response = $this->get("/guilds/{$guildId}/roles");
-            
+
             if ($response->failed()) {
                 Log::error("Failed to fetch roles for guild {$guildId}");
                 throw new Exception('Failed to retrieve roles from the server.', 500);
@@ -164,6 +167,7 @@ final class DiscordApiService
     public function findRoleByName(string $guildId, string $roleName): ?array
     {
         $roles = $this->getGuildRoles($guildId);
+
         return $roles->first(fn ($role) => strcasecmp($role['name'], $roleName) === 0);
     }
 
@@ -213,6 +217,7 @@ final class DiscordApiService
     public function assignRole(string $guildId, string $userId, string $roleId): bool
     {
         $response = $this->put("/guilds/{$guildId}/members/{$userId}/roles/{$roleId}");
+
         return $response->successful();
     }
 
@@ -222,6 +227,7 @@ final class DiscordApiService
     public function removeRole(string $guildId, string $userId, string $roleId): bool
     {
         $response = $this->delete("/guilds/{$guildId}/members/{$userId}/roles/{$roleId}");
+
         return $response->successful();
     }
 
@@ -233,6 +239,7 @@ final class DiscordApiService
         $response = $this->put("/guilds/{$guildId}/bans/{$userId}", [
             'delete_message_days' => $deleteMessageDays,
         ]);
+
         return $response->successful();
     }
 
@@ -242,6 +249,7 @@ final class DiscordApiService
     public function unbanUser(string $guildId, string $userId): bool
     {
         $response = $this->delete("/guilds/{$guildId}/bans/{$userId}");
+
         return $response->successful();
     }
 
@@ -251,6 +259,7 @@ final class DiscordApiService
     public function kickUser(string $guildId, string $userId): bool
     {
         $response = $this->delete("/guilds/{$guildId}/members/{$userId}");
+
         return $response->successful();
     }
 
@@ -260,6 +269,7 @@ final class DiscordApiService
     public function updateChannel(string $channelId, array $data): bool
     {
         $response = $this->patch("/channels/{$channelId}", $data);
+
         return $response->successful();
     }
 
@@ -283,6 +293,7 @@ final class DiscordApiService
     public function deleteRole(string $guildId, string $roleId): bool
     {
         $response = $this->delete("/guilds/{$guildId}/roles/{$roleId}");
+
         return $response->successful();
     }
 
@@ -306,6 +317,7 @@ final class DiscordApiService
     public function deleteChannel(string $channelId): bool
     {
         $response = $this->delete("/channels/{$channelId}");
+
         return $response->successful();
     }
 
@@ -315,6 +327,7 @@ final class DiscordApiService
     public function getEveryoneRole(string $guildId): ?array
     {
         $roles = $this->getGuildRoles($guildId);
+
         return $roles->first(fn ($role) => $role['name'] === '@everyone');
     }
 
@@ -329,7 +342,7 @@ final class DiscordApiService
         $globalLimit = Cache::get(self::GLOBAL_RATE_LIMIT_KEY . '_limit', 50); // Fallback to common limit
         $invalidRequests = Cache::get(self::INVALID_REQUESTS_KEY . '_count', 0);
         $circuitState = Cache::get(self::CIRCUIT_BREAKER_KEY . '_state', self::CIRCUIT_CLOSED);
-        
+
         return [
             'global_requests_current' => $globalRequestCount,
             'global_limit' => $globalLimit,
@@ -354,7 +367,7 @@ final class DiscordApiService
         Cache::forget(self::CIRCUIT_BREAKER_KEY . '_state');
         Cache::forget(self::CIRCUIT_BREAKER_KEY . '_failures');
         Cache::forget(self::CIRCUIT_BREAKER_KEY . '_last_failure');
-        
+
         // Clear all route-specific rate limits
         $routes = Cache::get('discord_route_keys', []);
         foreach ($routes as $routeKey) {
@@ -362,286 +375,6 @@ final class DiscordApiService
             Cache::forget("discord_route_remaining_{$routeKey}");
             Cache::forget("discord_route_reset_{$routeKey}");
         }
-    }
-
-    /**
-     * Core request method with rate limiting.
-     */
-    private function makeRequest(string $method, string $endpoint, array $data, array $headers, string $tokenType, ?string $userToken = null): Response
-    {
-        $this->checkCircuitBreaker();
-        
-        $url = $this->baseUrl . '/' . ltrim($endpoint, '/');
-        $routeKey = $this->getRouteKey($method, $endpoint);
-        
-        $attempt = 0;
-        while ($attempt < self::MAX_RETRIES) {
-            try {
-                $this->checkRouteRateLimit($routeKey);
-                
-                $response = $this->makeHttpRequest($method, $url, $data, $headers, $tokenType, $userToken);
-                
-                $this->handleRateLimitHeaders($response, $routeKey);
-                $this->updateGlobalRequestCount();
-                
-                if ($response->successful()) {
-                    $this->recordSuccessfulRequest();
-                    return $response;
-                }
-                
-                if ($response->status() === 429) {
-                    $this->handleRateLimit($response, $routeKey);
-                    $attempt++;
-                    continue;
-                }
-                
-                if ($response->clientError()) {
-                    $this->recordInvalidRequest();
-                }
-                
-                if ($response->serverError()) {
-                    $this->recordServerError();
-                    $this->waitWithExponentialBackoff($attempt);
-                    $attempt++;
-                    continue;
-                }
-                
-                return $response;
-                
-            } catch (Exception $e) {
-                $this->recordRequestError($e);
-                
-                if ($attempt === self::MAX_RETRIES - 1) {
-                    throw $e;
-                }
-                
-                $this->waitWithExponentialBackoff($attempt);
-                $attempt++;
-            }
-        }
-        
-        throw new Exception('Maximum retry attempts exceeded');
-    }
-
-    /**
-     * Make the actual HTTP request.
-     */
-    private function makeHttpRequest(string $method, string $url, array $data, array $headers, string $tokenType, ?string $userToken): Response
-    {
-        $client = Http::timeout(30)->withHeaders($headers);
-        
-        if ($tokenType === 'bot') {
-            $client = $client->withToken(config('discord.token'), 'Bot');
-        } elseif ($tokenType === 'user' && $userToken) {
-            $client = $client->withToken($userToken);
-        } else {
-            throw new Exception('Invalid token type or missing user token');
-        }
-        
-        return match (strtoupper($method)) {
-            'GET' => $client->get($url, $data['query'] ?? []),
-            'POST' => $client->post($url, $data['json'] ?? []),
-            'PUT' => $client->put($url, $data['json'] ?? []),
-            'PATCH' => $client->patch($url, $data['json'] ?? []),
-            'DELETE' => $client->delete($url),
-            default => throw new \InvalidArgumentException("Unsupported HTTP method: {$method}"),
-        };
-    }
-
-    /**
-     * Generate a route key for rate limiting.
-     */
-    private function getRouteKey(string $method, string $endpoint): string
-    {
-        // Remove major parameters for route grouping
-        $route = preg_replace('/\/\d+/', '/{id}', $endpoint);
-        $route = preg_replace('/\/[a-f0-9]{16,}/', '/{snowflake}', $route);
-        
-        return strtoupper($method) . ':' . $route;
-    }
-
-    /**
-     * Check circuit breaker state.
-     */
-    private function checkCircuitBreaker(): void
-    {
-        $state = Cache::get(self::CIRCUIT_BREAKER_KEY . '_state', self::CIRCUIT_CLOSED);
-        
-        if ($state === self::CIRCUIT_OPEN) {
-            $lastFailure = Cache::get(self::CIRCUIT_BREAKER_KEY . '_last_failure', 0);
-            $cooldownPeriod = 60; // 1 minute
-            
-            if (time() - $lastFailure > $cooldownPeriod) {
-                Cache::put(self::CIRCUIT_BREAKER_KEY . '_state', self::CIRCUIT_HALF_OPEN, 300);
-            } else {
-                throw new Exception('Circuit breaker is open - Discord API temporarily unavailable');
-            }
-        }
-    }
-
-    /**
-     * Check route-specific rate limit.
-     */
-    private function checkRouteRateLimit(string $routeKey): void
-    {
-        $remaining = Cache::get("discord_route_remaining_{$routeKey}");
-        $resetTime = Cache::get("discord_route_reset_{$routeKey}");
-        
-        if ($remaining !== null && $remaining <= 0 && $resetTime && time() < $resetTime) {
-            $waitTime = $resetTime - time();
-            throw new Exception("Route rate limit exceeded for {$routeKey} - wait {$waitTime} seconds");
-        }
-    }
-
-    /**
-     * Handle rate limit headers from Discord response.
-     */
-    private function handleRateLimitHeaders(Response $response, string $routeKey): void
-    {
-        $headers = $response->headers();
-        
-        // Global rate limit headers
-        if (isset($headers['X-RateLimit-Global'][0]) && $headers['X-RateLimit-Global'][0] === 'true') {
-            $retryAfter = (int) ($headers['Retry-After'][0] ?? 1);
-            Cache::put(self::GLOBAL_RATE_LIMIT_KEY . '_blocked', true, $retryAfter);
-        }
-        
-        // Extract global limit from headers when available
-        if (isset($headers['X-RateLimit-Global-Limit'][0])) {
-            $globalLimit = (int) $headers['X-RateLimit-Global-Limit'][0];
-            Cache::put(self::GLOBAL_RATE_LIMIT_KEY . '_limit', $globalLimit, 3600);
-        }
-        
-        // Route-specific rate limit headers
-        if (isset($headers['X-RateLimit-Limit'][0])) {
-            $limit = (int) $headers['X-RateLimit-Limit'][0];
-            $remaining = (int) ($headers['X-RateLimit-Remaining'][0] ?? 0);
-            $resetAfter = (float) ($headers['X-RateLimit-Reset-After'][0] ?? 1);
-            
-            Cache::put("discord_route_limit_{$routeKey}", $limit, 300);
-            Cache::put("discord_route_remaining_{$routeKey}", $remaining, $resetAfter);
-            Cache::put("discord_route_reset_{$routeKey}", time() + (int) $resetAfter, $resetAfter);
-            
-            // Store route key for cleanup
-            $routes = Cache::get('discord_route_keys', []);
-            if (!in_array($routeKey, $routes)) {
-                $routes[] = $routeKey;
-                Cache::put('discord_route_keys', $routes, 3600);
-            }
-        }
-    }
-
-    /**
-     * Handle 429 rate limit response.
-     */
-    private function handleRateLimit(Response $response, string $routeKey): void
-    {
-        try {
-            $body = $response->json();
-            $retryAfter = $body['retry_after'] ?? 1;
-            $global = $body['global'] ?? false;
-            
-            if ($global) {
-                Cache::put(self::GLOBAL_RATE_LIMIT_KEY . '_blocked', true, $retryAfter);
-                Log::warning('Discord global rate limit hit', ['retry_after' => $retryAfter]);
-            } else {
-                Cache::put("discord_route_remaining_{$routeKey}", 0, $retryAfter);
-                Cache::put("discord_route_reset_{$routeKey}", time() + (int) $retryAfter, $retryAfter);
-                Log::warning('Discord route rate limit hit', ['route' => $routeKey, 'retry_after' => $retryAfter]);
-            }
-            
-            // Wait for the retry_after period
-            sleep((int) ceil($retryAfter));
-            
-        } catch (JsonException $e) {
-            Log::error('Failed to parse rate limit response', ['error' => $e->getMessage()]);
-            sleep(1); // Default 1 second wait
-        }
-    }
-
-    /**
-     * Update global request count.
-     */
-    private function updateGlobalRequestCount(): void
-    {
-        $key = self::GLOBAL_RATE_LIMIT_KEY . '_count';
-        $ttl = 1; // 1 second window
-        
-        Cache::increment($key, 1);
-        if (!Cache::has($key . '_ttl')) {
-            Cache::put($key . '_ttl', true, $ttl);
-            Cache::put($key, 0, $ttl);
-        }
-    }
-
-    /**
-     * Record an invalid request (4xx error).
-     */
-    private function recordInvalidRequest(): void
-    {
-        $key = self::INVALID_REQUESTS_KEY . '_count';
-        $ttl = 600; // 10 minutes
-        
-        $count = Cache::increment($key, 1);
-        if (!Cache::has($key . '_ttl')) {
-            Cache::put($key . '_ttl', true, $ttl);
-        }
-        
-        if ($count >= self::CLOUDFLARE_BAN_THRESHOLD) {
-            Log::critical('Approaching Cloudflare ban threshold', ['invalid_requests' => $count]);
-            Cache::put(self::CIRCUIT_BREAKER_KEY . '_state', self::CIRCUIT_OPEN, 3600);
-        }
-    }
-
-    /**
-     * Record a successful request.
-     */
-    private function recordSuccessfulRequest(): void
-    {
-        $state = Cache::get(self::CIRCUIT_BREAKER_KEY . '_state', self::CIRCUIT_CLOSED);
-        
-        if ($state === self::CIRCUIT_HALF_OPEN) {
-            Cache::put(self::CIRCUIT_BREAKER_KEY . '_state', self::CIRCUIT_CLOSED, 300);
-            Cache::forget(self::CIRCUIT_BREAKER_KEY . '_failures');
-        }
-    }
-
-    /**
-     * Record a server error (5xx).
-     */
-    private function recordServerError(): void
-    {
-        $failures = Cache::increment(self::CIRCUIT_BREAKER_KEY . '_failures', 1);
-        Cache::put(self::CIRCUIT_BREAKER_KEY . '_last_failure', time(), 3600);
-        
-        if ($failures >= 5) {
-            Cache::put(self::CIRCUIT_BREAKER_KEY . '_state', self::CIRCUIT_OPEN, 3600);
-            Log::warning('Circuit breaker opened due to server errors', ['failures' => $failures]);
-        }
-    }
-
-    /**
-     * Record a request error (exception).
-     */
-    private function recordRequestError(Exception $e): void
-    {
-        Log::error('Discord API request error', [
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString(),
-        ]);
-        
-        $this->recordServerError();
-    }
-
-    /**
-     * Wait with exponential backoff.
-     */
-    private function waitWithExponentialBackoff(int $attempt): void
-    {
-        $backoff = min(self::BASE_BACKOFF_MS * (2 ** $attempt), self::MAX_BACKOFF_MS);
-        $jitter = random_int(0, (int) ($backoff * 0.1)); // Add 10% jitter
-        
-        usleep(($backoff + $jitter) * 1000); // Convert to microseconds
     }
 
     /**
@@ -675,7 +408,6 @@ final class DiscordApiService
 
         return $results;
     }
-
 
     /**
      * Refresh Discord OAuth token for a user.
@@ -807,5 +539,288 @@ final class DiscordApiService
     public function getGuildChannels(string $guildId): Collection
     {
         return $this->discord->guild($guildId)->channels()->get();
+    }
+
+    /**
+     * Core request method with rate limiting.
+     */
+    private function makeRequest(string $method, string $endpoint, array $data, array $headers, string $tokenType, ?string $userToken = null): Response
+    {
+        $this->checkCircuitBreaker();
+
+        $url = $this->baseUrl . '/' . ltrim($endpoint, '/');
+        $routeKey = $this->getRouteKey($method, $endpoint);
+
+        $attempt = 0;
+        while ($attempt < self::MAX_RETRIES) {
+            try {
+                $this->checkRouteRateLimit($routeKey);
+
+                $response = $this->makeHttpRequest($method, $url, $data, $headers, $tokenType, $userToken);
+
+                $this->handleRateLimitHeaders($response, $routeKey);
+                $this->updateGlobalRequestCount();
+
+                if ($response->successful()) {
+                    $this->recordSuccessfulRequest();
+
+                    return $response;
+                }
+
+                if ($response->status() === 429) {
+                    $this->handleRateLimit($response, $routeKey);
+                    $attempt++;
+
+                    continue;
+                }
+
+                if ($response->clientError()) {
+                    $this->recordInvalidRequest();
+                }
+
+                if ($response->serverError()) {
+                    $this->recordServerError();
+                    $this->waitWithExponentialBackoff($attempt);
+                    $attempt++;
+
+                    continue;
+                }
+
+                return $response;
+
+            } catch (Exception $e) {
+                $this->recordRequestError($e);
+
+                if ($attempt === self::MAX_RETRIES - 1) {
+                    throw $e;
+                }
+
+                $this->waitWithExponentialBackoff($attempt);
+                $attempt++;
+            }
+        }
+
+        throw new Exception('Maximum retry attempts exceeded');
+    }
+
+    /**
+     * Make the actual HTTP request.
+     */
+    private function makeHttpRequest(string $method, string $url, array $data, array $headers, string $tokenType, ?string $userToken): Response
+    {
+        $client = Http::timeout(30)->withHeaders($headers);
+
+        if ($tokenType === 'bot') {
+            $client = $client->withToken(config('discord.token'), 'Bot');
+        } elseif ($tokenType === 'user' && $userToken) {
+            $client = $client->withToken($userToken);
+        } else {
+            throw new Exception('Invalid token type or missing user token');
+        }
+
+        return match (strtoupper($method)) {
+            'GET' => $client->get($url, $data['query'] ?? []),
+            'POST' => $client->post($url, $data['json'] ?? []),
+            'PUT' => $client->put($url, $data['json'] ?? []),
+            'PATCH' => $client->patch($url, $data['json'] ?? []),
+            'DELETE' => $client->delete($url),
+            default => throw new InvalidArgumentException("Unsupported HTTP method: {$method}"),
+        };
+    }
+
+    /**
+     * Generate a route key for rate limiting.
+     */
+    private function getRouteKey(string $method, string $endpoint): string
+    {
+        // Remove major parameters for route grouping
+        $route = preg_replace('/\/\d+/', '/{id}', $endpoint);
+        $route = preg_replace('/\/[a-f0-9]{16,}/', '/{snowflake}', $route);
+
+        return strtoupper($method) . ':' . $route;
+    }
+
+    /**
+     * Check circuit breaker state.
+     */
+    private function checkCircuitBreaker(): void
+    {
+        $state = Cache::get(self::CIRCUIT_BREAKER_KEY . '_state', self::CIRCUIT_CLOSED);
+
+        if ($state === self::CIRCUIT_OPEN) {
+            $lastFailure = Cache::get(self::CIRCUIT_BREAKER_KEY . '_last_failure', 0);
+            $cooldownPeriod = 60; // 1 minute
+
+            if (time() - $lastFailure > $cooldownPeriod) {
+                Cache::put(self::CIRCUIT_BREAKER_KEY . '_state', self::CIRCUIT_HALF_OPEN, 300);
+            } else {
+                throw new Exception('Circuit breaker is open - Discord API temporarily unavailable');
+            }
+        }
+    }
+
+    /**
+     * Check route-specific rate limit.
+     */
+    private function checkRouteRateLimit(string $routeKey): void
+    {
+        $remaining = Cache::get("discord_route_remaining_{$routeKey}");
+        $resetTime = Cache::get("discord_route_reset_{$routeKey}");
+
+        if ($remaining !== null && $remaining <= 0 && $resetTime && time() < $resetTime) {
+            $waitTime = $resetTime - time();
+            throw new Exception("Route rate limit exceeded for {$routeKey} - wait {$waitTime} seconds");
+        }
+    }
+
+    /**
+     * Handle rate limit headers from Discord response.
+     */
+    private function handleRateLimitHeaders(Response $response, string $routeKey): void
+    {
+        $headers = $response->headers();
+
+        // Global rate limit headers
+        if (isset($headers['X-RateLimit-Global'][0]) && $headers['X-RateLimit-Global'][0] === 'true') {
+            $retryAfter = (int) ($headers['Retry-After'][0] ?? 1);
+            Cache::put(self::GLOBAL_RATE_LIMIT_KEY . '_blocked', true, $retryAfter);
+        }
+
+        // Extract global limit from headers when available
+        if (isset($headers['X-RateLimit-Global-Limit'][0])) {
+            $globalLimit = (int) $headers['X-RateLimit-Global-Limit'][0];
+            Cache::put(self::GLOBAL_RATE_LIMIT_KEY . '_limit', $globalLimit, 3600);
+        }
+
+        // Route-specific rate limit headers
+        if (isset($headers['X-RateLimit-Limit'][0])) {
+            $limit = (int) $headers['X-RateLimit-Limit'][0];
+            $remaining = (int) ($headers['X-RateLimit-Remaining'][0] ?? 0);
+            $resetAfter = (float) ($headers['X-RateLimit-Reset-After'][0] ?? 1);
+
+            Cache::put("discord_route_limit_{$routeKey}", $limit, 300);
+            Cache::put("discord_route_remaining_{$routeKey}", $remaining, $resetAfter);
+            Cache::put("discord_route_reset_{$routeKey}", time() + (int) $resetAfter, $resetAfter);
+
+            // Store route key for cleanup
+            $routes = Cache::get('discord_route_keys', []);
+            if (! in_array($routeKey, $routes)) {
+                $routes[] = $routeKey;
+                Cache::put('discord_route_keys', $routes, 3600);
+            }
+        }
+    }
+
+    /**
+     * Handle 429 rate limit response.
+     */
+    private function handleRateLimit(Response $response, string $routeKey): void
+    {
+        try {
+            $body = $response->json();
+            $retryAfter = $body['retry_after'] ?? 1;
+            $global = $body['global'] ?? false;
+
+            if ($global) {
+                Cache::put(self::GLOBAL_RATE_LIMIT_KEY . '_blocked', true, $retryAfter);
+                Log::warning('Discord global rate limit hit', ['retry_after' => $retryAfter]);
+            } else {
+                Cache::put("discord_route_remaining_{$routeKey}", 0, $retryAfter);
+                Cache::put("discord_route_reset_{$routeKey}", time() + (int) $retryAfter, $retryAfter);
+                Log::warning('Discord route rate limit hit', ['route' => $routeKey, 'retry_after' => $retryAfter]);
+            }
+
+            // Wait for the retry_after period
+            sleep((int) ceil($retryAfter));
+
+        } catch (JsonException $e) {
+            Log::error('Failed to parse rate limit response', ['error' => $e->getMessage()]);
+            sleep(1); // Default 1 second wait
+        }
+    }
+
+    /**
+     * Update global request count.
+     */
+    private function updateGlobalRequestCount(): void
+    {
+        $key = self::GLOBAL_RATE_LIMIT_KEY . '_count';
+        $ttl = 1; // 1 second window
+
+        Cache::increment($key, 1);
+        if (! Cache::has($key . '_ttl')) {
+            Cache::put($key . '_ttl', true, $ttl);
+            Cache::put($key, 0, $ttl);
+        }
+    }
+
+    /**
+     * Record an invalid request (4xx error).
+     */
+    private function recordInvalidRequest(): void
+    {
+        $key = self::INVALID_REQUESTS_KEY . '_count';
+        $ttl = 600; // 10 minutes
+
+        $count = Cache::increment($key, 1);
+        if (! Cache::has($key . '_ttl')) {
+            Cache::put($key . '_ttl', true, $ttl);
+        }
+
+        if ($count >= self::CLOUDFLARE_BAN_THRESHOLD) {
+            Log::critical('Approaching Cloudflare ban threshold', ['invalid_requests' => $count]);
+            Cache::put(self::CIRCUIT_BREAKER_KEY . '_state', self::CIRCUIT_OPEN, 3600);
+        }
+    }
+
+    /**
+     * Record a successful request.
+     */
+    private function recordSuccessfulRequest(): void
+    {
+        $state = Cache::get(self::CIRCUIT_BREAKER_KEY . '_state', self::CIRCUIT_CLOSED);
+
+        if ($state === self::CIRCUIT_HALF_OPEN) {
+            Cache::put(self::CIRCUIT_BREAKER_KEY . '_state', self::CIRCUIT_CLOSED, 300);
+            Cache::forget(self::CIRCUIT_BREAKER_KEY . '_failures');
+        }
+    }
+
+    /**
+     * Record a server error (5xx).
+     */
+    private function recordServerError(): void
+    {
+        $failures = Cache::increment(self::CIRCUIT_BREAKER_KEY . '_failures', 1);
+        Cache::put(self::CIRCUIT_BREAKER_KEY . '_last_failure', time(), 3600);
+
+        if ($failures >= 5) {
+            Cache::put(self::CIRCUIT_BREAKER_KEY . '_state', self::CIRCUIT_OPEN, 3600);
+            Log::warning('Circuit breaker opened due to server errors', ['failures' => $failures]);
+        }
+    }
+
+    /**
+     * Record a request error (exception).
+     */
+    private function recordRequestError(Exception $e): void
+    {
+        Log::error('Discord API request error', [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ]);
+
+        $this->recordServerError();
+    }
+
+    /**
+     * Wait with exponential backoff.
+     */
+    private function waitWithExponentialBackoff(int $attempt): void
+    {
+        $backoff = min(self::BASE_BACKOFF_MS * (2 ** $attempt), self::MAX_BACKOFF_MS);
+        $jitter = random_int(0, (int) ($backoff * 0.1)); // Add 10% jitter
+
+        usleep(($backoff + $jitter) * 1000); // Convert to microseconds
     }
 }

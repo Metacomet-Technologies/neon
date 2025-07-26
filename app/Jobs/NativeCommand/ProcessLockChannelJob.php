@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-
-use App\Jobs\NativeCommand\ProcessBaseJob;
 use App\Services\Discord\Discord;
 use Exception;
 
@@ -51,7 +49,6 @@ final class ProcessLockChannelJob extends ProcessBaseJob
 
             // Get the @everyone role
             $everyoneRole = $guild->everyoneRole();
-
 
             if (! $everyoneRole) {
                 throw new Exception('Could not find @everyone role.', 500);

@@ -500,7 +500,7 @@ Focus on recreating the essence and organization of the analyzed server while us
     {
         $encodedEmoji = urlencode($emoji);
         $discordService = app(DiscordApiService::class);
-        
+
         try {
             $discordService->put("/channels/{$this->channelId}/messages/{$messageId}/reactions/{$encodedEmoji}/@me");
         } catch (Exception $e) {

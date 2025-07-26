@@ -4,12 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-
-use App\Jobs\NativeCommand\ProcessBaseJob;
 use App\Services\Discord\Discord;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Http;
+use Exception;
 
 // TODO: this may not work, needs testing. Currently set isactive to false. not updateded with processbasejob
 final class ProcessSupportCommandJob extends ProcessBaseJob
@@ -46,7 +42,7 @@ final class ProcessSupportCommandJob extends ProcessBaseJob
                 $messagePayload['embed_description'],
                 $messagePayload['embed_color']
             );
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $discord = new Discord;
             $discord->channel($this->channelId)->send('❌ Failed to send the support request. Please try again later.');
 

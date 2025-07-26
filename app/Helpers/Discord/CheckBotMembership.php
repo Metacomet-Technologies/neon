@@ -24,6 +24,7 @@ final class CheckBotMembership
     {
         try {
             $response = $this->discordService->get("/guilds/{$guildId}");
+
             return $response->successful();
         } catch (Exception $e) {
             Log::error('Failed to check bot membership for guild', [
@@ -41,7 +42,7 @@ final class CheckBotMembership
     public function getBotGuilds(): array
     {
         try {
-            $response = $this->discordService->get("/users/@me/guilds");
+            $response = $this->discordService->get('/users/@me/guilds');
 
             if ($response->successful()) {
                 return $response->json();

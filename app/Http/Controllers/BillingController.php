@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
@@ -107,8 +107,8 @@ final class BillingController
                         $guild->update([
                             'is_bot_member' => $isBotMember,
                             'last_bot_check_at' => now(),
-                            'bot_joined_at' => $isBotMember && !$guild->is_bot_member ? now() : $guild->bot_joined_at,
-                            'bot_left_at' => !$isBotMember && $guild->is_bot_member ? now() : $guild->bot_left_at,
+                            'bot_joined_at' => $isBotMember && ! $guild->is_bot_member ? now() : $guild->bot_joined_at,
+                            'bot_left_at' => ! $isBotMember && $guild->is_bot_member ? now() : $guild->bot_left_at,
                         ]);
                     } catch (Exception $e) {
                         Log::warning('Failed to check bot membership for guild', [

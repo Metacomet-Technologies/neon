@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-
-use App\Jobs\NativeCommand\ProcessBaseJob;
 use App\Services\Discord\Discord;
 use DateTime;
 use DateTimeZone;
@@ -61,7 +59,6 @@ final class ProcessNewEventJob extends ProcessBaseJob
             $this->sendUsageAndExample();
             throw new Exception('Missing required event parameters.', 400);
         }
-
 
         try {
             $guild = $discord->guild($this->guildId);
@@ -137,7 +134,6 @@ final class ProcessNewEventJob extends ProcessBaseJob
         } else {
             $eventData['entity_metadata'] = ['location' => $this->location];
         }
-
 
         if ($this->coverImage) {
             $eventData['image'] = $this->coverImage;

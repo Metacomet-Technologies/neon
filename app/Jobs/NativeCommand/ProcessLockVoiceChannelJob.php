@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-
-use App\Jobs\NativeCommand\ProcessBaseJob;
 use App\Services\Discord\Discord;
 use Exception;
 use Illuminate\Support\Facades\Log;
@@ -55,11 +53,11 @@ final class ProcessLockVoiceChannelJob extends ProcessBaseJob
         }
         // Get all roles in the guild
         $discord = new Discord;
-        
+
         try {
             $roles = $discord->guild($this->guildId)->roles();
-            
-            if (!$roles) {
+
+            if (! $roles) {
                 Log::error("Failed to fetch roles for guild {$this->guildId}");
                 $discord->channel($this->channelId)->send('❌ Failed to retrieve roles from the server.');
                 throw new Exception('Operation failed', 500);

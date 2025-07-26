@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Nova\Metrics;
 
 use App\Services\DiscordApiService;
+use DateTimeInterface;
 use Laravel\Nova\Http\Requests\NovaRequest;
 use Laravel\Nova\Metrics\Value;
 
@@ -17,7 +18,7 @@ final class DiscordInvalidRequests extends Value
     {
         $service = app(DiscordApiService::class);
         $stats = $service->getRateLimitStats();
-        
+
         return $this->result($stats['invalid_requests_count'])
             ->suffix(' / 10k')
             ->format('0,0');
@@ -38,7 +39,7 @@ final class DiscordInvalidRequests extends Value
     /**
      * Determine the amount of time the results of the metric should be cached.
      */
-    public function cacheFor(): ?\DateTimeInterface
+    public function cacheFor(): ?DateTimeInterface
     {
         return now()->addSeconds(5);
     }

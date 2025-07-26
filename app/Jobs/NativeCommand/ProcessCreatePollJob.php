@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-
 // Helpers replaced by SDK
-use App\Jobs\NativeCommand\ProcessBaseJob;
 use App\Services\Discord\Discord;
 use Exception;
 
@@ -58,7 +56,6 @@ final class ProcessCreatePollJob extends ProcessBaseJob
         try {
             // Discord instance already created above
             $channel = $discord->channel($this->channelId);
-
 
             // Create the poll using the SDK's sendPoll method
             $channel->sendPoll(

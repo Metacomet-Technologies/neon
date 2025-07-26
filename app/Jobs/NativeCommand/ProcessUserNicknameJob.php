@@ -5,8 +5,6 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-
-use App\Jobs\NativeCommand\ProcessBaseJob;
 use App\Services\Discord\Discord;
 use Exception;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -44,7 +42,6 @@ final class ProcessUserNicknameJob extends ProcessBaseJob
         if (is_null($parsedUserId) || is_null($parsedNickname)) {
             $this->sendUsageAndExample();
 
-
             throw new Exception('Invalid input for !set-nickname. Expected a valid user mention and nickname.');
         }
         // Assign parsed values
@@ -61,7 +58,6 @@ final class ProcessUserNicknameJob extends ProcessBaseJob
         // Validate target user ID format
         if (! preg_match('/^\d{17,19}$/', $this->targetUserId)) {
             // dump("❌ Invalid user ID format: {$this->targetUserId}");
-
 
             $discord->channel($this->channelId)->send('❌ Invalid user ID format. Please mention a valid user.');
             throw new Exception('Invalid user ID format.', 400);

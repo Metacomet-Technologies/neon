@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Jobs\NativeCommand\ProcessBaseJob;
 use App\Services\Discord\Discord;
+use Exception;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
 
@@ -69,8 +69,8 @@ final class ProcessAssignChannelJob extends ProcessBaseJob
         // 2️⃣ Fetch all channels in the guild
         try {
             $channelsResponse = $discord->guild($this->guildId)->channels();
-            
-            if (!$channelsResponse) {
+
+            if (! $channelsResponse) {
                 Log::error("Failed to fetch channels for guild {$this->guildId}");
                 $discord->channel($this->channelId)->send('❌ Failed to retrieve channels from the server.');
 
@@ -86,7 +86,7 @@ final class ProcessAssignChannelJob extends ProcessBaseJob
 
                 return;
             }
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error("Exception while fetching channels for guild {$this->guildId}", ['error' => $e->getMessage()]);
             $discord->channel($this->channelId)->send('❌ Failed to retrieve channels from the server.');
 
@@ -151,7 +151,7 @@ final class ProcessAssignChannelJob extends ProcessBaseJob
         // 5️⃣ Move the channel to the new category
         try {
             $discord->channel($channelId)->update(['parent_id' => $categoryId]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error("Exception while moving channel '{$channelInput}' to category '{$categoryInput}' in guild {$this->guildId}", ['error' => $e->getMessage()]);
 
             $discord->channel($this->channelId)->send("❌ Failed to move channel '{$channelInput}' to category '{$categoryInput}'.");

@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-
-use App\Jobs\NativeCommand\ProcessBaseJob;
 use App\Services\Discord\Discord;
 use Exception;
 use Illuminate\Support\Facades\Log;
@@ -49,11 +47,11 @@ final class ProcessDeleteCategoryJob extends ProcessBaseJob
         }
         // Fetch all channels to verify the category exists and is a category
         $discord = new Discord;
-        
+
         try {
             $channels = collect($discord->guild($this->guildId)->channels());
-            
-            if (!$channels) {
+
+            if (! $channels) {
                 Log::error("Failed to fetch channels for guild {$this->guildId}");
                 $discord->channel($this->channelId)->send('❌ Failed to retrieve channels from the server.');
                 throw new Exception('Operation failed', 500);
