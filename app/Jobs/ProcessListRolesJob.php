@@ -48,9 +48,10 @@ final class ProcessListRolesJob extends ProcessBaseJob implements ShouldQueue
                 ]);
 
                 $this->updateNativeCommandRequestFailed(
-                    status: 'failed',
-                    message: 'Failed to fetch server roles from Discord API.',
-                    statusCode: $rolesResponse->status(),
+                    'failed',
+                    'Failed to fetch server roles from Discord API.',
+                    null,
+                    $rolesResponse->status()
                 );
                 return;
             }
@@ -142,9 +143,10 @@ final class ProcessListRolesJob extends ProcessBaseJob implements ShouldQueue
             ]);
 
             $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'Exception occurred: ' . $e->getMessage(),
-                statusCode: 500,
+                'failed',
+                'Exception occurred: ' . $e->getMessage(),
+                null,
+                500
             );
         }
     }
@@ -247,15 +249,28 @@ final class ProcessListRolesJob extends ProcessBaseJob implements ShouldQueue
     /**
      * Update the native command request as failed
      */
-    private function updateNativeCommandRequestFailed(string $status, string $message, int $statusCode): void
-    {
-        $this->nativeCommandRequest->update([
+    public function updateNativeCommandRequestFailed(
+        string $status,
+        string $message,
+        mixed $details = null,
+        int $statusCode = 500,
+        bool $unicorn = false
+    ): void {
+        $params = [
             'status' => $status,
             'failed_at' => now(),
             'error_message' => [
                 'message' => $message,
                 'status_code' => $statusCode,
             ],
-        ]);
+        ];
+        if ($details) {
+            $params['error_message']['details'] = $details;
+        }
+        if ($unicorn) {
+            $params['error_message']['unicorn'] = '🦄';
+        }
+
+        $this->nativeCommandRequest->update($params);
     }
 }

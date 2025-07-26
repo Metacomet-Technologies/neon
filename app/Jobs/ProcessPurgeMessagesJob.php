@@ -208,34 +208,89 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob implements ShouldQueu
                 'response' => '❌ No messages found to delete. Messages older than 14 days cannot be deleted in bulk.',
             ]);
             $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'No messages found to delete. Messages older than 14 days cannot be deleted in bulk.',
-                statusCode: 400,
+                'failed',
+                'No messages found to delete. Messages older than 14 days cannot be deleted in bulk.',
+                null,
+                400
             );
+            return;
+        }
 
+        if (count($messageIds) === 1) {
+            // Single message deletion - use different endpoint
+            $deleteUrl = "{$this->baseUrl}/channels/{$this->targetChannelId}/messages/{$messageIds[0]}";
+            
+            $deleteResponse = retry(3, function () use ($deleteUrl) {
+                return Http::withToken(config('discord.token'), 'Bot')->delete($deleteUrl);
+            }, [2000, 4000, 6000]);
+
+            if ($deleteResponse->failed()) {
+                SendMessage::sendMessage($this->channelId, [
+                    'is_embed' => false,
+                    'response' => '❌ Failed to delete the message.',
+                ]);
+                $this->updateNativeCommandRequestFailed(
+                    'failed',
+                    'Failed to delete single message.',
+                    null,
+                    $deleteResponse->status()
+                );
+            } else {
+                SendMessage::sendMessage($this->channelId, [
+                    'is_embed' => true,
+                    'embed_title' => '🧹 Message Purged',
+                    'embed_description' => "✅ Successfully purged 1 message from <#{$this->targetChannelId}>.",
+                    'embed_color' => 3066993,
+                ]);
+                $this->updateNativeCommandRequestComplete();
+            }
             return;
         }
 
         $batches = array_chunk($messageIds, 100);
         $failedBatches = 0;
+        $successfullyDeletedMessages = 0;
 
         foreach ($batches as $batchIndex => $batch) {
-            $deleteUrl = "{$this->baseUrl}/channels/{$this->targetChannelId}/messages/bulk-delete";
+            if (count($batch) === 1) {
+                // Single message deletion
+                $deleteUrl = "{$this->baseUrl}/channels/{$this->targetChannelId}/messages/{$batch[0]}";
+                
+                $deleteResponse = retry(3, function () use ($deleteUrl) {
+                    return Http::withToken(config('discord.token'), 'Bot')->delete($deleteUrl);
+                }, [2000, 4000, 6000]);
+            } else {
+                // Bulk message deletion (2-100 messages)
+                $deleteUrl = "{$this->baseUrl}/channels/{$this->targetChannelId}/messages/bulk-delete";
 
-            $deleteResponse = retry(5, function () use ($deleteUrl, $batch) {
-                return Http::withToken(config('discord.token'), 'Bot')
-                    ->post($deleteUrl, ['messages' => $batch]);
-            }, [6000, 8000, 12000, 20000, 30000]);
+                $deleteResponse = retry(5, function () use ($deleteUrl, $batch) {
+                    return Http::withToken(config('discord.token'), 'Bot')
+                        ->post($deleteUrl, ['messages' => $batch]);
+                }, [6000, 8000, 12000, 20000, 30000]);
+            }
 
             if ($deleteResponse->failed()) {
                 $failedBatches++;
+                \Illuminate\Support\Facades\Log::error("Failed to delete message batch", [
+                    'batch_index' => $batchIndex,
+                    'batch_size' => count($batch),
+                    'status_code' => $deleteResponse->status(),
+                    'response' => $deleteResponse->json(),
+                    'channel_id' => $this->targetChannelId
+                ]);
+            } else {
+                $successfullyDeletedMessages += count($batch);
+                \Illuminate\Support\Facades\Log::info("Successfully deleted message batch", [
+                    'batch_index' => $batchIndex,
+                    'batch_size' => count($batch),
+                    'total_deleted_so_far' => $successfullyDeletedMessages
+                ]);
             }
-            $this->updateNativeCommandRequestFailed(
-                status: 'discord_api_error',
-                message: 'Failed to create channel.',
-                statusCode: $deleteResponse->status(),
-                details: $deleteResponse->json(),
-            );
+
+            // Add delay between batches to avoid rate limits
+            if ($batchIndex < count($batches) - 1) {
+                sleep(2);
+            }
         }
 
         if ($failedBatches === count($batches)) {
@@ -244,16 +299,24 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob implements ShouldQueu
                 'response' => '❌ Failed to delete all messages due to rate limits or API errors.',
             ]);
             $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'Failed to delete all messages due to rate limits or API errors.',
-                statusCode: 400,
+                'failed',
+                'Failed to delete all messages due to rate limits or API errors.',
+                null,
+                400
             );
-
+        } else if ($failedBatches > 0) {
+            SendMessage::sendMessage($this->channelId, [
+                'is_embed' => true,
+                'embed_title' => '🧹 Messages Partially Purged',
+                'embed_description' => "⚠️ Successfully purged {$successfullyDeletedMessages} out of " . count($messageIds) . " messages from <#{$this->targetChannelId}>.\n\n{$failedBatches} batch(es) failed due to rate limits or API errors.",
+                'embed_color' => 16776960, // Yellow for partial success
+            ]);
+            $this->updateNativeCommandRequestComplete();
         } else {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => true,
                 'embed_title' => '🧹 Messages Purged',
-                'embed_description' => '✅ Successfully purged ' . count($messageIds) . " messages from <#{$this->targetChannelId}>.",
+                'embed_description' => "✅ Successfully purged {$successfullyDeletedMessages} messages from <#{$this->targetChannelId}>.",
                 'embed_color' => 3066993,
             ]);
             $this->updateNativeCommandRequestComplete();
