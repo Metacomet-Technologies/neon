@@ -536,23 +536,42 @@ For action requests: Generate practical, working Discord commands using ONLY the
     private function parseChatGPTResponse(string $response): ?array
     {
         try {
-            // Try to extract JSON from the response
-            $jsonStart = strpos($response, '{');
-            $jsonEnd = strrpos($response, '}');
+            Log::info('Parsing ChatGPT response', [
+                'response_preview' => substr($response, 0, 200) . (strlen($response) > 200 ? '...' : ''),
+                'response_length' => strlen($response)
+            ]);
 
-            if ($jsonStart === false || $jsonEnd === false) {
-                return null;
+            // Try to extract JSON from markdown code blocks first
+            if (preg_match('/```json\s*(.*?)\s*```/s', $response, $matches)) {
+                $jsonString = trim($matches[1]);
+                Log::info('Found JSON in markdown code block');
+            } else {
+                // Fallback to looking for JSON brackets
+                $jsonStart = strpos($response, '{');
+                $jsonEnd = strrpos($response, '}');
+
+                if ($jsonStart === false || $jsonEnd === false) {
+                    Log::warning('No JSON found in ChatGPT response');
+                    return null;
+                }
+
+                $jsonString = substr($response, $jsonStart, $jsonEnd - $jsonStart + 1);
+                Log::info('Extracted JSON from brackets');
             }
 
-            $jsonString = substr($response, $jsonStart, $jsonEnd - $jsonStart + 1);
             $parsed = json_decode($jsonString, true);
 
             if (!$parsed || !isset($parsed['synopsis'])) {
+                Log::warning('Invalid JSON structure - missing synopsis', [
+                    'json_error' => json_last_error_msg()
+                ]);
                 return null;
             }
 
             // Handle informational responses (no commands to execute)
             if (isset($parsed['information_response']) && (!isset($parsed['discord_commands']) || empty($parsed['discord_commands']))) {
+                Log::info('Processing informational response');
+
                 // This is an informational request - send the information directly
                 $this->sendInformationalResponse($parsed['synopsis'], $parsed['information_response']);
                 return null; // Don't proceed with command execution flow
@@ -560,6 +579,7 @@ For action requests: Generate practical, working Discord commands using ONLY the
 
             // Handle command requests
             if (!isset($parsed['discord_commands'])) {
+                Log::warning('No discord_commands found in parsed response');
                 return null;
             }
 
@@ -567,11 +587,14 @@ For action requests: Generate practical, working Discord commands using ONLY the
             $validatedCommands = $this->validateDiscordCommands($parsed['discord_commands']);
             if (empty($validatedCommands)) {
                 Log::warning('No valid commands found in ChatGPT response', [
-                    'original_commands' => $parsed['discord_commands'],
-                    'response' => $response
+                    'original_commands' => $parsed['discord_commands']
                 ]);
                 return null;
             }
+
+            Log::info('Successfully parsed ChatGPT response', [
+                'command_count' => count($validatedCommands)
+            ]);
 
             return [
                 'discord_commands' => $validatedCommands,
@@ -580,8 +603,7 @@ For action requests: Generate practical, working Discord commands using ONLY the
 
         } catch (Exception $e) {
             Log::error('Failed to parse ChatGPT response', [
-                'error' => $e->getMessage(),
-                'response' => $response,
+                'error' => $e->getMessage()
             ]);
             return null;
         }
