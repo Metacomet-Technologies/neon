@@ -8,9 +8,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::table('guilds', function (Blueprint $table) {
@@ -18,21 +15,18 @@ return new class extends Migration
             $table->timestamp('bot_joined_at')->nullable()->after('is_bot_member');
             $table->timestamp('bot_left_at')->nullable()->after('bot_joined_at');
             $table->timestamp('last_bot_check_at')->nullable()->after('bot_left_at');
-            
+
             $table->index('is_bot_member');
             $table->index('last_bot_check_at');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::table('guilds', function (Blueprint $table) {
             $table->dropIndex(['is_bot_member']);
             $table->dropIndex(['last_bot_check_at']);
-            
+
             $table->dropColumn([
                 'is_bot_member',
                 'bot_joined_at',

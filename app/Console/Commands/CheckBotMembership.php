@@ -34,22 +34,23 @@ final class CheckBotMembership extends Command
 
         if ($guildId) {
             $guild = Guild::find($guildId);
-            
-            if (!$guild) {
+
+            if (! $guild) {
                 $this->error("Guild with ID {$guildId} not found.");
+
                 return 1;
             }
 
             $this->info("Checking bot membership for guild: {$guild->name}");
             CheckGuildBotMembership::dispatchSync($guild);
-            
+
             $guild->refresh();
-            $this->info("Bot member status: " . ($guild->is_bot_member ? 'Yes' : 'No'));
-            
+            $this->info('Bot member status: ' . ($guild->is_bot_member ? 'Yes' : 'No'));
+
             if ($guild->bot_joined_at) {
                 $this->info("Bot joined at: {$guild->bot_joined_at}");
             }
-            
+
             if ($guild->bot_left_at) {
                 $this->info("Bot left at: {$guild->bot_left_at}");
             }

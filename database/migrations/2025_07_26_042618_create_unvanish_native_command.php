@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'unvanish'], [
             'slug' => 'unvanish',
             'description' => 'Makes a vanished channel visible again to members.',
-            'class' => \App\Jobs\ProcessUnvanishChannelJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessUnvanishChannelJob::class,
             'usage' => 'Usage: !unvanish <channel-id>',
             'example' => 'Example: !unvanish 123456789012345678',
             'is_active' => true,

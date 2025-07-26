@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'delete-category'], [
             'slug' => 'delete-category',
             'description' => 'Deletes a category.',
-            'class' => \App\Jobs\ProcessDeleteCategoryJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessDeleteCategoryJob::class,
             'usage' => 'Usage: !delete-category <category-id>',
             'example' => 'Example: !delete-category 123456789012345678',
             'is_active' => true,

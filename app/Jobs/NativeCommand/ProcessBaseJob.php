@@ -13,7 +13,7 @@ use App\Traits\DiscordValidatorTrait;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Log;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class ProcessBaseJob implements ShouldQueue

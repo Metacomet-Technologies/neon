@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'unpin'], [
             'slug' => 'unpin',
             'description' => 'Unpins a message in the channel.',
-            'class' => \App\Jobs\ProcessUnpinMessageJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessUnpinMessagesJob::class,
             'usage' => 'Usage: !unpin <message-id>',
             'example' => 'Example: !unpin 123456789012345678',
             'is_active' => true,

@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'edit-channel-topic'], [
             'slug' => 'edit-channel-topic',
             'description' => 'Edits a channel topic.',
-            'class' => \App\Jobs\ProcessEditChannelTopicJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessEditChannelTopicJob::class,
             'usage' => 'Usage: !edit-channel-topic <channel-id> <new-topic>',
             'example' => 'Example: !edit-channel-topic 123456789012345678 "This is the new topic for this channel"',
             'is_active' => true,

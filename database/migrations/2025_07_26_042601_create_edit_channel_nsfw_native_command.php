@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'edit-channel-nsfw'], [
             'slug' => 'edit-channel-nsfw',
             'description' => 'Edits channel NSFW settings.',
-            'class' => \App\Jobs\ProcessEditChannelNsfwJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessEditChannelNSFWJob::class,
             'usage' => 'Usage: !edit-channel-nsfw <channel-id> <true|false>',
             'example' => 'Example: !edit-channel-nsfw 123456789012345678 true',
             'is_active' => true,

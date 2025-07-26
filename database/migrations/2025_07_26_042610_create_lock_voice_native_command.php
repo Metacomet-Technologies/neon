@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'lock-voice'], [
             'slug' => 'lock-voice',
             'description' => 'Locks a voice channel to prevent new members from joining.',
-            'class' => \App\Jobs\ProcessLockVoiceChannelJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessLockVoiceChannelJob::class,
             'usage' => 'Usage: !lock-voice <channel-id>',
             'example' => 'Example: !lock-voice 123456789012345678',
             'is_active' => true,

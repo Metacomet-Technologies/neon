@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'edit-channel-name'], [
             'slug' => 'edit-channel-name',
             'description' => 'Edits a channel name.',
-            'class' => \App\Jobs\ProcessEditChannelNameJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessEditChannelNameJob::class,
             'usage' => 'Usage: !edit-channel-name <channel-id> <new-name>',
             'example' => 'Example: !edit-channel-name 123456789012345678 new-channel-name',
             'is_active' => true,

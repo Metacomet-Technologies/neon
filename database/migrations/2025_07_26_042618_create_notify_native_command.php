@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'notify'], [
             'slug' => 'notify',
             'description' => 'Sends a notification message to specified users or roles.',
-            'class' => \App\Jobs\ProcessNotifyMessageJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessNotifyMessageJob::class,
             'usage' => 'Usage: !notify <@user|@role> <message>',
             'example' => 'Example: !notify @VIP "Meeting starts in 5 minutes!"',
             'is_active' => true,

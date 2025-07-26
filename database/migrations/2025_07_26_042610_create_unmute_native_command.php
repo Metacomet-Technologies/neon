@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'unmute'], [
             'slug' => 'unmute',
             'description' => 'Unmutes a user in voice chat.',
-            'class' => \App\Jobs\ProcessUnmuteUserJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessUnmuteUserJob::class,
             'usage' => 'Usage: !unmute <user-id>',
             'example' => 'Example: !unmute 123456789012345678',
             'is_active' => true,

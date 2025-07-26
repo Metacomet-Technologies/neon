@@ -25,10 +25,6 @@ return new class extends Migration
             $table->foreign('guild_id')->references('id')->on('guilds')->onDelete('cascade');
         });
 
-        // Add foreign key constraint for native_command_requests.guild_id -> guilds.id
-        Schema::table('native_command_requests', function (Blueprint $table) {
-            $table->foreign('guild_id')->references('id')->on('guilds')->onDelete('cascade');
-        });
     }
 
     public function down(): void
@@ -45,8 +41,5 @@ return new class extends Migration
             $table->dropForeign(['guild_id']);
         });
 
-        Schema::table('native_command_requests', function (Blueprint $table) {
-            $table->dropForeign(['guild_id']);
-        });
     }
 };

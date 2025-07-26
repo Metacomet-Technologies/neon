@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Hash;
  * @property string $guild_id
  * @property string $user_hash
  * @property string|null $channel_type
- * @property array|null $parameter_signature
+ * @property array<array-key, mixed>|null $parameter_signature
  * @property int $parameter_count
  * @property bool $had_errors
  * @property string|null $execution_duration_ms
@@ -29,6 +29,35 @@ use Illuminate\Support\Facades\Hash;
  * @property string|null $error_category
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric commandType(string $type)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric dateRange($startDate, $endDate)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric failed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric successful()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric whereChannelType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric whereCommandHash($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric whereCommandSlug($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric whereCommandType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric whereDate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric whereDayOfWeek($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric whereErrorCategory($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric whereExecutedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric whereExecutionDurationMs($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric whereGuildId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric whereHadErrors($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric whereHour($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric whereParameterCount($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric whereParameterSignature($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|CommandUsageMetric whereUserHash($value)
+ *
+ * @mixin \Eloquent
  */
 final class CommandUsageMetric extends Model
 {

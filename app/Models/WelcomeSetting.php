@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property bool $is_active
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Guild $guild
  *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|WelcomeSetting newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|WelcomeSetting newQuery()

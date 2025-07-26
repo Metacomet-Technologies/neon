@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'edit-channel-slowmode'], [
             'slug' => 'edit-channel-slowmode',
             'description' => 'Edits channel slowmode settings.',
-            'class' => \App\Jobs\ProcessEditChannelSlowmodeJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessEditChannelSlowmodeJob::class,
             'usage' => 'Usage: !edit-channel-slowmode <channel-id> <seconds>',
             'example' => 'Example: !edit-channel-slowmode 123456789012345678 30',
             'is_active' => true,

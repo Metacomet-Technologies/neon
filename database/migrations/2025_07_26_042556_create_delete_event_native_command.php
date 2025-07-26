@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'delete-event'], [
             'slug' => 'delete-event',
             'description' => 'Deletes a scheduled event.',
-            'class' => \App\Jobs\ProcessDeleteEventJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessDeleteEventJob::class,
             'usage' => 'Usage: !delete-event <event-id>',
             'example' => 'Example: !delete-event 123456789012345678',
             'is_active' => true,

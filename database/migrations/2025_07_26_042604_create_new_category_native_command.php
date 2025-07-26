@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'new-category'], [
             'slug' => 'new-category',
             'description' => 'Creates a new category.',
-            'class' => \App\Jobs\ProcessNewCategoryJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessNewCategoryJob::class,
             'usage' => 'Usage: !new-category <category-name>',
             'example' => 'Example: !new-category "General Channels"',
             'is_active' => true,

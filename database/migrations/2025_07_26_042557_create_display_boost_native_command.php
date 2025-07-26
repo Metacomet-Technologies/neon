@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'display-boost'], [
             'slug' => 'display-boost',
             'description' => 'Displays Nitro boost bar status.',
-            'class' => \App\Jobs\ProcessDisplayBoostJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessDisplayBoostJob::class,
             'usage' => 'Usage: !display-boost <true|false>',
             'example' => 'Example: !display-boost true',
             'is_active' => true,

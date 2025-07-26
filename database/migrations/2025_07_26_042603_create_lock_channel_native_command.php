@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'lock-channel'], [
             'slug' => 'lock-channel',
             'description' => 'Locks a channel to prevent members from sending messages.',
-            'class' => \App\Jobs\ProcessLockChannelJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessLockChannelJob::class,
             'usage' => 'Usage: !lock-channel <channel-id>',
             'example' => 'Example: !lock-channel 123456789012345678',
             'is_active' => true,

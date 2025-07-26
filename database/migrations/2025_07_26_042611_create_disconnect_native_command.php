@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'disconnect'], [
             'slug' => 'disconnect',
             'description' => 'Disconnects a user from voice chat.',
-            'class' => \App\Jobs\ProcessDisconnectUserJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessDisconnectUserJob::class,
             'usage' => 'Usage: !disconnect <user-id>',
             'example' => 'Example: !disconnect 123456789012345678',
             'is_active' => true,

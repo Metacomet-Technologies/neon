@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'kick'], [
             'slug' => 'kick',
             'description' => 'Kicks a user from the server.',
-            'class' => \App\Jobs\ProcessKickUserJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessKickUserJob::class,
             'usage' => 'Usage: !kick <user-id> [reason]',
             'example' => 'Example: !kick 123456789012345678 "Violation of server rules"',
             'is_active' => true,

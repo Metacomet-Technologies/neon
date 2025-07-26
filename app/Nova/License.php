@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Nova;
 
 use App\Models\License as ModelsLicense;
+use App\Nova\Actions\ParkLicense;
+use App\Nova\Filters\LicenseStatus;
 use Laravel\Nova\Fields\Badge;
 use Laravel\Nova\Fields\BelongsTo;
 use Laravel\Nova\Fields\DateTime;
@@ -120,7 +122,7 @@ final class License extends Resource
     public function filters(NovaRequest $request): array
     {
         return [
-            new Filters\LicenseStatus,
+            new LicenseStatus,
         ];
     }
 
@@ -132,7 +134,7 @@ final class License extends Resource
     public function actions(NovaRequest $request): array
     {
         return [
-            new Actions\ParkLicense,
+            new ParkLicense,
         ];
     }
 }

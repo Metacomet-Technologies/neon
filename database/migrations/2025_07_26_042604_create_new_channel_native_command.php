@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'new-channel'], [
             'slug' => 'new-channel',
             'description' => 'Creates a new channel.',
-            'class' => \App\Jobs\ProcessNewChannelJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessNewChannelJob::class,
             'usage' => 'Usage: !new-channel <channel-name> [category-id]',
             'example' => 'Example: !new-channel "general-chat" 123456789012345678',
             'is_active' => true,

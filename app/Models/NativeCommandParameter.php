@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $data_type
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \App\Models\NativeCommand|null $command
+ * @property-read \App\Models\NativeCommand $command
  *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommandParameter newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommandParameter newQuery()

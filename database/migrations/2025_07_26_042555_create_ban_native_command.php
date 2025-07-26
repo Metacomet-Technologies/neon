@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'ban'], [
             'slug' => 'ban',
             'description' => 'Bans a user from the server.',
-            'class' => \App\Jobs\ProcessBanUserJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessBanUserJob::class,
             'usage' => 'Usage: !ban <user-id>',
             'example' => 'Example: !ban 123456789012345678',
             'is_active' => true,

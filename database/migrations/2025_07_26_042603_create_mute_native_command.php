@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'mute'], [
             'slug' => 'mute',
             'description' => 'Mutes a user in voice chat.',
-            'class' => \App\Jobs\ProcessMuteUserJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessMuteUserJob::class,
             'usage' => 'Usage: !mute <user-id> [duration]',
             'example' => 'Example: !mute 123456789012345678 10m',
             'is_active' => true,

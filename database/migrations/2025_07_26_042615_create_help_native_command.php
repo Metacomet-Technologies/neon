@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'help'], [
             'slug' => 'help',
             'description' => 'Shows help information for bot commands.',
-            'class' => \App\Jobs\ProcessShowHelpJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessHelpCommandJob::class,
             'usage' => 'Usage: !help [command-name]',
             'example' => 'Example: !help ban',
             'is_active' => true,

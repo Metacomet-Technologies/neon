@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'new-role'], [
             'slug' => 'new-role',
             'description' => 'Creates a new role.',
-            'class' => \App\Jobs\ProcessNewRoleJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessNewRoleJob::class,
             'usage' => 'Usage: !new-role <role-name> [color] [permissions]',
             'example' => 'Example: !new-role "VIP Member" #ff0000',
             'is_active' => true,

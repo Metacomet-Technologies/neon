@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace App\Console\Commands;
 
@@ -11,13 +11,9 @@ use App\Jobs\ProcessGuildJoin;
 use App\Jobs\ProcessGuildLeave;
 use App\Jobs\ProcessImageAnalysisJob;
 use App\Jobs\ProcessNeonDiscordExecutionJob;
-
-use App\Jobs\ProcessNeonSQLExecutionJob;
-
 use App\Jobs\ProcessScheduledMessageJob;
 use App\Jobs\ProcessWelcomeMessageJob;
 use App\Jobs\RefreshNeonGuildsJob;
-use Illuminate\Support\Facades\Bus;
 use App\Models\NativeCommand;
 use App\Models\NeonCommand;
 use App\Models\WelcomeSetting;
@@ -40,7 +36,7 @@ final class StartNeonCommand extends Command
 {
     public string $environment;
 
-    protected $signature   = 'neon:start';
+    protected $signature = 'neon:start';
     protected $description = 'Run Neon';
 
     public function __construct()
@@ -70,12 +66,12 @@ final class StartNeonCommand extends Command
         $discord->on('init', function ($discord) {
             $this->components->info('Neon is running!');
 
-            $discord->on(Event::MESSAGE_CREATE, function ($message, $discord) {
+            $discord->on(Event::MESSAGE_CREATE, function ($message) {
                 if ($message->author->bot) {
                     return;
                 }
 
-                if (!str_starts_with($message->content, '!')) {
+                if (! str_starts_with($message->content, '!')) {
                     return;
                 }
 
@@ -85,7 +81,7 @@ final class StartNeonCommand extends Command
                 $messageContent = $message->content;
 
                 // Check for image analysis commands with attachments
-                if (str_starts_with($messageContent, '!analyze-server') && !empty($message->attachments)) {
+                if (str_starts_with($messageContent, '!analyze-server') && ! empty($message->attachments)) {
                     $imageAttachments = [];
 
                     foreach ($message->attachments as $attachment) {
@@ -96,24 +92,27 @@ final class StartNeonCommand extends Command
                                 'url' => $attachment->url,
                                 'filename' => $attachment->filename,
                                 'content_type' => $contentType,
-                                'size' => $attachment->size
+                                'size' => $attachment->size,
                             ];
                         }
                     }
 
-                    if (!empty($imageAttachments)) {
-                        // Create a NativeCommandRequest for the image analysis
-                        $nativeCommandRequest = \App\Models\NativeCommandRequest::create([
-                            'discord_user_id' => $discordUserId,
-                            'channel_id' => $channelId,
-                            'guild_id' => $guildId,
-                            'native_command_id' => \App\Models\NativeCommand::where('slug', 'analyze-server')->first()?->id,
-                            'message_content' => $messageContent,
-                            'status' => 'processing',
-                        ]);
+                    if (! empty($imageAttachments)) {
+                        // Get the analyze-server command for the job
+                        $analyzeCommand = NativeCommand::where('slug', 'analyze-server')->first();
+                        if ($analyzeCommand) {
+                            // Dispatch the image analysis job with the new constructor pattern
+                            ProcessImageAnalysisJob::dispatch(
+                                $discordUserId,
+                                $channelId,
+                                $guildId,
+                                $messageContent,
+                                $analyzeCommand->toArray(),
+                                'analyze-server',
+                                ['image_attachments' => $imageAttachments]
+                            );
+                        }
 
-                        // Dispatch the image analysis job
-                        ProcessImageAnalysisJob::dispatch($nativeCommandRequest, $imageAttachments);
                         return;
                     }
                 }
@@ -137,7 +136,7 @@ final class StartNeonCommand extends Command
                     if ($commandSlug === '!' . $command['slug']) {
                         // Special handling for scheduled messages
                         if ($commandSlug === '!scheduled-message') {
-                            $this->handleScheduledMessage($discordUserId, $channelId, $guildId, $messageContent);
+                            $this->handleScheduledMessage($channelId, $messageContent);
 
                             return;
                         }
@@ -149,11 +148,11 @@ final class StartNeonCommand extends Command
                 }
             });
 
-            $discord->on(Event::GUILD_MEMBER_ADD, function ($member, $discord) {
+            $discord->on(Event::GUILD_MEMBER_ADD, function ($member) {
                 $guildId = $member->guild_id;
                 // check if guild has welcome message enabled
                 $welcomeSettings = $this->getGuildsWithWelcomeSettings();
-                if (!in_array($guildId, $welcomeSettings)) {
+                if (! in_array($guildId, $welcomeSettings)) {
                     return;
                 }
                 $newMemberId = $member->user->id;
@@ -164,14 +163,14 @@ final class StartNeonCommand extends Command
             $discord->on(Event::GUILD_DELETE, function ($guild) {
                 Bus::chain([
                     new ProcessGuildLeave($guild->id, $guild->name ?? 'Unknown Guild'),
-                    new RefreshNeonGuildsJob(),
+                    new RefreshNeonGuildsJob,
                 ])->dispatch();
             });
 
             $discord->on(Event::GUILD_CREATE, function ($guild) {
                 Bus::chain([
                     new ProcessGuildJoin($guild->id, $guild->name, $guild->icon),
-                    new RefreshNeonGuildsJob(),
+                    new RefreshNeonGuildsJob,
                 ])->dispatch();
             });
 
@@ -193,7 +192,6 @@ final class StartNeonCommand extends Command
                 $emoji = $reaction->emoji->name;
                 $userId = $reaction->user_id;
                 $channelId = $reaction->channel_id;
-                $messageId = $reaction->message_id;
 
                 // Only handle ✅ and ❌ reactions
                 if ($emoji === '✅' || $emoji === '❌') {
@@ -204,7 +202,7 @@ final class StartNeonCommand extends Command
                     Log::info('Reaction handler processing', [
                         'emoji' => $emoji,
                         'cache_key' => $cacheKey,
-                        'has_cached_data' => !empty($cachedData),
+                        'has_cached_data' => ! empty($cachedData),
                         'user_id' => $userId,
                         'channel_id' => $channelId,
                     ]);
@@ -215,7 +213,7 @@ final class StartNeonCommand extends Command
                         // Get guild ID from the cached data first, then try channel lookup
                         $guildId = $cachedData['guild_id'] ?? null;
 
-                        if (!$guildId) {
+                        if (! $guildId) {
                             try {
                                 $channel = $discord->getChannel($channelId);
                                 if ($channel && isset($channel->guild_id)) {
@@ -224,12 +222,13 @@ final class StartNeonCommand extends Command
 
                                 Log::info('Channel lookup result', [
                                     'channel_id' => $channelId,
-                                    'channel_found' => !empty($channel),
+                                    'channel_found' => ! empty($channel),
                                     'guild_id' => $guildId,
                                     'channel_type' => $channel->type ?? 'unknown',
                                 ]);
                             } catch (Exception $e) {
                                 Log::error("Failed to get guild ID for channel {$channelId}: " . $e->getMessage());
+
                                 return;
                             }
                         } else {
@@ -296,7 +295,7 @@ final class StartNeonCommand extends Command
         });
     }
 
-    public function handleScheduledMessage(string $discordUserId, string $channelId, string $guildId, string $messageContent): void
+    public function handleScheduledMessage(string $channelId, string $messageContent): void
     {
         $parts = explode(' ', trim($messageContent), 5); // Allow 5 parts: channel, date, time, and message
 
@@ -352,7 +351,7 @@ final class StartNeonCommand extends Command
 
                 return;
             }
-        } catch (Exception $e) {
+        } catch (Exception) {
             // dump('Scheduled Message Parsing Error:', [
             //     'error_message' => $e->getMessage(),
             //     'input_time' => $dateTime,
@@ -367,7 +366,7 @@ final class StartNeonCommand extends Command
         }
 
         // Validate message content
-        if (!$messageText) {
+        if (! $messageText) {
             SendMessage::sendMessage($channelId, [
                 'is_embed' => false,
                 'response' => "ℹ️ **Scheduled Message Help**\nSchedules a message to be sent later in a specific channel.\n\n**Usage:** `!scheduled-message <#channel> <YYYY-MM-DD HH:MM> <message>`\n\n**Example:** `!scheduled-message #announcements 2025-02-07 18:48 Server maintenance Starting!`",

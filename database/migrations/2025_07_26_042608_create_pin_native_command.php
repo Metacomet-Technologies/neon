@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'pin'], [
             'slug' => 'pin',
             'description' => 'Pins a message in the channel.',
-            'class' => \App\Jobs\ProcessPinMessageJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessPinMessagesJob::class,
             'usage' => 'Usage: !pin <message-id>',
             'example' => 'Example: !pin 123456789012345678',
             'is_active' => true,

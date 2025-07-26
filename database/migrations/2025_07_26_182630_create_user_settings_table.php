@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('user_settings', function (Blueprint $table) {
@@ -17,14 +14,11 @@ return new class extends Migration
             $table->enum('theme', ['light', 'dark', 'system'])->default('system');
             $table->json('preferences')->nullable();
             $table->timestamps();
-            
+
             $table->unique('user_id');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('user_settings');

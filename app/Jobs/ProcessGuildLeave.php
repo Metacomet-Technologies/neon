@@ -21,8 +21,7 @@ final class ProcessGuildLeave implements ShouldQueue
     public function __construct(
         private readonly string $guildId,
         private readonly string $guildName
-    ) {
-    }
+    ) {}
 
     /**
      * Execute the job.
@@ -31,10 +30,11 @@ final class ProcessGuildLeave implements ShouldQueue
     {
         $guild = Guild::find($this->guildId);
 
-        if (!$guild) {
+        if (! $guild) {
             Log::warning('Received guild_delete for unknown guild', [
                 'guild_id' => $this->guildId,
             ]);
+
             return;
         }
 

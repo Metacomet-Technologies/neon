@@ -22,8 +22,7 @@ final class ProcessGuildJoin implements ShouldQueue
         private readonly string $guildId,
         private readonly string $guildName,
         private readonly ?string $guildIcon = null
-    ) {
-    }
+    ) {}
 
     /**
      * Execute the job.

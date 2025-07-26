@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'color'], [
             'slug' => 'color',
             'description' => 'Changes the color of a role.',
-            'class' => \App\Jobs\ProcessChangeRoleColorJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessColorJob::class,
             'usage' => 'Usage: !color <role-name> <hex-color>',
             'example' => 'Example: !color VIP #ff0000',
             'is_active' => true,

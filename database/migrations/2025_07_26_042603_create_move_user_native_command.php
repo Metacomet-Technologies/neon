@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'move-user'], [
             'slug' => 'move-user',
             'description' => 'Moves a user to a different voice channel.',
-            'class' => \App\Jobs\ProcessMoveUserJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessMoveUserJob::class,
             'usage' => 'Usage: !move-user <user-id> <channel-id>',
             'example' => 'Example: !move-user 123456789012345678 987654321098765432',
             'is_active' => true,

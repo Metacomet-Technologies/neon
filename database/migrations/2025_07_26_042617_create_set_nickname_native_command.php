@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'set-nickname'], [
             'slug' => 'set-nickname',
             'description' => 'Sets a nickname for a member.',
-            'class' => \App\Jobs\ProcessSetNicknameJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessUserNicknameJob::class,
             'usage' => 'Usage: !set-nickname <user-id> <new-nickname>',
             'example' => 'Example: !set-nickname 123456789012345678 "Cool Member"',
             'is_active' => true,

@@ -56,8 +56,10 @@ final class HandleInertiaRequests extends Middleware
             'theme' => function () use ($request) {
                 if ($request->user()) {
                     $settings = $request->user()->getOrCreateSettings();
+
                     return $settings->theme;
                 }
+
                 return 'system';
             },
         ];

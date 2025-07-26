@@ -23,9 +23,9 @@ class GuildFactory extends Factory
     public function definition(): array
     {
         return [
-            'id' => $this->faker->unique()->numerify('####################'), // Discord snowflake format
-            'name' => $this->faker->words(2, true) . ' Server',
-            'icon' => $this->faker->optional()->md5(),
+            'id' => fake()->unique()->randomNumber(8, true) . fake()->randomNumber(8, true), // Discord snowflake format
+            'name' => fake()->word() . ' ' . fake()->word() . ' Server',
+            'icon' => fake()->optional()->md5(),
         ];
     }
 }

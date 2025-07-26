@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'create-event'], [
             'slug' => 'create-event',
             'description' => 'Creates a scheduled event.',
-            'class' => \App\Jobs\ProcessCreateEventJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessNewEventJob::class,
             'usage' => 'Usage: !create-event <name> <date> <time>',
             'example' => 'Example: !create-event "Community Meeting" 2024-01-15 19:00',
             'is_active' => true,

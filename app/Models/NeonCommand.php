@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\User $createdByUser
+ * @property-read \App\Models\Guild $guild
  * @property-read \App\Models\User $updatedByUser
  *
  * @method static Builder<static>|NeonCommand aciveGuildCommands(string $guildId)

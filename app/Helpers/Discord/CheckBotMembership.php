@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Helpers\Discord;
 
+use Exception;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -28,7 +29,7 @@ final class CheckBotMembership
                 ->get("{$this->apiUrl}/guilds/{$guildId}");
 
             return $response->successful();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to check bot membership for guild', [
                 'guild_id' => $guildId,
                 'error' => $e->getMessage(),
@@ -52,7 +53,7 @@ final class CheckBotMembership
             }
 
             return [];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to fetch bot guilds', [
                 'error' => $e->getMessage(),
             ]);
@@ -75,7 +76,7 @@ final class CheckBotMembership
             }
 
             return null;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to fetch guild details', [
                 'guild_id' => $guildId,
                 'error' => $e->getMessage(),

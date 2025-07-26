@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace App\Models;
 
@@ -60,7 +60,7 @@ final class License extends Model
      * The possible license types.
      */
     public const TYPE_SUBSCRIPTION = 'subscription';
-    public const TYPE_LIFETIME     = 'lifetime';
+    public const TYPE_LIFETIME = 'lifetime';
 
     /**
      * The possible license statuses.
@@ -200,7 +200,7 @@ final class License extends Model
      */
     public function getCooldownDaysRemaining(): int
     {
-        if (!$this->isOnCooldown()) {
+        if (! $this->isOnCooldown()) {
             return 0;
         }
 
@@ -256,7 +256,7 @@ final class License extends Model
     public function transferToGuild(Guild $guild): void
     {
         // Check if license is currently assigned
-        if (!$this->isAssigned()) {
+        if (! $this->isAssigned()) {
             throw new LicenseNotAssignedException;
         }
 

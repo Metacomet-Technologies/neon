@@ -21,15 +21,14 @@ final class CheckGuildBotMembership implements ShouldQueue
      */
     public function __construct(
         private readonly Guild $guild
-    ) {
-    }
+    ) {}
 
     /**
      * Execute the job.
      */
     public function handle(): void
     {
-        $checker = new CheckBotMembership();
+        $checker = new CheckBotMembership;
         $wasInGuild = $this->guild->is_bot_member;
         $isInGuild = $checker->isBotInGuild($this->guild->id);
 
@@ -40,13 +39,13 @@ final class CheckGuildBotMembership implements ShouldQueue
         ]);
 
         // Handle bot joining the guild
-        if (!$wasInGuild && $isInGuild) {
+        if (! $wasInGuild && $isInGuild) {
             $this->guild->update(['bot_joined_at' => now()]);
             Log::info('Bot joined guild', ['guild_id' => $this->guild->id]);
         }
 
         // Handle bot leaving the guild
-        if ($wasInGuild && !$isInGuild) {
+        if ($wasInGuild && ! $isInGuild) {
             $this->guild->update(['bot_left_at' => now()]);
             Log::info('Bot left guild', ['guild_id' => $this->guild->id]);
 

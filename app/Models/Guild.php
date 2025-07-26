@@ -22,20 +22,24 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read int|null $active_licenses_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\License> $licenses
  * @property-read int|null $licenses_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\NeonCommand> $neonCommands
+ * @property-read int|null $neon_commands_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\WelcomeSetting> $welcomeSettings
+ * @property-read int|null $welcome_settings_count
  *
  * @method static \Database\Factories\GuildFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild whereBotJoinedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild whereBotLeftAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild whereCreatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild whereIcon($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild whereIsBotMember($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild whereLastBotCheckAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild whereName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild whereUpdatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild whereIsBotMember($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild whereBotJoinedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild whereBotLeftAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild whereLastBotCheckAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild withBotMember()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild withoutBotMember()
  *
@@ -141,7 +145,7 @@ final class Guild extends Model
      */
     public function getIconUrl(): ?string
     {
-        if (!$this->icon) {
+        if (! $this->icon) {
             return null;
         }
 

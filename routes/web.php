@@ -1,17 +1,21 @@
 <?php
 
+use App\Http\Controllers\AssignLicenseController;
 use App\Http\Controllers\Auth\LoginCallbackController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\UserIntegrationController;
 use App\Http\Controllers\BillingController;
+use App\Http\Controllers\BillingPortalController;
 use App\Http\Controllers\CommandController;
 use App\Http\Controllers\JoinServerController;
+use App\Http\Controllers\ParkLicenseController;
 use App\Http\Controllers\PrivacyPolicyController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Server\WelcomeSettingController;
 use App\Http\Controllers\ServerController;
 use App\Http\Controllers\TermsOfServiceController;
+use App\Http\Controllers\TransferLicenseController;
 use App\Http\Controllers\UnsubscribeController;
 use App\Http\Controllers\UserSettingsController;
 use Illuminate\Support\Facades\Route;
@@ -44,10 +48,10 @@ Route::group(['middleware' => 'auth'], function () {
 
 Route::middleware(['auth'])->group(function () {
     Route::get('billing', [BillingController::class, 'index'])->name('billing.index');
-    Route::post('billing/licenses/{license}/assign', [BillingController::class, 'assignLicense'])->name('billing.licenses.assign');
-    Route::post('billing/licenses/{license}/park', [BillingController::class, 'parkLicense'])->name('billing.licenses.park');
-    Route::post('billing/licenses/{license}/transfer', [BillingController::class, 'transferLicense'])->name('billing.licenses.transfer');
-    Route::get('billing/portal', [BillingController::class, 'billingPortal'])->name('billing.portal');
+    Route::post('billing/licenses/{license}/assign', AssignLicenseController::class)->name('billing.licenses.assign');
+    Route::post('billing/licenses/{license}/park', ParkLicenseController::class)->name('billing.licenses.park');
+    Route::post('billing/licenses/{license}/transfer', TransferLicenseController::class)->name('billing.licenses.transfer');
+    Route::get('billing/portal', BillingPortalController::class)->name('billing.portal');
 
     Route::get('checkout', function () {
         return Inertia::render('Checkout/Index');

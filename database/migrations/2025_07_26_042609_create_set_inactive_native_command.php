@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'set-inactive'], [
             'slug' => 'set-inactive',
             'description' => 'Sets a member as inactive.',
-            'class' => \App\Jobs\ProcessSetInactiveJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessSetInactiveJob::class,
             'usage' => 'Usage: !set-inactive <user-id>',
             'example' => 'Example: !set-inactive 123456789012345678',
             'is_active' => true,

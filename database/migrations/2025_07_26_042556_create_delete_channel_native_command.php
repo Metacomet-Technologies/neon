@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'delete-channel'], [
             'slug' => 'delete-channel',
             'description' => 'Deletes a channel.',
-            'class' => \App\Jobs\ProcessDeleteChannelJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessDeleteChannelJob::class,
             'usage' => 'Usage: !delete-channel <channel-id|channel-name>',
             'example' => 'Example: !delete-channel 123456789012345678 or !delete-channel #general',
             'is_active' => true,

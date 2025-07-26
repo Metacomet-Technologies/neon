@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'prune'], [
             'slug' => 'prune',
             'description' => 'Prunes inactive members from the server.',
-            'class' => \App\Jobs\ProcessPruneInactiveMembersJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessPruneInactiveMembersJob::class,
             'usage' => 'Usage: !prune <days-inactive>',
             'example' => 'Example: !prune 30',
             'is_active' => true,

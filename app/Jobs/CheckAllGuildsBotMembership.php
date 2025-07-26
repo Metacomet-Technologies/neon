@@ -21,18 +21,18 @@ final class CheckAllGuildsBotMembership implements ShouldQueue
      */
     public function handle(): void
     {
-        $checker = new CheckBotMembership();
-        
+        $checker = new CheckBotMembership;
+
         // Get all guilds the bot is currently in
         $botGuilds = collect($checker->getBotGuilds())->pluck('id')->toArray();
-        
+
         Log::info('Checking bot membership for all guilds', [
             'bot_guild_count' => count($botGuilds),
         ]);
 
         // Update guilds where bot is a member
         Guild::whereIn('id', $botGuilds)->each(function (Guild $guild) {
-            if (!$guild->is_bot_member) {
+            if (! $guild->is_bot_member) {
                 $guild->update([
                     'is_bot_member' => true,
                     'bot_joined_at' => now(),
@@ -51,7 +51,7 @@ final class CheckAllGuildsBotMembership implements ShouldQueue
                 'bot_left_at' => now(),
                 'last_bot_check_at' => now(),
             ]);
-            
+
             Log::info('Bot no longer in guild', ['guild_id' => $guild->id]);
 
             // Park any active licenses

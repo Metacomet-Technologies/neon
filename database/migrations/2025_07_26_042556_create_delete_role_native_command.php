@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'delete-role'], [
             'slug' => 'delete-role',
             'description' => 'Deletes a role.',
-            'class' => \App\Jobs\ProcessDeleteRoleJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessDeleteRoleJob::class,
             'usage' => 'Usage: !delete-role <role-name>',
             'example' => 'Example: !delete-role VIP',
             'is_active' => true,

@@ -12,7 +12,7 @@ use App\Models\License;
 use App\Models\User;
 use Illuminate\Support\Facades\Event;
 
-test('license can be created', function () {
+it('can create a license', function () {
     $user = User::factory()->create();
     $license = License::factory()->forUser($user)->create();
 
@@ -20,7 +20,7 @@ test('license can be created', function () {
     expect($license->user_id)->toBe($user->id);
 });
 
-test('license belongs to user', function () {
+it('license belongs to user', function () {
     $user = User::factory()->create();
     $license = License::factory()->forUser($user)->create();
 
@@ -28,14 +28,14 @@ test('license belongs to user', function () {
     expect($license->user->id)->toBe($user->id);
 });
 
-test('user has many licenses', function () {
+it('user has many licenses', function () {
     $user = User::factory()->create();
     License::factory()->forUser($user)->count(3)->create();
 
     expect($user->licenses->count())->toBe(3);
 });
 
-test('license status methods work correctly', function () {
+it('license status methods work correctly', function () {
     $activeLicense = License::factory()->active()->create();
     $parkedLicense = License::factory()->parked()->create();
 
@@ -46,7 +46,7 @@ test('license status methods work correctly', function () {
     expect($parkedLicense->isActive())->toBeFalse();
 });
 
-test('license type methods work correctly', function () {
+it('license type methods work correctly', function () {
     $subscriptionLicense = License::factory()->subscription()->create();
     $lifetimeLicense = License::factory()->lifetime()->create();
 
@@ -57,7 +57,7 @@ test('license type methods work correctly', function () {
     expect($lifetimeLicense->isSubscription())->toBeFalse();
 });
 
-test('license can be assigned to guild', function () {
+it('license can be assigned to guild', function () {
     $license = License::factory()->parked()->create();
     $guild = Guild::factory()->create();
 
@@ -75,7 +75,7 @@ test('license can be assigned to guild', function () {
     expect($license->last_assigned_at)->not()->toBeNull();
 });
 
-test('license can be unassigned from guild', function () {
+it('license can be unassigned from guild', function () {
     $license = License::factory()->parked()->create();
     $guild = Guild::factory()->create();
 
@@ -94,7 +94,7 @@ test('license can be unassigned from guild', function () {
     expect($license->assigned_guild_id)->toBeNull();
 });
 
-test('license scopes work correctly', function () {
+it('license scopes work correctly', function () {
     $user = User::factory()->create();
 
     // Create licenses with specific states
@@ -109,7 +109,7 @@ test('license scopes work correctly', function () {
     expect(License::lifetime()->count())->toBe(2);
 });
 
-test('license guild assignment scope works correctly', function () {
+it('license guild assignment scope works correctly', function () {
     $guildId = '987654321098765432';
     License::factory()->assignedToGuild($guildId)->count(2)->create();
     License::factory()->unassigned()->count(3)->create();
@@ -118,7 +118,7 @@ test('license guild assignment scope works correctly', function () {
     expect(License::unassigned()->count())->toBe(3);
 });
 
-test('license cooldown detection works correctly', function () {
+it('license cooldown detection works correctly', function () {
     $license = License::factory()->onCooldown()->create();
     $freshLicense = License::factory()->create();
 
@@ -128,7 +128,7 @@ test('license cooldown detection works correctly', function () {
     expect($freshLicense->getCooldownDaysRemaining())->toBe(0);
 });
 
-test('license cannot be assigned while on cooldown', function () {
+it('license cannot be assigned while on cooldown', function () {
     $license = License::factory()->onCooldown()->create();
     $guild = Guild::factory()->create();
 
@@ -136,7 +136,7 @@ test('license cannot be assigned while on cooldown', function () {
         ->toThrow(LicenseOnCooldownException::class);
 });
 
-test('license cannot be assigned to guild that already has active license', function () {
+it('license cannot be assigned to guild that already has active license', function () {
     $guild = Guild::factory()->create();
     $existingLicense = License::factory()->parked()->create();
 
@@ -151,7 +151,7 @@ test('license cannot be assigned to guild that already has active license', func
         ->toThrow(GuildAlreadyHasLicenseException::class);
 });
 
-test('license can be parked', function () {
+it('license can be parked', function () {
     $guild = Guild::factory()->create();
     $license = License::factory()->parked()->create();
 
@@ -171,7 +171,7 @@ test('license can be parked', function () {
     expect($license->assigned_guild_id)->toBeNull();
 });
 
-test('license transfer respects cooldown', function () {
+it('license transfer respects cooldown', function () {
     $license = License::factory()->onCooldown()->create();
     $guild = Guild::factory()->create();
 
@@ -180,7 +180,7 @@ test('license transfer respects cooldown', function () {
         ->toThrow(LicenseOnCooldownException::class);
 });
 
-test('license transfer throws exception when not assigned', function () {
+it('license transfer throws exception when not assigned', function () {
     $license = License::factory()->parked()->create();
     $guild = Guild::factory()->create();
 
@@ -188,7 +188,7 @@ test('license transfer throws exception when not assigned', function () {
         ->toThrow(LicenseNotAssignedException::class);
 });
 
-test('license transfer works correctly when not on cooldown', function () {
+it('license transfer works correctly when not on cooldown', function () {
     $originalGuild = Guild::factory()->create();
     $newGuild = Guild::factory()->create();
 
@@ -211,7 +211,7 @@ test('license transfer works correctly when not on cooldown', function () {
     expect($license->isActive())->toBeTrue();
 });
 
-test('license assignment dispatches LicenseAssigned event', function () {
+it('license assignment dispatches LicenseAssigned event', function () {
     Event::fake();
 
     $license = License::factory()->parked()->create();
@@ -227,7 +227,7 @@ test('license assignment dispatches LicenseAssigned event', function () {
     });
 });
 
-test('license transfer dispatches LicenseTransferred event', function () {
+it('license transfer dispatches LicenseTransferred event', function () {
     Event::fake();
 
     $originalGuild = Guild::factory()->create();
@@ -251,7 +251,7 @@ test('license transfer dispatches LicenseTransferred event', function () {
     });
 });
 
-test('license assignment and transfer events contain correct data', function () {
+it('license assignment and transfer events contain correct data', function () {
     Event::fake();
 
     $license = License::factory()->parked()->create();

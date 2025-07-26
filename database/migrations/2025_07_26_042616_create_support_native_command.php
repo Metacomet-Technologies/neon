@@ -12,7 +12,7 @@ return new class extends Migration
         NativeCommand::updateOrCreate(['slug' => 'support'], [
             'slug' => 'support',
             'description' => 'Shows support information and contact details.',
-            'class' => \App\Jobs\ProcessShowSupportJob::class,
+            'class' => \App\Jobs\NativeCommand\ProcessSupportCommandJob::class,
             'usage' => 'Usage: !support',
             'example' => 'Example: !support',
             'is_active' => true,
