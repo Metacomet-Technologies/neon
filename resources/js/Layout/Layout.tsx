@@ -33,7 +33,7 @@ import { usePage } from '@inertiajs/react';
 import { Toaster } from '@/Components/ui/toaster';
 import { useCallback } from 'react';
 import Flash from './Flash';
-import ThemeToggleButton from './ThemeToggleButton';
+import ThemeToggle from '@/Components/ThemeToggle';
 
 /**
  * Layout component that provides the structure for the application.
@@ -134,7 +134,7 @@ export function Layout({
                             </DropdownMenu>
                         </Dropdown>
 
-                        <ThemeToggleButton name="theme-toggle-button" />
+                        <ThemeToggle />
                     </NavbarSection>
                 </Navbar>
             }
