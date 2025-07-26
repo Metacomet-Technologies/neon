@@ -88,6 +88,11 @@ export function Layout({
                                 Commands
                             </NavbarItem>
                         )}
+                        {auth.user && (
+                            <NavbarItem href={route('billing.index')} current={component.startsWith('Billing')}>
+                                Billing
+                            </NavbarItem>
+                        )}
                     </NavbarSection>
                     <NavbarSpacer />
                     <NavbarSection>
@@ -160,6 +165,11 @@ export function Layout({
                                     current={component.startsWith('Commands')}
                                 >
                                     Commands
+                                </SidebarItem>
+                            )}
+                            {auth.user && (
+                                <SidebarItem href={route('billing.index')} current={component.startsWith('Billing')}>
+                                    Billing
                                 </SidebarItem>
                             )}
                         </SidebarSection>

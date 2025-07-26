@@ -7,31 +7,34 @@ namespace App\Jobs;
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use App\Jobs\NativeCommand\ProcessBaseJob;
-use App\Models\NativeCommandRequest;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
+use Exception;
 use Illuminate\Support\Facades\Http;
 
-final class ProcessCreatePollJob extends ProcessBaseJob implements ShouldQueue
+final class ProcessCreatePollJob extends ProcessBaseJob
 {
-    use Queueable;
-
     private string $question;
     private array $options = [];
 
     private int $maxRetries = 3;
     private int $retryDelay = 2000;
 
-    public function __construct(public NativeCommandRequest $nativeCommandRequest)
-    {
-        parent::__construct($nativeCommandRequest);
+    public function __construct(
+        string $discordUserId,
+        string $channelId,
+        string $guildId,
+        string $messageContent,
+        array $command,
+        string $commandSlug,
+        array $parameters = []
+    ) {
+        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
     }
 
     // TODO: Add ability for emojis to be included in text
     /**
      * Handles the job execution.
      */
-    public function handle(): void
+    protected function executeCommand(): void
     {
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanSendPolls($this->guildId, $this->discordUserId);
 
@@ -40,15 +43,8 @@ final class ProcessCreatePollJob extends ProcessBaseJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to send polls in this server.',
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'unauthorized',
-                message: 'User does not have permission to send polls in this server.',
-                statusCode: 403,
-            );
-
-            return;
+            throw new Exception('User does not have permission to send polls in this server.', 403);
         }
-
         // Parse the poll question and options
         [$this->question, $this->options] = $this->parseMessage();
 
@@ -61,20 +57,8 @@ final class ProcessCreatePollJob extends ProcessBaseJob implements ShouldQueue
                     'response' => '❌ Polls can have a maximum of 10 options.',
                 ]);
             }
-
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'Invalid poll format. Poll did not have a question and/or at least two options.',
-                details: [
-                    'question' => $this->question ?? '',
-                    'options' => $this->options ?? [],
-                ],
-                statusCode: 400,
-            );
-
-            return;
+            throw new Exception('Operation failed', 500);
         }
-
         // Construct the poll payload
         $pollPayload = [
             'content' => '**📊 Poll Created! Click below to vote!**',
@@ -108,14 +92,8 @@ final class ProcessCreatePollJob extends ProcessBaseJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to create the poll.',
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'discord-api-error',
-                message: 'Failed to ban user.',
-                statusCode: $apiResponse->status(),
-                details: $apiResponse->json(),
-            );
+            throw new Exception('Operation failed', 500);
         }
-        $this->updateNativeCommandRequestComplete();
     }
 
     /**
@@ -131,7 +109,6 @@ final class ProcessCreatePollJob extends ProcessBaseJob implements ShouldQueue
         if (count($matches[1]) < 2) {
             return ['', []]; // Invalid input (needs at least a question and 2 options)
         }
-
         $question = array_shift($matches[1]);
         $options = $matches[1];
 

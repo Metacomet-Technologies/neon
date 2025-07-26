@@ -8,7 +8,7 @@ use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class CancelSubscriptionController
+final class CancelSubscriptionController
 {
     /**
      * Cancel a subscription.

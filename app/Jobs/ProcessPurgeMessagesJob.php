@@ -8,15 +8,11 @@ namespace App\Jobs;
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use App\Jobs\NativeCommand\ProcessBaseJob;
-use App\Models\NativeCommandRequest;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
+use Exception;
 use Illuminate\Support\Facades\Http;
 
-final class ProcessPurgeMessagesJob extends ProcessBaseJob implements ShouldQueue
+final class ProcessPurgeMessagesJob extends ProcessBaseJob
 {
-    use Queueable;
-
     private ?string $targetChannelId = null;
     private ?int $messageCount = null;
 
@@ -24,12 +20,19 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob implements ShouldQueu
     private int $maxRetries = 3;
     private int $batchSize = 100; // Max messages per API call
 
-    public function __construct(public NativeCommandRequest $nativeCommandRequest)
-    {
-        parent::__construct($nativeCommandRequest);
+    public function __construct(
+        string $discordUserId,
+        string $channelId,
+        string $guildId,
+        string $messageContent,
+        array $command,
+        string $commandSlug,
+        array $parameters = []
+    ) {
+        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
     }
 
-    public function handle(): void
+    protected function executeCommand(): void
     {
         // Parse the message
         [$this->targetChannelId, $this->messageCount] = $this->parseMessage($this->messageContent);
@@ -38,15 +41,8 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob implements ShouldQueu
         if (empty(trim($this->messageContent)) || $this->targetChannelId === null || $this->messageCount === null) {
             $this->sendUsageAndExample();
 
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'No arguments provided.',
-                statusCode: 400,
-            );
-
-            return;
+            throw new Exception('No arguments provided.', 400);
         }
-
         // Ensure the user has permission to manage messages in the target channel
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageMessages($this->guildId, $this->discordUserId);
 
@@ -55,15 +51,8 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob implements ShouldQueu
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to manage messages in this server.',
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'unauthorized',
-                message: 'User does not have permission to manage messages in this server.',
-                statusCode: 403,
-            );
-
-            return;
+            throw new Exception('User does not have permission to manage messages in this server.', 403);
         }
-
         $this->purgeMessages();
     }
 
@@ -87,15 +76,8 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob implements ShouldQueu
                 'is_embed' => false,
                 'response' => '❌ The number of messages to purge must be at least 2.',
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'The number of messages to purge must be at least 2.',
-                statusCode: 400,
-            );
-
-            return;
+            throw new Exception('The number of messages to purge must be at least 2.', 400);
         }
-
         $messagesToFetch = $this->messageCount;
         $allMessages = [];
         $lastMessageId = null;
@@ -114,27 +96,18 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob implements ShouldQueu
                     'is_embed' => false,
                     'response' => '❌ Failed to fetch messages. Please try again later.',
                 ]);
-                $this->updateNativeCommandRequestFailed(
-                    status: 'failed',
-                    message: 'Failed to fetch messages. Please try again later.',
-                    statusCode: 400,
-                );
-
-                return;
+                throw new Exception('Failed to fetch messages. Please try again later.', 400);
             }
-
             $messages = $response->json();
             if (empty($messages)) {
                 break;
             }
-
             foreach ($messages as $msg) {
                 if ((time() - strtotime($msg['timestamp'])) > (14 * 24 * 60 * 60)) {
                     continue; // Skip messages older than 14 days
                 }
                 $allMessages[] = $msg;
             }
-
             $messagesToFetch -= count($messages);
             $lastMessageId = end($messages)['id'];
 
@@ -142,7 +115,6 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob implements ShouldQueu
                 break;
             }
         }
-
         $messageIds = array_column($allMessages, 'id');
 
         if (empty($messageIds)) {
@@ -150,15 +122,8 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob implements ShouldQueu
                 'is_embed' => false,
                 'response' => '❌ No messages found to delete. Messages older than 14 days cannot be deleted in bulk.',
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'No messages found to delete. Messages older than 14 days cannot be deleted in bulk.',
-                statusCode: 400,
-            );
-
-            return;
+            throw new Exception('No messages found to delete. Messages older than 14 days cannot be deleted in bulk.', 400);
         }
-
         $batches = array_chunk($messageIds, 100);
         $failedBatches = 0;
 
@@ -173,25 +138,14 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob implements ShouldQueu
             if ($deleteResponse->failed()) {
                 $failedBatches++;
             }
-            $this->updateNativeCommandRequestFailed(
-                status: 'discord_api_error',
-                message: 'Failed to create channel.',
-                statusCode: $deleteResponse->status(),
-                details: $deleteResponse->json(),
-            );
+            throw new Exception('Operation failed', 500);
         }
-
         if ($failedBatches === count($batches)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ Failed to delete all messages due to rate limits or API errors.',
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'Failed to delete all messages due to rate limits or API errors.',
-                statusCode: 400,
-            );
-
+            throw new Exception('Operation failed', 500);
         } else {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => true,
@@ -199,7 +153,6 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob implements ShouldQueu
                 'embed_description' => '✅ Successfully purged ' . count($messageIds) . " messages from <#{$this->targetChannelId}>.",
                 'embed_color' => 3066993,
             ]);
-            $this->updateNativeCommandRequestComplete();
         }
     }
 }

@@ -68,7 +68,7 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently -c \"#FF2D20,#38BDF8,#5865F2\" \"nodemon --config nodemon-queue.json\" \"npm run dev\" \"nodemon --config nodemon-neon.json\" --names=queue,vite,neon"
+            "npx concurrently -c \"#FF2D20,#38BDF8,#5865F2,#635BFF\" \"nodemon --config nodemon-queue.json\" \"npm run dev\" \"nodemon --config nodemon-neon.json\" \"stripe listen --forward-to=https://neon.test/api/stripe/webhook\" --names=queue,vite,neon,stripe"
         ]
     },
     "extra": {

@@ -61,6 +61,9 @@ test('license can be assigned to guild', function () {
     $license = License::factory()->parked()->create();
     $guild = Guild::factory()->create();
 
+    // Ensure license is not on cooldown
+    $license->update(['last_assigned_at' => now()->subDays(31)]);
+
     expect($license->isAssigned())->toBeFalse();
 
     $license->assignToGuild($guild);

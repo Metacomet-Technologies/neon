@@ -7,27 +7,29 @@ namespace App\Jobs;
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use App\Jobs\NativeCommand\ProcessBaseJob;
-use App\Models\NativeCommandRequest;
 use DateTime;
 use DateTimeZone;
 use Exception;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
 
-final class ProcessNewEventJob extends ProcessBaseJob implements ShouldQueue
+final class ProcessNewEventJob extends ProcessBaseJob
 {
-    use Queueable;
-
-    public function __construct(public NativeCommandRequest $nativeCommandRequest)
-    {
-        parent::__construct($nativeCommandRequest);
+    public function __construct(
+        string $discordUserId,
+        string $channelId,
+        string $guildId,
+        string $messageContent,
+        array $command,
+        string $commandSlug,
+        array $parameters = []
+    ) {
+        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
     }
 
     /**
      * Execute the job.
      */
-    public function handle(): void
+    protected function executeCommand(): void
     {
         // 1️⃣ Check if user is an admin
         $adminCheck = GetGuildsByDiscordUserId::getIfUserCanCreateEvents($this->guildId, $this->discordUserId);
@@ -36,29 +38,15 @@ final class ProcessNewEventJob extends ProcessBaseJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ You are not allowed to create events.',
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'unauthorized',
-                message: 'User does not have permission to create events.',
-                statusCode: 403,
-            );
-
-            return;
+            throw new Exception('User does not have permission to create events.', 403);
         }
-
         // 2️⃣ Parse command input
         $parts = explode('|', $this->messageContent);
         if (count($parts) < 6) {
             $this->sendUsageAndExample();
 
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'No user ID provided.',
-                statusCode: 400,
-            );
-
-            return;
+            throw new Exception('No user ID provided.', 400);
         }
-
         $eventTopic = trim(str_replace('!create-event', '', $parts[0]));
         $eventTopic = trim($eventTopic, '"'); // Remove extra quotes
         $startDate = trim($parts[1]);
@@ -83,7 +71,6 @@ final class ProcessNewEventJob extends ProcessBaseJob implements ShouldQueue
                 break;
             }
         }
-
         // 5️⃣ Determine event type (Voice Channel = 2, External/Text = 3)
         $entityType = $isVoiceChannel ? 2 : 3;
 
@@ -108,7 +95,6 @@ final class ProcessNewEventJob extends ProcessBaseJob implements ShouldQueue
         } else {
             $eventData['entity_metadata'] = ['location' => $location];
         }
-
         // 9️⃣ Send API request to create the event
         $url = config('services.discord.rest_api_url') . "/guilds/{$this->guildId}/scheduled-events";
         $eventDataJson = json_encode($eventData);
@@ -118,15 +104,9 @@ final class ProcessNewEventJob extends ProcessBaseJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to encode event data.',
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'Failed to encode event data.',
-                statusCode: 500,
-            );
-
+            throw new Exception('Operation failed', 500);
             throw new Exception('Failed to encode event data.');
         }
-
         $apiResponse = Http::withToken(config('discord.token'), 'Bot')
             ->withBody($eventDataJson, 'application/json')
             ->post($url);
@@ -137,15 +117,9 @@ final class ProcessNewEventJob extends ProcessBaseJob implements ShouldQueue
                 'is_embed' => false,
                 'response' => '❌ Failed to create event.',
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'discord_api_error',
-                message: 'Failed to create event.',
-                statusCode: 500,
-            );
-
+            throw new Exception('Operation failed', 500);
             throw new Exception('Failed to create event. ' . json_encode($apiResponse->json()));
         }
-
         // Extract Event ID from response
         $responseData = $apiResponse->json();
         $eventId = $responseData['id'] ?? 'Unknown';
@@ -156,6 +130,5 @@ final class ProcessNewEventJob extends ProcessBaseJob implements ShouldQueue
             'embed_title' => '🎉 Event Created!',
             'embed_description' => "**Event:** {$eventTopic}\n**Start:** {$startDate} at {$startTime} UTC\n**Location:** " . ($isVoiceChannel ? '🔊 Voice Channel' : '🌍 External/Text Channel') . "\n**Event ID:** `{$eventId}`",
         ]);
-        $this->updateNativeCommandRequestComplete();
     }
 }

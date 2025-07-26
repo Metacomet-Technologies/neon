@@ -7,22 +7,25 @@ namespace App\Jobs;
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use App\Jobs\NativeCommand\ProcessBaseJob;
-use App\Models\NativeCommandRequest;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
+use Exception;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-final class ProcessDeleteCategoryJob extends ProcessBaseJob implements ShouldQueue
+final class ProcessDeleteCategoryJob extends ProcessBaseJob
 {
-    use Queueable;
-
-    public function __construct(public NativeCommandRequest $nativeCommandRequest)
-    {
-        parent::__construct($nativeCommandRequest);
+    public function __construct(
+        string $discordUserId,
+        string $channelId,
+        string $guildId,
+        string $messageContent,
+        array $command,
+        string $commandSlug,
+        array $parameters = []
+    ) {
+        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
     }
 
-    public function handle(): void
+    protected function executeCommand(): void
     {
         // Ensure the user has permission to manage channels
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
@@ -33,15 +36,8 @@ final class ProcessDeleteCategoryJob extends ProcessBaseJob implements ShouldQue
                 'response' => '❌ You do not have permission to manage categories in this server.',
             ]);
 
-            $this->updateNativeCommandRequestFailed(
-                status: 'unauthorized',
-                message: 'User does not have permission to manage categories in this server.',
-                statusCode: 403,
-            );
-
-            return;
+            throw new Exception('User does not have permission to manage categories in this server.', 403);
         }
-
         //  Ensure the user has permission to delete categories
         // $adminCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
         // if ($adminCheck === 'failed') {
@@ -49,30 +45,17 @@ final class ProcessDeleteCategoryJob extends ProcessBaseJob implements ShouldQue
         //         'is_embed' => false,
         //         'response' => '❌ You are not allowed to delete categories.',
         //     ]);
-        //     $this->updateNativeCommandRequestFailed(
-        //         status: 'unauthorized',
-        //         message: 'User does not have permission to delete categories.',
-        //         statusCode: 403,
-        //     );
+        //     throw new \Exception('Operation failed', 500);
 
-        //     return;
         // }
-
         // Parse the command
         $parts = explode(' ', $this->messageContent);
 
         if (count($parts) < 2) {
             $this->sendUsageAndExample();
 
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'No category ID provided.',
-                statusCode: 400,
-            );
-
-            return;
+            throw new Exception('No category ID provided.', 400);
         }
-
         $categoryId = $parts[1];
 
         // Ensure the provided category ID is numeric
@@ -81,16 +64,8 @@ final class ProcessDeleteCategoryJob extends ProcessBaseJob implements ShouldQue
                 'is_embed' => false,
                 'response' => '❌ Invalid category ID. Please provide a valid numeric ID.',
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'Invalid category ID format.',
-                details: $categoryId,
-                statusCode: 400,
-            );
-
-            return;
+            throw new Exception('Operation failed', 500);
         }
-
         // Fetch all channels to verify the category exists and is a category
         $channelsUrl = $this->baseUrl . "/guilds/{$this->guildId}/channels";
 
@@ -104,16 +79,8 @@ final class ProcessDeleteCategoryJob extends ProcessBaseJob implements ShouldQue
                 'is_embed' => false,
                 'response' => '❌ Failed to retrieve channels from the server.',
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'discord-api-error',
-                message: 'Failed to ban user.',
-                statusCode: $apiResponse->status(),
-                details: $apiResponse->json(),
-            );
-
-            return;
+            throw new Exception('Operation failed', 500);
         }
-
         $channels = collect($apiResponse->json());
 
         // 4️⃣ Find the category by ID and confirm it is a category (Type 4)
@@ -124,15 +91,8 @@ final class ProcessDeleteCategoryJob extends ProcessBaseJob implements ShouldQue
                 'is_embed' => false,
                 'response' => "❌ No category found with ID `{$categoryId}`.",
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'Category not found in guild.',
-                statusCode: 404,
-            );
-
-            return;
+            throw new Exception('Category not found in guild.', 404);
         }
-
         // 5️⃣ Check if category has child channels
         $childChannels = $channels->filter(fn ($c) => $c['parent_id'] === $categoryId);
 
@@ -143,15 +103,8 @@ final class ProcessDeleteCategoryJob extends ProcessBaseJob implements ShouldQue
                 'is_embed' => false,
                 'response' => "❌ Category ID `{$categoryId}` contains channels:\n{$channelList}\nPlease delete or move them first.",
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'Category contained child channels.',
-                statusCode: 400,
-            );
-
-            return;
+            throw new Exception('Category contained child channels.', 400);
         }
-
         // Construct the delete API request
         $deleteUrl = $this->baseUrl . "/channels/{$categoryId}";
 
@@ -169,16 +122,8 @@ final class ProcessDeleteCategoryJob extends ProcessBaseJob implements ShouldQue
                 'is_embed' => false,
                 'response' => "❌ Failed to delete category (ID: `{$categoryId}`).",
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'discord-api-error',
-                message: 'Failed to delete category.',
-                statusCode: $deleteResponse->status(),
-                details: $deleteResponse->json(),
-            );
-
-            return;
+            throw new Exception('Operation failed', 500);
         }
-
         // ✅ Success! Send confirmation message
         SendMessage::sendMessage($this->channelId, [
             'is_embed' => true,
@@ -186,6 +131,5 @@ final class ProcessDeleteCategoryJob extends ProcessBaseJob implements ShouldQue
             'embed_description' => "**Category ID:** `{$categoryId}` has been successfully removed.",
             'embed_color' => 15158332, // Red embed
         ]);
-        $this->updateNativeCommandRequestComplete();
     }
 }

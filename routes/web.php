@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\LoginCallbackController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\UserIntegrationController;
+use App\Http\Controllers\BillingController;
 use App\Http\Controllers\CommandController;
 use App\Http\Controllers\JoinServerController;
 use App\Http\Controllers\PrivacyPolicyController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\ServerController;
 use App\Http\Controllers\TermsOfServiceController;
 use App\Http\Controllers\UnsubscribeController;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 Route::inertia('/', 'Home')->name('home');
 
@@ -37,6 +39,18 @@ Route::group(['middleware' => 'auth'], function () {
     Route::get('{provider}/callback', [UserIntegrationController::class, 'store'])->name('user-integration.store');
     Route::delete('{provider}/disconnect', [UserIntegrationController::class, 'destroy'])->name('user-integration.destroy');
     Route::get('{provider}/connect', [UserIntegrationController::class, 'create'])->name('user-integration.create');
+});
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('billing', [BillingController::class, 'index'])->name('billing.index');
+    Route::post('billing/licenses/{license}/assign', [BillingController::class, 'assignLicense'])->name('billing.licenses.assign');
+    Route::post('billing/licenses/{license}/park', [BillingController::class, 'parkLicense'])->name('billing.licenses.park');
+    Route::post('billing/licenses/{license}/transfer', [BillingController::class, 'transferLicense'])->name('billing.licenses.transfer');
+    Route::get('billing/portal', [BillingController::class, 'billingPortal'])->name('billing.portal');
+
+    Route::get('checkout', function () {
+        return Inertia::render('Checkout/Index');
+    })->name('checkout');
 });
 
 Route::get('unsubscribe/{email}', [UnsubscribeController::class, 'update'])->name('unsubscribe.update');

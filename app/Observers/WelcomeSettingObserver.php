@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Observers;
 
 use App\Jobs\CacheWelcomeSettingsJob;
 use App\Models\WelcomeSetting;
 
-class WelcomeSettingObserver
+final class WelcomeSettingObserver
 {
     /**
      * Handle the WelcomeSetting "created" event.

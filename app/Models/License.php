@@ -9,6 +9,7 @@ use App\Events\LicenseTransferred;
 use App\Exceptions\License\GuildAlreadyHasLicenseException;
 use App\Exceptions\License\LicenseNotAssignedException;
 use App\Exceptions\License\LicenseOnCooldownException;
+use App\Policies\LicensePolicy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -70,21 +71,7 @@ final class License extends Model
      *
      * @var string
      */
-    protected $policy = \App\Policies\LicensePolicy::class;
-
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
-    protected $fillable = [
-        'user_id',
-        'type',
-        'stripe_id',
-        'status',
-        'assigned_guild_id',
-        'last_assigned_at',
-    ];
+    protected $policy = LicensePolicy::class;
 
     /**
      * The attributes that should be cast.

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Jobs;
 
 use App\Helpers\Discord\GetBotGuilds;
@@ -7,7 +9,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Cache;
 
-class RefreshNeonGuildsJob implements ShouldQueue
+final class RefreshNeonGuildsJob implements ShouldQueue
 {
     use Queueable;
 

@@ -7,28 +7,31 @@ namespace App\Jobs;
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use App\Jobs\NativeCommand\ProcessBaseJob;
-use App\Models\NativeCommandRequest;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
+use Exception;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-final class ProcessDisconnectUserJob extends ProcessBaseJob implements ShouldQueue
+final class ProcessDisconnectUserJob extends ProcessBaseJob
 {
-    use Queueable;
-
     private array $targetUserIds = [];
 
     private int $retryDelay = 2000;
     private int $maxRetries = 3;
 
-    public function __construct(public NativeCommandRequest $nativeCommandRequest)
-    {
-        parent::__construct($nativeCommandRequest);
+    public function __construct(
+        string $discordUserId,
+        string $channelId,
+        string $guildId,
+        string $messageContent,
+        array $command,
+        string $commandSlug,
+        array $parameters = []
+    ) {
+        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
     }
 
     // TODO: May want to add logic to have channel id instead of user, which would disonnect all users in that channel.
-    public function handle(): void
+    protected function executeCommand(): void
     {
         // Parse the message
         $this->targetUserIds = $this->parseMessage($this->messageContent);
@@ -37,15 +40,8 @@ final class ProcessDisconnectUserJob extends ProcessBaseJob implements ShouldQue
         if (empty($this->targetUserIds)) {
             $this->sendUsageAndExample();
 
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'No user ID provided.',
-                statusCode: 400,
-            );
-
-            return;
+            throw new Exception('No user ID provided.', 400);
         }
-
         // Check if user has permission to manage channels
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
 
@@ -54,15 +50,8 @@ final class ProcessDisconnectUserJob extends ProcessBaseJob implements ShouldQue
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to disconnect users from voice channels in this server.',
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'unauthorized',
-                message: 'User does not have permission to manage channels.',
-                statusCode: 403,
-            );
-
-            return;
+            throw new Exception('User does not have permission to manage channels.', 403);
         }
-
         $failedUsers = [];
 
         // Disconnect each user from their current voice channel
@@ -78,7 +67,6 @@ final class ProcessDisconnectUserJob extends ProcessBaseJob implements ShouldQue
                 $failedUsers[] = "<@{$userId}>";
             }
         }
-
         // Send response message
         if (! empty($failedUsers)) {
             SendMessage::sendMessage($this->channelId, [
@@ -87,11 +75,7 @@ final class ProcessDisconnectUserJob extends ProcessBaseJob implements ShouldQue
                 'embed_description' => 'Failed to remove: ' . implode(', ', $failedUsers),
                 'embed_color' => 15158332, // Red
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'Failed to disconnect users from voice channel.',
-                statusCode: 500,
-            );
+            throw new Exception('Operation failed', 500);
         } else {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => true,
@@ -100,7 +84,6 @@ final class ProcessDisconnectUserJob extends ProcessBaseJob implements ShouldQue
                 'embed_color' => 3066993, // Green
             ]);
         }
-        $this->updateNativeCommandRequestComplete();
     }
 
     private function parseMessage(string $message): array

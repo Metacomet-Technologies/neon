@@ -1,9 +1,11 @@
 <?php
 
+use App\Http\Middleware\EnsureDiscordTokenValid;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Support\Facades\Event;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->statefulApi();
         $middleware->web(append: [
             HandleInertiaRequests::class,
+            EnsureDiscordTokenValid::class,
         ]);
 
         // Exempt Stripe webhook from CSRF protection
@@ -26,4 +29,11 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
+    })
+    ->booted(function () {
+        // Register event listeners
+        Event::listen(
+            \App\Events\LicenseAssigned::class,
+            \App\Listeners\SendLicenseAssignedEmail::class
+        );
     })->create();

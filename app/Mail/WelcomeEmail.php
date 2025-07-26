@@ -16,7 +16,7 @@ final class WelcomeEmail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
-    public function __construct()
+    public function __construct(public ?string $email = null)
     {
         //
     }
@@ -43,7 +43,7 @@ final class WelcomeEmail extends Mailable implements ShouldQueue
         return new Content(
             view: 'mail.welcome-email',
             with: [
-                'email' => $this->to[0]['address'],
+                'email' => $this->email,
             ]
         );
     }

@@ -161,7 +161,7 @@ export function Switch({
                 // Checked
                 'data-checked:bg-(--switch-bg) data-checked:ring-(--switch-bg-ring) dark:data-checked:bg-(--switch-bg) dark:data-checked:ring-(--switch-bg-ring)',
                 // Focus
-                'focus:outline-hidden data-focus:outline-2 data-focus:outline-offset-2 data-focus:outline-blue-500',
+                'focus:not-data-focus:outline-hidden data-focus:outline-2 data-focus:outline-offset-2 data-focus:outline-blue-500',
                 // Hover
                 'data-hover:ring-black/15 data-hover:data-checked:ring-(--switch-bg-ring)',
                 'dark:data-hover:ring-white/25 dark:data-hover:data-checked:ring-(--switch-bg-ring)',
@@ -176,7 +176,7 @@ export function Switch({
                 aria-hidden="true"
                 className={clsx(
                     // Basic layout
-                    'pointer-events-none relative inline-block size-[1.125rem] rounded-full sm:size-3.5',
+                    'pointer-events-none relative inline-block size-4.5 rounded-full sm:size-3.5',
                     // Transition
                     'translate-x-0 transition duration-200 ease-in-out',
                     // Invisible border so the switch is still visible in forced-colors mode

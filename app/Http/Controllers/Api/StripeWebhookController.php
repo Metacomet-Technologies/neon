@@ -4,10 +4,16 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
+use App\Mail\LicensePurchasedMail;
 use App\Models\License;
 use App\Models\User;
+use Exception;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Laravel\Cashier\Http\Controllers\WebhookController as CashierWebhookController;
 use Stripe\Checkout\Session;
+use Stripe\PaymentIntent;
+use Stripe\Stripe;
 use Symfony\Component\HttpFoundation\Response;
 
 final class StripeWebhookController extends CashierWebhookController
@@ -27,12 +33,15 @@ final class StripeWebhookController extends CashierWebhookController
 
                 if ($licenseType === 'lifetime') {
                     // Create lifetime license for one-time payment
-                    License::create([
+                    $license = License::create([
                         'user_id' => $user->id,
                         'type' => License::TYPE_LIFETIME,
                         'stripe_id' => $session['payment_intent'] ?? $session['id'],
                         'status' => License::STATUS_PARKED,
                     ]);
+
+                    // Send purchase confirmation email
+                    $this->sendPurchaseEmail($license, $session);
                 }
                 // For subscriptions, the license will be created in handleInvoicePaymentSucceeded
             }
@@ -57,12 +66,22 @@ final class StripeWebhookController extends CashierWebhookController
 
             if ($user) {
                 // Create subscription license
-                License::create([
+                $license = License::create([
                     'user_id' => $user->id,
                     'type' => License::TYPE_SUBSCRIPTION,
                     'stripe_id' => $subscriptionId,
                     'status' => License::STATUS_PARKED,
                 ]);
+
+                // Send purchase confirmation email
+                Mail::to($user->email)->send(
+                    new LicensePurchasedMail(
+                        $license,
+                        $user->email,
+                        $invoice['amount_paid'],
+                        strtoupper($invoice['currency'])
+                    )
+                );
             }
         }
 
@@ -94,5 +113,34 @@ final class StripeWebhookController extends CashierWebhookController
     {
         // This is handled by checkout.session.completed for our use case
         return $this->successMethod();
+    }
+
+    /**
+     * Send purchase confirmation email for lifetime licenses.
+     */
+    private function sendPurchaseEmail(License $license, array $session): void
+    {
+        try {
+            // Set Stripe API key
+            Stripe::setApiKey(config('cashier.secret'));
+
+            // Get payment intent to extract amount
+            $paymentIntent = PaymentIntent::retrieve($session['payment_intent']);
+
+            Mail::to($license->user->email)->send(
+                new LicensePurchasedMail(
+                    $license,
+                    $license->user->email,
+                    $paymentIntent->amount,
+                    strtoupper($paymentIntent->currency)
+                )
+            );
+        } catch (Exception $e) {
+            // Log error but don't fail the webhook
+            Log::error('Failed to send purchase email', [
+                'license_id' => $license->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }

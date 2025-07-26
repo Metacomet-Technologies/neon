@@ -47,17 +47,6 @@ final class Guild extends Model
     protected $keyType = 'string';
 
     /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
-    protected $fillable = [
-        'id',
-        'name',
-        'icon',
-    ];
-
-    /**
      * Get the licenses assigned to this guild.
      */
     public function licenses(): HasMany
@@ -79,5 +68,21 @@ final class Guild extends Model
     public function hasActiveLicense(): bool
     {
         return $this->activeLicenses()->exists();
+    }
+
+    /**
+     * Get the Neon commands for this guild.
+     */
+    public function neonCommands(): HasMany
+    {
+        return $this->hasMany(NeonCommand::class, 'guild_id', 'id');
+    }
+
+    /**
+     * Get the welcome settings for this guild.
+     */
+    public function welcomeSettings(): HasMany
+    {
+        return $this->hasMany(WelcomeSetting::class, 'guild_id', 'id');
     }
 }

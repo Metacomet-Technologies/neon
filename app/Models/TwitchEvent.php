@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -34,10 +36,8 @@ use Illuminate\Database\Eloquent\Model;
  *
  * @mixin \Eloquent
  */
-class TwitchEvent extends Model
+final class TwitchEvent extends Model
 {
-    protected $guarded = [];
-
     protected $casts = [
         'event_timestamp' => 'datetime',
         'event_data' => 'array',

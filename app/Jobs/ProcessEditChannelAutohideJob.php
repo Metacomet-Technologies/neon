@@ -7,27 +7,30 @@ namespace App\Jobs;
 use App\Helpers\Discord\GetGuildsByDiscordUserId;
 use App\Helpers\Discord\SendMessage;
 use App\Jobs\NativeCommand\ProcessBaseJob;
-use App\Models\NativeCommandRequest;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
+use Exception;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-final class ProcessEditChannelAutohideJob extends ProcessBaseJob implements ShouldQueue
+final class ProcessEditChannelAutohideJob extends ProcessBaseJob
 {
-    use Queueable;
-
     public ?string $targetChannelId = null;
     public ?int $autoHideDuration = null;
 
     private array $allowedDurations = [60, 1440, 4320, 10080];
 
-    public function __construct(public NativeCommandRequest $nativeCommandRequest)
-    {
-        parent::__construct($nativeCommandRequest);
+    public function __construct(
+        string $discordUserId,
+        string $channelId,
+        string $guildId,
+        string $messageContent,
+        array $command,
+        string $commandSlug,
+        array $parameters = []
+    ) {
+        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
     }
 
-    public function handle(): void
+    protected function executeCommand(): void
     {
         // Parse the message
         [$this->targetChannelId, $this->autoHideDuration] = $this->parseMessage($this->messageContent);
@@ -36,15 +39,8 @@ final class ProcessEditChannelAutohideJob extends ProcessBaseJob implements Shou
         if (! $this->targetChannelId || ! $this->autoHideDuration) {
             $this->sendUsageAndExample('Allowed values: `60, 1440, 4320, 10080` minutes.');
 
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'No user ID provided.',
-                statusCode: 400,
-            );
-
-            return;
+            throw new Exception('No user ID provided.', 400);
         }
-
         // Ensure the user has permission to manage channels
         $permissionCheck = GetGuildsByDiscordUserId::getIfUserCanManageChannels($this->guildId, $this->discordUserId);
 
@@ -53,30 +49,16 @@ final class ProcessEditChannelAutohideJob extends ProcessBaseJob implements Shou
                 'is_embed' => false,
                 'response' => '❌ You do not have permission to edit channels in this server.',
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'unauthorized',
-                message: 'User does not have permission to manage channels.',
-                statusCode: 403,
-            );
-
-            return;
+            throw new Exception('User does not have permission to manage channels.', 403);
         }
-
         // Ensure the input is a valid Discord channel ID
         if (! preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
             SendMessage::sendMessage($this->channelId, [
                 'is_embed' => false,
                 'response' => '❌ Invalid channel ID. Please use `#channel-name` to select a valid channel.',
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'failed',
-                message: 'Invalid channel ID provided.',
-                statusCode: 400,
-            );
-
-            return;
+            throw new Exception('Invalid channel ID provided.', 400);
         }
-
         // Build API request
         $url = "{$this->baseUrl}/channels/{$this->targetChannelId}";
         $payload = ['default_auto_archive_duration' => $this->autoHideDuration];
@@ -92,16 +74,8 @@ final class ProcessEditChannelAutohideJob extends ProcessBaseJob implements Shou
                 'is_embed' => false,
                 'response' => '❌ Failed to update auto-hide setting.',
             ]);
-            $this->updateNativeCommandRequestFailed(
-                status: 'discord_api_error',
-                message: 'Failed to update auto-hide setting.',
-                statusCode: $apiResponse->status(),
-                details: $apiResponse->json(),
-            );
-
-            return;
+            throw new Exception('Operation failed', 500);
         }
-
         // Success message
         SendMessage::sendMessage($this->channelId, [
             'is_embed' => true,
@@ -109,7 +83,6 @@ final class ProcessEditChannelAutohideJob extends ProcessBaseJob implements Shou
             'embed_description' => "**Auto-hide Duration:** ⏲️ `{$this->autoHideDuration} minutes`",
             'embed_color' => 3447003,
         ]);
-        $this->updateNativeCommandRequestComplete();
     }
 
     /**
@@ -123,7 +96,6 @@ final class ProcessEditChannelAutohideJob extends ProcessBaseJob implements Shou
         if (! isset($matches[1], $matches[2])) {
             return [null, null]; // Not enough valid parts
         }
-
         $channelIdentifier = trim($matches[1]);
         $autoHideDuration = (int) trim($matches[2]);
 

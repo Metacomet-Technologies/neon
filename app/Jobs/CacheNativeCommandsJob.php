@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Jobs;
 
 use App\Models\NativeCommand;
@@ -7,7 +9,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Cache;
 
-class CacheNativeCommandsJob implements ShouldQueue
+final class CacheNativeCommandsJob implements ShouldQueue
 {
     use Queueable;
 
