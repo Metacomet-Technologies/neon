@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Helpers\Discord\SendMessage;
-use App\Services\CommandAnalyticsService;
-use App\Services\Discord\DiscordService;
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -37,7 +35,7 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
         parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
     }
 
-    public function handle(CommandAnalyticsService $analytics): void
+    protected function executeCommand(): void
     {
         // Parse the user's query from the message
         $this->userQuery = $this->parseMessage($this->messageContent);
@@ -45,9 +43,7 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
         // Validate that there's a query
         if (empty($this->userQuery)) {
             $this->sendUsageAndExample();
-            $this->sendErrorMessage('No query provided.');
-
-            return;
+            throw new Exception('No query provided.', 400);
         }
 
         try {
@@ -58,20 +54,18 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
             $this->discordServerData = $this->getDiscordServerStructure();
 
             // Send initial message to user
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => true,
-                'embed_title' => '🤖 Neon AI Assistant',
-                'embed_description' => "🔍 **Analyzing your request:** \"{$this->userQuery}\"\n\n⏳ Please wait while I identify the appropriate Discord commands...",
-                'embed_color' => 3066993, // Green
-            ]);
+            $this->getDiscord()->channel($this->channelId)->sendEmbed(
+                '🤖 Neon AI Assistant',
+                "🔍 **Analyzing your request:** \"{$this->userQuery}\"\n\n⏳ Please wait while I identify the appropriate Discord commands...",
+                3066993 // Green
+            );
 
             // Generate the ChatGPT response with database schema and Discord server context
             $chatGptResponse = $this->getChatGPTResponse();
 
             if (! $chatGptResponse) {
                 $this->sendErrorMessage('Failed to get response from ChatGPT. Please try again.');
-
-                return;
+                throw new Exception('ChatGPT response failed.', 500);
             }
 
             // Parse the response to extract Discord commands and synopsis
@@ -79,8 +73,7 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
 
             if (! $parsedResponse) {
                 $this->sendErrorMessage('Failed to parse ChatGPT response. Please try again.');
-
-                return;
+                throw new Exception('Failed to parse response.', 500);
             }
 
             // Send synopsis and ask for confirmation
@@ -107,29 +100,17 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
                 'discord_user_id' => $this->discordUserId,
                 'channel_id' => $this->channelId,
             ]);
-
-            $this->sendErrorMessage('An error occurred while processing your request. Please try again.');
-            Log::error('Error in ProcessNeonChatGPTJob', [
-                'error' => $e->getMessage(),
-                'guild_id' => $this->guildId,
-            ]);
             throw $e;
         }
     }
 
     protected function sendErrorMessage(string $message): void
     {
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => true,
-            'embed_title' => '❌ Neon AI - Error',
-            'embed_description' => $message,
-            'embed_color' => 15158332, // Red
-        ]);
-
-        Log::error('ChatGPT request failed', [
-            'message' => $message,
-            'guild_id' => $this->guildId,
-        ]);
+        $this->getDiscord()->channel($this->channelId)->sendEmbed(
+            '❌ Neon AI - Error',
+            $message,
+            15158332 // Red
+        );
     }
 
     private function parseMessage(string $message): string
@@ -240,19 +221,15 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
 
         return Cache::remember($cacheKey, now()->addMinutes(5), function () {
             try {
-                $discordService = app(DiscordService::class);
-                $response = $discordService->get("/guilds/{$this->guildId}/channels");
+                $channels = $this->getDiscord()->getGuildChannels($this->guildId);
 
-                if ($response->failed()) {
+                if ($channels->isEmpty()) {
                     Log::error('Failed to fetch Discord server structure', [
-                        'status' => $response->status(),
                         'guild_id' => $this->guildId,
                     ]);
 
                     return [];
                 }
-
-                $channels = $response->json();
                 $structure = [
                     'categories' => [],
                     'text_channels' => [],
@@ -683,7 +660,6 @@ For action requests: Generate practical, working Discord commands using ONLY the
         }
 
         // Send the confirmation message using DiscordApiService to get message ID
-        $discordService = app(DiscordService::class);
 
         $embed = [
             'title' => '🤖 Neon AI - Action Plan',
@@ -715,21 +691,15 @@ For action requests: Generate practical, working Discord commands using ONLY the
 
     private function addReactionToMessage(string $messageId, string $emoji): void
     {
-        $discordService = app(DiscordService::class);
-        $encodedEmoji = urlencode($emoji);
-
-        $discordService->put("/channels/{$this->channelId}/messages/{$messageId}/reactions/{$encodedEmoji}/@me");
+        $this->getDiscord()->addReaction($this->channelId, $messageId, $emoji);
     }
 
     private function sendInformationalResponse(string $synopsis, string $information): void
     {
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => true,
-            'embed_title' => '📋 Neon AI - Server Information',
-            'embed_description' => "**{$synopsis}**\n\n{$information}",
-            'embed_color' => 3066993, // Green for informational responses
-        ]);
-
-        $this->updateNativeCommandRequestComplete();
+        $this->getDiscord()->channel($this->channelId)->sendEmbed(
+            '📋 Neon AI - Server Information',
+            "**{$synopsis}**\n\n{$information}",
+            3066993 // Green for informational responses
+        );
     }
 }

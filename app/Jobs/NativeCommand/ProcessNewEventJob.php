@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\DiscordService;
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use DateTime;
 use DateTimeZone;
 use Exception;
@@ -44,16 +44,14 @@ final class ProcessNewEventJob extends ProcessBaseJob
 
     protected function executeCommand(): void
     {
-        $discord = app(DiscordService::class);
-
-        // Check permissions
-        $canCreateEvents = $discord->guild($this->guildId)->member($this->discordUserId)->canCreateEvents();
-        if (! $canCreateEvents) {
-            $discord->channel($this->channelId)->send('❌ You are not allowed to create events.');
+        // 1. Check permissions
+        $member = $this->getDiscord()->guild($this->guildId)->member($this->discordUserId);
+        if (! $member->canManageEvents()) {
+            $this->sendPermissionDenied('create events');
             throw new Exception('User does not have permission to create events.', 403);
         }
 
-        // Validate required fields
+        // 2. Validate required fields
         if (! $this->eventTopic || ! $this->startDate || ! $this->startTime ||
             ! $this->eventFrequency || ! $this->location || ! $this->description) {
             $this->sendUsageAndExample();
@@ -61,30 +59,33 @@ final class ProcessNewEventJob extends ProcessBaseJob
         }
 
         try {
-            $guild = $discord->guild($this->guildId);
-
-            // Check if location is a voice channel
-            $channels = $guild->channels()->get();
+            // 3. Check if location is a voice channel
+            $channels = $this->getDiscord()->getGuildChannels($this->guildId);
             $voiceChannel = $channels->first(fn ($ch) => $ch['id'] === $this->location ||
                 (isset($ch['name']) && $ch['name'] === $this->location)
             );
 
             $isVoiceChannel = $voiceChannel && $voiceChannel['type'] === 2;
 
-            // Parse datetime
+            // 4. Parse datetime
             $startDateTime = $this->parseDateTime($this->startDate, $this->startTime);
 
-            // Build event data
+            // 5. Build event data
             $eventData = $this->buildEventData($startDateTime, $isVoiceChannel, $voiceChannel);
 
-            // Create the event
-            $event = $guild->createScheduledEvent($eventData);
+            // 6. Create the event
+            $event = $this->getDiscord()->createEvent($this->guildId, $eventData);
 
-            // Send success message
+            if (! $event) {
+                $this->sendApiError('create event');
+                throw new Exception('Failed to create event.', 500);
+            }
+
+            // 7. Send success message
             $this->sendEventCreatedMessage($event);
 
         } catch (Exception $e) {
-            $discord->channel($this->channelId)->send('❌ Failed to create event: ' . $e->getMessage());
+            $this->sendErrorMessage('Failed to create event: ' . $e->getMessage());
             throw new Exception('Failed to create Discord event.', 500);
         }
     }
@@ -144,7 +145,6 @@ final class ProcessNewEventJob extends ProcessBaseJob
 
     private function sendEventCreatedMessage(array $event): void
     {
-        $discord = app(DiscordService::class);
         $locationInfo = isset($event['channel_id'])
             ? "<#{$event['channel_id']}>"
             : ($event['entity_metadata']['location'] ?? 'Unknown Location');
@@ -154,8 +154,8 @@ final class ProcessNewEventJob extends ProcessBaseJob
         $embedDescription .= "**📍 Location**\n{$locationInfo}\n\n";
         $embedDescription .= "**📝 Description**\n" . ($event['description'] ?? 'No description');
 
-        $discord->channel($this->channelId)->sendEmbed(
-            '🎉 Event Created Successfully!',
+        $this->sendSuccessMessage(
+            'Event Created Successfully!',
             $embedDescription,
             5814783 // Purple
         );

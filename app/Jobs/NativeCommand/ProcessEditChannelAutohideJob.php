@@ -4,93 +4,37 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\DiscordService;
+use App\Jobs\NativeCommand\Base\ProcessChannelEditBaseJob;
 use Exception;
-use Illuminate\Support\Facades\Log;
 
-final class ProcessEditChannelAutohideJob extends ProcessBaseJob
+final class ProcessEditChannelAutohideJob extends ProcessChannelEditBaseJob
 {
-    public ?string $targetChannelId = null;
-    public ?int $autoHideDuration = null;
-
     private array $allowedDurations = [60, 1440, 4320, 10080];
 
-    public function __construct(
-        string $discordUserId,
-        string $channelId,
-        string $guildId,
-        string $messageContent,
-        array $command,
-        string $commandSlug,
-        array $parameters = []
-    ) {
-        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
+    protected function getCommandName(): string
+    {
+        return 'edit-channel-autohide';
     }
 
-    protected function executeCommand(): void
+    protected function getUpdateField(): string
     {
-        // Parse the message
-        [$this->targetChannelId, $this->autoHideDuration] = $this->parseMessage($this->messageContent);
+        return 'default_auto_archive_duration';
+    }
 
-        // ✅ If the command was used without parameters, send the help message
-        if (! $this->targetChannelId || ! $this->autoHideDuration) {
+    protected function validateValue(string $value): int
+    {
+        $duration = (int) $value;
+
+        if (! in_array($duration, $this->allowedDurations)) {
             $this->sendUsageAndExample('Allowed values: `60, 1440, 4320, 10080` minutes.');
+            throw new Exception('Invalid auto-hide duration.', 400);
+        }
 
-            throw new Exception('No user ID provided.', 400);
-        }
-        // Ensure the user has permission to manage channels
-        $discord = app(DiscordService::class);
-        if (! $discord->guild($this->guildId)->member($this->discordUserId)->canManageChannels()) {
-            $discord->channel($this->channelId)->send('❌ You do not have permission to edit channels in this server.');
-            throw new Exception('User does not have permission to manage channels.', 403);
-        }
-        // Ensure the input is a valid Discord channel ID
-        if (! preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
-            $discord->channel($this->channelId)->send('❌ Invalid channel ID. Please use `#channel-name` to select a valid channel.');
-            throw new Exception('Invalid channel ID provided.', 400);
-        }
-        // Build API request
-        $url = "{$this->baseUrl}/channels/{$this->targetChannelId}";
-        $payload = ['default_auto_archive_duration' => $this->autoHideDuration];
-
-        // Send the request to Discord API
-        $discordService = app(DiscordService::class);
-        $apiResponse = retry(3, function () use ($discordService, $payload) {
-            return $discordService->patch("/channels/{$this->targetChannelId}", $payload);
-        }, 200);
-
-        if ($apiResponse->failed()) {
-            Log::error("Failed to update auto-hide setting (ID: `{$this->targetChannelId}`).");
-            $discord->channel($this->channelId)->send('❌ Failed to update auto-hide setting.');
-            throw new Exception('Operation failed', 500);
-        }
-        // Success message
-        $discord->channel($this->channelId)->sendEmbed(
-            '✅ Auto-Hide Updated!',
-            "**Auto-hide Duration:** ⏲️ `{$this->autoHideDuration} minutes`",
-            3447003
-        );
+        return $duration;
     }
 
-    /**
-     * Parses the message content for command parameters.
-     */
-    private function parseMessage(string $message): array
+    protected function getConfirmationDetails(mixed $value): string
     {
-        // Use regex to parse the command properly
-        preg_match('/^!edit-channel-autohide\s+(<#\d{17,19}>|\d{17,19})\s+(\d+)$/', $message, $matches);
-
-        if (! isset($matches[1], $matches[2])) {
-            return [null, null]; // Not enough valid parts
-        }
-        $channelIdentifier = trim($matches[1]);
-        $autoHideDuration = (int) trim($matches[2]);
-
-        // If the channel is mentioned as <#channelID>, extract just the numeric ID
-        if (preg_match('/^<#(\d{17,19})>$/', $channelIdentifier, $idMatches)) {
-            $channelIdentifier = $idMatches[1];
-        }
-
-        return [$channelIdentifier, $autoHideDuration];
+        return "⏲️ Auto-hide Duration: `{$value} minutes`";
     }
 }

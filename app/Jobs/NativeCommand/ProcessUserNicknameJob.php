@@ -1,99 +1,51 @@
 <?php
 
-// TODO: check permissions for elevation.
 declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\DiscordService;
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use Exception;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
 
 final class ProcessUserNicknameJob extends ProcessBaseJob
 {
-    use Dispatchable, InteractsWithQueue, SerializesModels;
-
-    private string $targetUserId;
-    private string $newNickname;
-
-    private int $retryDelay = 2000;
-    private int $maxRetries = 3;
-
-    public function __construct(
-        string $discordUserId,
-        string $channelId,
-        string $guildId,
-        string $messageContent,
-        array $command,
-        string $commandSlug,
-        array $parameters = []
-    ) {
-        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
-    }
-
     protected function executeCommand(): void
     {
         // Parse message content
-        [$parsedUserId, $parsedNickname] = $this->parseMessage($this->messageContent);
+        [$targetUserId, $newNickname] = $this->parseMessage($this->messageContent);
 
         // If parsing failed, send an error message and abort execution
-        if (is_null($parsedUserId) || is_null($parsedNickname)) {
+        if (is_null($targetUserId) || is_null($newNickname)) {
             $this->sendUsageAndExample();
-
             throw new Exception('Invalid input for !set-nickname. Expected a valid user mention and nickname.');
         }
-        // Assign parsed values
-        $this->targetUserId = $parsedUserId;
-        $this->newNickname = $parsedNickname;
 
         // Check if the user has permission to change nicknames
-
-        $discord = app(DiscordService::class);
-        if (! $discord->guild($this->guildId)->member($this->discordUserId)->canManageNicknames()) {
-            $discord->channel($this->channelId)->send('❌ You do not have permission to change nicknames in this server.');
+        $member = $this->getDiscord()->guild($this->guildId)->member($this->discordUserId);
+        if (! $member->canManageNicknames()) {
+            $this->sendPermissionDenied('change nicknames');
             throw new Exception('User lacks permission to change nicknames.', 403);
         }
+
         // Validate target user ID format
-        if (! preg_match('/^\d{17,19}$/', $this->targetUserId)) {
-            // dump("❌ Invalid user ID format: {$this->targetUserId}");
+        $this->validateUserId($targetUserId);
 
-            $discord->channel($this->channelId)->send('❌ Invalid user ID format. Please mention a valid user.');
-            throw new Exception('Invalid user ID format.', 400);
+        // TODO: Check role hierarchy to prevent elevation
+
+        // Update nickname using Discord service
+        $success = $this->getDiscord()->updateUserNickname($this->guildId, $targetUserId, $newNickname);
+
+        if (! $success) {
+            $this->sendApiError('update nickname');
+            throw new Exception('Failed to update nickname.', 500);
         }
-        // API Request to change nickname
-        $discordService = app(DiscordService::class);
-        $payload = ['nick' => $this->newNickname];
 
-        try {
-            $apiResponse = retry($this->maxRetries, function () use ($discordService, $payload) {
-                return $discordService->patch("/guilds/{$this->guildId}/members/{$this->targetUserId}", $payload);
-            }, $this->retryDelay);
-
-            if ($apiResponse->failed()) {
-                $statusCode = $apiResponse->status();
-
-                if ($statusCode === 403) {
-                    $errorMessage = '❌ Bot lacks permission to update nicknames.';
-                } elseif ($statusCode === 404) {
-                    $errorMessage = '❌ User not found in this server.';
-                } else {
-                    $errorMessage = "❌ Failed to update nickname for <@{$this->targetUserId}>.";
-                }
-
-                $discord->channel($this->channelId)->send($errorMessage);
-                throw new Exception('Operation failed', 500);
-            }
-            $discord->channel($this->channelId)->sendEmbed(
-                '📝 Nickname Updated',
-                "✅ <@{$this->targetUserId}>'s nickname has been updated to **{$this->newNickname}**.",
-                3447003
-            );
-        } catch (Exception $e) {
-            $discord->channel($this->channelId)->send('❌ An unexpected error occurred while updating the nickname.');
-            throw new Exception('Operation failed', 500);
-        }
+        // Send confirmation
+        $this->sendSuccessMessage(
+            'Nickname Updated',
+            "✅ <@{$targetUserId}>'s nickname has been updated to **{$newNickname}**.",
+            3447003
+        );
     }
 
     /**
@@ -101,20 +53,15 @@ final class ProcessUserNicknameJob extends ProcessBaseJob
      */
     private function parseMessage(string $message): array
     {
-        // dump('Parsing message:', $message);
-
         // Normalize message format
-        $message = trim(preg_replace('/\s+/', ' ', $message)); // Convert multiple spaces to a single space
+        $message = trim(preg_replace('/\s+/', ' ', $message));
 
         // Match command format: `!set-nickname <@UserID> NewNickname`
         preg_match('/^!set-nickname\s+<@!?(\d{17,19})>\s+(.+)$/', $message, $matches);
 
         if (! isset($matches[1]) || ! isset($matches[2])) {
-            // dump("❌ Failed to parse message: '{$message}'. Regex did not match.");
-
             return [null, null];
         }
-        // dump("✅ Successfully parsed user ID: {$matches[1]}, New Nickname: {$matches[2]}");
 
         return [$matches[1], trim($matches[2])];
     }

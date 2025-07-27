@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use App\Models\NativeCommand;
 use Exception;
 

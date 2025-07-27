@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use App\Services\Discord\DiscordService;
 use Exception;
 
@@ -23,7 +24,7 @@ final class ProcessRemoveRoleJob extends ProcessBaseJob
         }
 
         // 3. Find role by name using service
-        $role = $this->discord->findRoleByName($this->guildId, $roleName);
+        $role = $this->getDiscord()->findRoleByName($this->guildId, $roleName);
 
         if (! $role) {
             $this->sendNotFound('Role', $roleName);
@@ -33,8 +34,8 @@ final class ProcessRemoveRoleJob extends ProcessBaseJob
         $roleId = $role['id'];
 
         // 4. Perform batch role removal using service
-        $results = $this->discord->batchOperation($userIds, function ($userId) use ($roleId) {
-            return $this->discord->removeRole($this->guildId, $userId, $roleId);
+        $results = $this->getDiscord()->batchOperation($userIds, function ($userId) use ($roleId) {
+            return $this->getDiscord()->removeRole($this->guildId, $userId, $roleId);
         });
 
         // 5. Send batch results using trait

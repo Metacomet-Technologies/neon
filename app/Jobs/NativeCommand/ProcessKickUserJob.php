@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use App\Services\Discord\DiscordService;
 use Exception;
 
@@ -25,8 +26,8 @@ final class ProcessKickUserJob extends ProcessBaseJob
         $this->validateUserId($targetUserId);
 
         // 3. Check role hierarchy using service
-        $senderRole = $this->discord->getUserHighestRolePosition($this->guildId, $this->discordUserId);
-        $targetRole = $this->discord->getUserHighestRolePosition($this->guildId, $targetUserId);
+        $senderRole = $this->getDiscord()->getUserHighestRolePosition($this->guildId, $this->discordUserId);
+        $targetRole = $this->getDiscord()->getUserHighestRolePosition($this->guildId, $targetUserId);
 
         if ($senderRole <= $targetRole) {
             $this->sendErrorMessage('You cannot kick this user. Their role is equal to or higher than yours.');
@@ -34,7 +35,7 @@ final class ProcessKickUserJob extends ProcessBaseJob
         }
 
         // 4. Perform kick using service
-        $success = $this->discord->kickUser($this->guildId, $targetUserId);
+        $success = $this->getDiscord()->kickUser($this->guildId, $targetUserId);
 
         if (! $success) {
             $this->sendApiError('kick user');

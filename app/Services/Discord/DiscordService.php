@@ -132,6 +132,25 @@ final class DiscordService
         return ['valid' => true, 'message' => 'Valid channel name'];
     }
 
+    // ========== Additional Methods for Jobs ==========
+
+    /**
+     * Parse role command to extract role name and user IDs.
+     */
+    public static function parseRoleCommand(string $message, string $command): array
+    {
+        $pattern = "/^!{$command}\s+\"([^\"]+)\"\s+(.+)$/";
+        if (preg_match($pattern, $message, $matches)) {
+            $roleName = trim($matches[1]);
+            $userMentions = array_filter(explode(' ', trim($matches[2])));
+            $userIds = self::extractUserIds($userMentions);
+
+            return [$roleName, $userIds];
+        }
+
+        return [null, []];
+    }
+
     /**
      * Refresh a user's Discord access token.
      */
@@ -265,7 +284,7 @@ final class DiscordService
      */
     public function getGuildMember(string $guildId, string $userId): array
     {
-        return $this->guild($guildId)->member($userId);
+        return $this->guild($guildId)->member($userId)->get();
     }
 
     /**
@@ -282,6 +301,14 @@ final class DiscordService
     public function getGuildChannels(string $guildId): Collection
     {
         return $this->guild($guildId)->channels();
+    }
+
+    /**
+     * Get guild members.
+     */
+    public function getGuildMembers(string $guildId, int $limit = 1000): array
+    {
+        return $this->guild($guildId)->members($limit);
     }
 
     /**
@@ -409,5 +436,333 @@ final class DiscordService
     public function getRateLimitStats(): array
     {
         return DiscordClient::getRateLimitStats();
+    }
+
+    /**
+     * Get user's highest role position in guild.
+     */
+    public function getUserHighestRolePosition(string $guildId, string $userId): int
+    {
+        try {
+            $member = $this->getGuildMember($guildId, $userId);
+            $guildRoles = $this->getGuildRoles($guildId);
+
+            $highestPosition = 0;
+            foreach ($member['roles'] as $roleId) {
+                $role = $guildRoles->firstWhere('id', $roleId);
+                if ($role && $role['position'] > $highestPosition) {
+                    $highestPosition = $role['position'];
+                }
+            }
+
+            return $highestPosition;
+        } catch (Exception) {
+            return 0;
+        }
+    }
+
+    /**
+     * Batch operation helper for multiple Discord API calls.
+     */
+    public function batchOperation(array $items, callable $operation): array
+    {
+        $successful = [];
+        $failed = [];
+
+        foreach ($items as $item) {
+            try {
+                if ($operation($item)) {
+                    $successful[] = $item;
+                } else {
+                    $failed[] = $item;
+                }
+            } catch (Exception) {
+                $failed[] = $item;
+            }
+        }
+
+        return [
+            'successful' => $successful,
+            'failed' => $failed,
+            'total' => count($items),
+            'success_count' => count($successful),
+            'failure_count' => count($failed),
+        ];
+    }
+
+    /**
+     * Update role.
+     */
+    public function updateRole(string $guildId, string $roleId, array $data): bool
+    {
+        return $this->guild($guildId)->updateRole($roleId, $data);
+    }
+
+    /**
+     * Create event.
+     */
+    public function createEvent(string $guildId, array $data): ?array
+    {
+        try {
+            return $this->guild($guildId)->createEvent($data);
+        } catch (Exception) {
+            return null;
+        }
+    }
+
+    /**
+     * Delete event.
+     */
+    public function deleteEvent(string $guildId, string $eventId): bool
+    {
+        return $this->guild($guildId)->deleteEvent($eventId);
+    }
+
+    /**
+     * Find event by ID.
+     */
+    public function findEventById(string $guildId, string $eventId): ?array
+    {
+        return $this->guild($guildId)->getEvent($eventId);
+    }
+
+    /**
+     * Update member (for nickname, mute, etc.).
+     */
+    public function updateMember(string $guildId, string $userId, array $data): bool
+    {
+        return $this->guild($guildId)->updateMember($userId, $data);
+    }
+
+    /**
+     * Disconnect user from voice channel.
+     */
+    public function disconnectUser(string $guildId, string $userId): bool
+    {
+        return $this->updateMember($guildId, $userId, ['channel_id' => null]);
+    }
+
+    /**
+     * Mute user in voice channels.
+     */
+    public function muteUser(string $guildId, string $userId): bool
+    {
+        return $this->updateMember($guildId, $userId, ['mute' => true]);
+    }
+
+    /**
+     * Unmute user in voice channels.
+     */
+    public function unmuteUser(string $guildId, string $userId): bool
+    {
+        return $this->updateMember($guildId, $userId, ['mute' => false]);
+    }
+
+    /**
+     * Set guild boost progress bar visibility.
+     */
+    public function setGuildBoostProgressBar(string $guildId, bool $enabled): bool
+    {
+        return $this->guild($guildId)->updateSettings(['premium_progress_bar_enabled' => $enabled]);
+    }
+
+    /**
+     * Set guild AFK channel and timeout.
+     */
+    public function setGuildAfkChannel(string $guildId, string $channelId, int $timeout): bool
+    {
+        return $this->guild($guildId)->updateSettings([
+            'afk_channel_id' => $channelId,
+            'afk_timeout' => $timeout,
+        ]);
+    }
+
+    /**
+     * Update user nickname.
+     */
+    public function updateUserNickname(string $guildId, string $userId, ?string $nickname): bool
+    {
+        return $this->updateMember($guildId, $userId, ['nick' => $nickname]);
+    }
+
+    /**
+     * Prune inactive members.
+     */
+    public function pruneInactiveMembers(string $guildId, int $days = 7, bool $dryRun = false): ?array
+    {
+        try {
+            return $this->guild($guildId)->pruneMembers($days, $dryRun);
+        } catch (Exception) {
+            return null;
+        }
+    }
+
+    /**
+     * Delete messages in bulk.
+     */
+    public function bulkDeleteMessages(string $channelId, array $messageIds): bool
+    {
+        return $this->channel($channelId)->bulkDelete($messageIds);
+    }
+
+    /**
+     * Get channel messages.
+     */
+    public function getChannelMessages(string $channelId, int $limit = 100, ?string $before = null): array
+    {
+        $params = ['limit' => $limit];
+        if ($before) {
+            $params['before'] = $before;
+        }
+
+        return $this->channel($channelId)->getMessages($params);
+    }
+
+    /**
+     * Pin message.
+     */
+    public function pinMessage(string $channelId, string $messageId): bool
+    {
+        return $this->channel($channelId)->pinMessage($messageId);
+    }
+
+    /**
+     * Unpin message.
+     */
+    public function unpinMessage(string $channelId, string $messageId): bool
+    {
+        return $this->channel($channelId)->unpinMessage($messageId);
+    }
+
+    /**
+     * Get pinned messages.
+     */
+    public function getPinnedMessages(string $channelId): array
+    {
+        try {
+            return $this->channel($channelId)->getPinnedMessages();
+        } catch (Exception) {
+            return [];
+        }
+    }
+
+    /**
+     * Create category.
+     */
+    public function createCategory(string $guildId, string $name): ?array
+    {
+        return $this->createChannel($guildId, [
+            'name' => $name,
+            'type' => 4, // Category type
+        ]);
+    }
+
+    /**
+     * Archive channel.
+     */
+    public function archiveChannel(string $channelId): bool
+    {
+        return $this->updateChannel($channelId, ['archived' => true]);
+    }
+
+    /**
+     * Lock channel by updating everyone role permissions.
+     */
+    public function lockChannel(string $channelId, string $everyoneRoleId): bool
+    {
+        return $this->updateChannelPermissions($channelId, $everyoneRoleId, [
+            'type' => 0, // Role
+            'deny' => 2048, // SEND_MESSAGES permission
+        ]);
+    }
+
+    /**
+     * Unlock channel by updating everyone role permissions.
+     */
+    public function unlockChannel(string $channelId, string $everyoneRoleId): bool
+    {
+        return $this->updateChannelPermissions($channelId, $everyoneRoleId, [
+            'type' => 0, // Role
+            'allow' => 2048, // SEND_MESSAGES permission
+        ]);
+    }
+
+    /**
+     * Lock voice channel.
+     */
+    public function lockVoiceChannel(string $channelId, string $everyoneRoleId): bool
+    {
+        return $this->updateChannelPermissions($channelId, $everyoneRoleId, [
+            'type' => 0, // Role
+            'deny' => 1048576, // CONNECT permission
+        ]);
+    }
+
+    /**
+     * Add reaction to a message.
+     */
+    public function addReaction(string $channelId, string $messageId, string $emoji): bool
+    {
+        try {
+            $encodedEmoji = urlencode($emoji);
+            $response = $this->client->put("/channels/{$channelId}/messages/{$messageId}/reactions/{$encodedEmoji}/@me");
+
+            return $response->successful();
+        } catch (Exception) {
+            return false;
+        }
+    }
+
+    /**
+     * Send message with embeds.
+     */
+    public function sendEmbed(string $channelId, array $embed): ?array
+    {
+        try {
+            return $this->client->post("/channels/{$channelId}/messages", [
+                'embeds' => [$embed],
+            ]);
+        } catch (Exception) {
+            return null;
+        }
+    }
+
+    /**
+     * Unlock voice channel.
+     */
+    public function unlockVoiceChannel(string $channelId, string $everyoneRoleId): bool
+    {
+        return $this->updateChannelPermissions($channelId, $everyoneRoleId, [
+            'type' => 0, // Role
+            'allow' => 1048576, // CONNECT permission
+        ]);
+    }
+
+    /**
+     * Find event by name.
+     */
+    public function findEventByName(string $guildId, string $eventName): ?array
+    {
+        try {
+            $events = $this->guild($guildId)->events();
+
+            return $events->firstWhere('name', $eventName);
+        } catch (Exception) {
+            return null;
+        }
+    }
+
+    /**
+     * Find channel by name.
+     */
+    public function findChannelByName(string $guildId, string $channelName): ?array
+    {
+        try {
+            $channels = $this->getGuildChannels($guildId);
+
+            return $channels->firstWhere('name', $channelName);
+        } catch (Exception) {
+            return null;
+        }
     }
 }

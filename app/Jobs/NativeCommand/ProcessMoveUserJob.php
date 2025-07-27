@@ -4,23 +4,12 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use App\Services\Discord\DiscordService;
 use Exception;
 
 final class ProcessMoveUserJob extends ProcessBaseJob
 {
-    public function __construct(
-        string $discordUserId,
-        string $channelId,
-        string $guildId,
-        string $messageContent,
-        array $command,
-        string $commandSlug,
-        array $parameters = []
-    ) {
-        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
-    }
-
     protected function executeCommand(): void
     {
         $this->requireMemberPermission();
@@ -35,7 +24,7 @@ final class ProcessMoveUserJob extends ProcessBaseJob
         $this->validateUserId($userId);
         $this->validateChannelId($targetChannelId);
 
-        $success = $this->discord->moveUserToChannel($this->guildId, $userId, $targetChannelId);
+        $success = $this->getDiscord()->moveUserToChannel($this->guildId, $userId, $targetChannelId);
 
         if (! $success) {
             $this->sendApiError('move user');

@@ -52,9 +52,17 @@ final class Guild
     /**
      * Get guild member.
      */
-    public function member(string $userId): array
+    public function member(string $userId): GuildMember
     {
-        return $this->client->get("/guilds/{$this->guildId}/members/{$userId}");
+        return new GuildMember($this->client, $this->guildId, $userId);
+    }
+
+    /**
+     * Update guild settings.
+     */
+    public function updateSettings(array $data): bool
+    {
+        return $this->client->patch("/guilds/{$this->guildId}", $data);
     }
 
     /**
@@ -98,6 +106,16 @@ final class Guild
     }
 
     /**
+     * Get guild members.
+     */
+    public function members(int $limit = 1000): array
+    {
+        $response = $this->client->get("/guilds/{$this->guildId}/members", ['limit' => $limit]);
+
+        return is_array($response) ? $response : [];
+    }
+
+    /**
      * Ban member.
      */
     public function ban(string $userId, int $deleteMessageDays = 7): bool
@@ -131,5 +149,69 @@ final class Guild
         return $this->client->patch("/guilds/{$this->guildId}/members/{$userId}", [
             'channel_id' => $channelId,
         ]);
+    }
+
+    /**
+     * Update role.
+     */
+    public function updateRole(string $roleId, array $data): bool
+    {
+        return $this->client->patch("/guilds/{$this->guildId}/roles/{$roleId}", $data);
+    }
+
+    /**
+     * Create scheduled event.
+     */
+    public function createEvent(array $data): array
+    {
+        return $this->client->post("/guilds/{$this->guildId}/scheduled-events", $data);
+    }
+
+    /**
+     * Delete scheduled event.
+     */
+    public function deleteEvent(string $eventId): bool
+    {
+        return $this->client->delete("/guilds/{$this->guildId}/scheduled-events/{$eventId}");
+    }
+
+    /**
+     * Get scheduled events.
+     */
+    public function events(): Collection
+    {
+        return collect($this->client->get("/guilds/{$this->guildId}/scheduled-events"));
+    }
+
+    /**
+     * Get single event by ID.
+     */
+    public function getEvent(string $eventId): ?array
+    {
+        return $this->client->get("/guilds/{$this->guildId}/scheduled-events/{$eventId}");
+    }
+
+    /**
+     * Update member.
+     */
+    public function updateMember(string $userId, array $data): bool
+    {
+        return $this->client->patch("/guilds/{$this->guildId}/members/{$userId}", $data);
+    }
+
+    /**
+     * Prune inactive members.
+     */
+    public function pruneMembers(int $days = 7, bool $dryRun = false): array
+    {
+        $method = $dryRun ? 'get' : 'post';
+        $endpoint = "/guilds/{$this->guildId}/prune";
+        $params = ['days' => $days];
+
+        if ($dryRun) {
+            return $this->client->get($endpoint, $params);
+        }
+
+        return $this->client->post($endpoint, $params);
     }
 }

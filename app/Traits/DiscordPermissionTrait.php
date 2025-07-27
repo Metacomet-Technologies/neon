@@ -53,7 +53,7 @@ trait DiscordPermissionTrait
     protected function requireBanPermission(): void
     {
         $member = $this->getDiscord()->guild($this->guildId)->member($this->discordUserId);
-        if (! $member->canKickMembers()) {
+        if (! $member->canBanMembers()) {
             $this->sendPermissionError('You do not have permission to ban members in this server.');
         }
     }

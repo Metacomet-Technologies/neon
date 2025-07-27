@@ -12,6 +12,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $id
  * @property string $name
  * @property string|null $icon
+ * @property bool $is_bot_member
+ * @property \Illuminate\Support\Carbon|null $bot_joined_at
+ * @property \Illuminate\Support\Carbon|null $bot_left_at
+ * @property \Illuminate\Support\Carbon|null $last_bot_check_at
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\License> $activeLicenses
@@ -27,9 +31,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild whereBotJoinedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild whereBotLeftAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild whereCreatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild whereIcon($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild whereIsBotMember($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild whereLastBotCheckAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild whereName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Guild withBotMember()

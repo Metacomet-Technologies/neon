@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\DiscordService;
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use Exception;
-use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Log;
 
 final class ProcessDeleteEventJob extends ProcessBaseJob
 {
-    use Queueable;
+    private readonly ?string $eventId;
 
     public function __construct(
         string $discordUserId,
@@ -23,73 +21,66 @@ final class ProcessDeleteEventJob extends ProcessBaseJob
         array $parameters = []
     ) {
         parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
+
+        // Parse event ID in constructor
+        $this->eventId = $this->parseEventId($messageContent);
     }
 
-    /**
-     * Execute the job.
-     */
     protected function executeCommand(): void
     {
-        // Ensure the user has permission to manage events
-        $discord = app(DiscordService::class);
-        if (! $discord->guild($this->guildId)->member($this->discordUserId)->canCreateEvents()) {
-            $discord->channel($this->channelId)->send('❌ You do not have permission to delete events in this server.');
+        // 1. Check permissions
+        $member = $this->getDiscord()->guild($this->guildId)->member($this->discordUserId);
+        if (! $member->canManageEvents()) {
+            $this->sendPermissionDenied('delete events');
             throw new Exception('User does not have permission to delete events.', 403);
         }
 
-        // Parse the command message
-        $eventId = $this->parseMessage($this->messageContent);
-
-        if (! $eventId) {
+        // 2. Validate event ID
+        if (! $this->eventId) {
             $this->sendUsageAndExample();
-
-            throw new Exception('No user ID provided.', 400);
+            throw new Exception('No event ID provided.', 400);
         }
 
-        // Make the delete request
-        $discordService = app(DiscordService::class);
+        // 3. Check if event exists
+        $event = $this->getDiscord()->findEventById($this->guildId, $this->eventId);
+        if (! $event) {
+            $this->sendErrorMessage("Event with ID `{$this->eventId}` not found.");
+            throw new Exception('Event not found.', 404);
+        }
 
-        try {
-            $deleteResponse = $discordService->delete("/guilds/{$this->guildId}/scheduled-events/{$eventId}");
+        // 4. Delete the event
+        $success = $this->getDiscord()->deleteEvent($this->guildId, $this->eventId);
 
-            if ($deleteResponse->failed()) {
-                Log::error("Failed to delete event '{$eventId}' in guild {$this->guildId}", [
-                    'response' => $deleteResponse->json(),
-                ]);
-
-                SendMessage::sendMessage($this->channelId, [
-                    'is_embed' => false,
-                    'response' => "❌ Failed to delete event (ID: `{$eventId}`).",
-                ]);
-                throw new Exception('Failed to delete event.', 500);
-            }
-        } catch (Exception $e) {
-            Log::error("Exception while deleting event '{$eventId}' in guild {$this->guildId}", ['error' => $e->getMessage()]);
-
-            $discord->channel($this->channelId)->send("❌ Failed to delete event (ID: `{$eventId}`).");
+        if (! $success) {
+            $this->sendApiError('delete event');
             throw new Exception('Failed to delete event.', 500);
         }
 
-        // ✅ Success! Send confirmation message
-        $discord->channel($this->channelId)->sendEmbed(
-            '✅ Event Deleted!',
-            "**Event ID:** `{$eventId}` has been successfully removed.",
-            15158332 // Red embed
-        );
+        // 5. Send confirmation message
+        $this->sendEventDeletedMessage($event);
     }
 
-    /**
-     * Parses the message content for extracting the event ID.
-     */
-    private function parseMessage(string $message): ?string
+    private function parseEventId(string $message): ?string
     {
-        // Remove invisible characters (zero-width spaces, control characters)
-        $cleanedMessage = preg_replace('/[\p{Cf}]/u', '', $message); // Removes control characters
-        $cleanedMessage = trim(preg_replace('/\s+/', ' ', $cleanedMessage)); // Normalize spaces
+        // Remove invisible characters and normalize spaces
+        $cleanedMessage = preg_replace('/[\p{Cf}]/u', '', $message);
+        $cleanedMessage = trim(preg_replace('/\s+/', ' ', $cleanedMessage));
 
-        // Use regex to extract the event ID
+        // Extract event ID
         preg_match('/^!delete-event\s+(\d{17,19})$/iu', $cleanedMessage, $matches);
 
         return $matches[1] ?? null;
+    }
+
+    private function sendEventDeletedMessage(array $event): void
+    {
+        $eventName = $event['name'] ?? 'Unknown Event';
+
+        $this->sendSuccessMessage(
+            'Event Deleted Successfully!',
+            "**{$eventName}** has been removed.\n\n" .
+            "**Event ID:** `{$this->eventId}`",
+            15158332 // Red
+        );
     }
 }

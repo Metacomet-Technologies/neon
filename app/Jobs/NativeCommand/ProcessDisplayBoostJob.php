@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\DiscordService;
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use Exception;
 
 final class ProcessDisplayBoostJob extends ProcessBaseJob
@@ -13,12 +13,24 @@ final class ProcessDisplayBoostJob extends ProcessBaseJob
     {
         $this->requireChannelPermission();
 
-        $params = DiscordService::extractParameters($this->messageContent, 'display-boost');
-        $this->validateRequiredParameters($params, 1, 'Boolean value (true/false) is required.');
+        // Extract boolean value from message
+        $paramString = trim(str_replace('!display-boost', '', $this->messageContent));
 
-        $displayBoost = $this->validateBoolean($params[0], 'display boost setting');
+        if (empty($paramString)) {
+            $this->sendUsageAndExample();
+            throw new Exception('Boolean value (true/false) is required.', 400);
+        }
 
-        $success = $this->discord->setGuildBoostProgressBar($this->guildId, $displayBoost);
+        // Validate boolean value
+        $paramString = strtolower($paramString);
+        if (! in_array($paramString, ['true', 'false', '1', '0', 'yes', 'no', 'on', 'off'])) {
+            $this->sendErrorMessage('Invalid value. Please use true/false, yes/no, on/off, or 1/0.');
+            throw new Exception('Invalid boolean value.', 400);
+        }
+
+        $displayBoost = in_array($paramString, ['true', '1', 'yes', 'on']);
+
+        $success = $this->getDiscord()->setGuildBoostProgressBar($this->guildId, $displayBoost);
 
         if (! $success) {
             $this->sendApiError('update boost progress bar');

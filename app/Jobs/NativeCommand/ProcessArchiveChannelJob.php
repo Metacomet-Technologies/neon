@@ -1,11 +1,10 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-// Helpers replaced by SDK
-use App\Services\Discord\DiscordService;
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use Exception;
 
 final class ProcessArchiveChannelJob extends ProcessBaseJob
@@ -30,51 +29,34 @@ final class ProcessArchiveChannelJob extends ProcessBaseJob
 
     protected function executeCommand(): void
     {
-        // Validate input
-        if (!$this->targetChannelId || is_null($this->archiveStatus)) {
+        // 1. Validate input
+        if (! $this->targetChannelId || is_null($this->archiveStatus)) {
             $this->sendUsageAndExample();
-
-            return;
+            throw new Exception('Missing required parameters.', 400);
         }
 
-        // Check permissions using SDK
-        $discord = app(DiscordService::class);
-        $member = $discord->guild($this->guildId)->member($this->discordUserId);
+        // 2. Check permissions
+        $this->requireChannelPermission();
 
-        if (!$member->canManageChannels()) {
-            $discord->channel($this->channelId)->send('❌ You do not have permission to manage channels in this server.');
-            throw new Exception('User does not have permission to manage channels.', 403);
+        // 3. Validate channel ID format
+        $this->validateChannelId($this->targetChannelId);
+
+        // 4. Archive/unarchive the channel using Discord service
+        $success = $this->archiveStatus
+            ? $this->getDiscord()->archiveChannel($this->targetChannelId)
+            : $this->getDiscord()->updateChannel($this->targetChannelId, ['archived' => false]);
+
+        if (! $success) {
+            $this->sendApiError('update channel archive status');
+            throw new Exception('Failed to update channel.', 500);
         }
 
-        // Validate channel ID format
-        if (!preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
-            $discord->channel($this->channelId)->send('❌ Invalid channel ID. Please use `#channel-name` to select a valid channel.');
-            throw new Exception('Invalid channel ID provided.', 400);
-        }
-
-        try {
-            // Use SDK to archive/unarchive channel
-            // Discord instance already created above
-            $channel = $discord->channel($this->targetChannelId);
-
-            if ($this->archiveStatus) {
-                $channel->archive();
-                $message = "✅ Channel <#{$this->targetChannelId}> has been **archived**.";
-            } else {
-                $channel->update(['archived' => false]);
-                $message = "✅ Channel <#{$this->targetChannelId}> has been **unarchived**.";
-            }
-
-            $discord->channel($this->channelId)->sendEmbed(
-                '📁 Channel Archive Status Updated',
-                $message,
-                3066993// Green color
-            );
-
-        } catch (Exception $e) {
-            $discord->channel($this->channelId)->send('❌ Failed to update channel archive status.');
-            throw new Exception('Failed to update channel archive status: ' . $e->getMessage(), 500);
-        }
+        // 5. Send confirmation
+        $action = $this->archiveStatus ? 'archived' : 'unarchived';
+        $this->sendSuccessMessage(
+            'Channel Archive Status Updated',
+            "📁 Channel <#{$this->targetChannelId}> has been **{$action}**."
+        );
     }
 
     private function parseMessage(string $message): array

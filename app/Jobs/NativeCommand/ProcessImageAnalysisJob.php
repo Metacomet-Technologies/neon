@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Helpers\Discord\SendMessage;
-use App\Services\Discord\DiscordService;
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -43,12 +42,11 @@ final class ProcessImageAnalysisJob extends ProcessBaseJob implements ShouldQueu
             $description .= "\n\n" . $additionalInfo;
         }
 
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => true,
-            'embed_title' => '🖼️ Server Template Generator',
-            'embed_description' => $description,
-            'embed_color' => 3447003, // Blue
-        ]);
+        $this->getDiscord()->channel($this->channelId)->sendEmbed(
+            '🖼️ Server Template Generator',
+            $description,
+            3447003 // Blue
+        );
     }
 
     protected function executeCommand(): void
@@ -63,12 +61,11 @@ final class ProcessImageAnalysisJob extends ProcessBaseJob implements ShouldQueu
         }
 
         // Send initial message to user
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => true,
-            'embed_title' => '🖼️ Image Analysis in Progress',
-            'embed_description' => '📸 **Analyzing ' . count($this->imageAttachments) . " image(s)...**\n\n🔍 Using ChatGPT Vision to analyze Discord server structure\n⏳ Please wait while I extract themes and generate templates...",
-            'embed_color' => 3066993, // Green
-        ]);
+        $this->getDiscord()->channel($this->channelId)->sendEmbed(
+            '🖼️ Image Analysis in Progress',
+            '📸 **Analyzing ' . count($this->imageAttachments) . " image(s)...**\n\n🔍 Using ChatGPT Vision to analyze Discord server structure\n⏳ Please wait while I extract themes and generate templates...",
+            3066993 // Green
+        );
 
         // Process each image
         $analysisResults = [];
@@ -107,12 +104,11 @@ final class ProcessImageAnalysisJob extends ProcessBaseJob implements ShouldQueu
 
     protected function sendErrorMessage(string $message): void
     {
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => true,
-            'embed_title' => '❌ Image Analysis Failed',
-            'embed_description' => $message,
-            'embed_color' => 15158332, // Red
-        ]);
+        $this->getDiscord()->channel($this->channelId)->sendEmbed(
+            '❌ Image Analysis Failed',
+            $message,
+            15158332 // Red
+        );
     }
 
     private function parseMessage(string $message): string
@@ -476,13 +472,9 @@ Focus on recreating the essence and organization of the analyzed server while us
             ],
         ];
 
-        $discordService = app(DiscordService::class);
-        $response = $discordService->post("/channels/{$this->channelId}/messages", [
-            'embeds' => [$embed],
-        ]);
+        $messageData = $this->getDiscord()->sendEmbed($this->channelId, $embed);
 
-        if ($response->successful()) {
-            $messageData = $response->json();
+        if ($messageData) {
             $messageId = $messageData['id'];
 
             // Add reactions to the message
@@ -491,18 +483,14 @@ Focus on recreating the essence and organization of the analyzed server while us
         } else {
             Log::error('Failed to send image analysis confirmation message', [
                 'channel_id' => $this->channelId,
-                'response' => $response->json(),
             ]);
         }
     }
 
     private function addReactionToMessage(string $messageId, string $emoji): void
     {
-        $encodedEmoji = urlencode($emoji);
-        $discordService = app(DiscordService::class);
-
         try {
-            $discordService->put("/channels/{$this->channelId}/messages/{$messageId}/reactions/{$encodedEmoji}/@me");
+            $this->getDiscord()->addReaction($this->channelId, $messageId, $emoji);
         } catch (Exception $e) {
             Log::warning('Failed to add reaction to message', [
                 'message_id' => $messageId,

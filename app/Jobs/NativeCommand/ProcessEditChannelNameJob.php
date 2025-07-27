@@ -4,48 +4,37 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
+use App\Jobs\NativeCommand\Base\ProcessChannelEditBaseJob;
 use App\Services\Discord\DiscordService;
 use Exception;
 
-final class ProcessEditChannelNameJob extends ProcessBaseJob
+final class ProcessEditChannelNameJob extends ProcessChannelEditBaseJob
 {
-    public function __construct(
-        string $discordUserId,
-        string $channelId,
-        string $guildId,
-        string $messageContent,
-        array $command,
-        string $commandSlug,
-        array $parameters = []
-    ) {
-        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
+    protected function getCommandName(): string
+    {
+        return 'edit-channel-name';
     }
 
-    protected function executeCommand(): void
+    protected function getUpdateField(): string
     {
-        // 1. Check permissions
-        $this->requireChannelPermission();
+        return 'name';
+    }
 
-        // 2. Parse channel edit command
-        [$channelId, $newValue] = DiscordService::parseChannelEditCommand($this->messageContent, 'edit-channel-name');
+    protected function validateValue(string $value): string
+    {
+        // Validate channel name using Discord service
+        $validationResult = DiscordService::validateChannelName($value);
 
-        if (! $channelId || ! $newValue) {
-            $this->sendUsageAndExample();
-            throw new Exception('Missing required parameters.', 400);
+        if (! $validationResult['valid']) {
+            $this->sendErrorMessage($validationResult['message']);
+            throw new Exception('Invalid channel name provided.', 400);
         }
 
-        $this->validateChannelId($channelId);
+        return $value;
+    }
 
-        // 3. Perform update using service
-        $discordApiService = app(DiscordService::class);
-        $success = $discordApiService->updateChannel($channelId, ['name' => $newValue]);
-
-        if (! $success) {
-            $this->sendApiError('update channel');
-            throw new Exception('Failed to update channel.', 500);
-        }
-
-        // 4. Send confirmation
-        $this->sendChannelActionConfirmation('updated', $channelId, "New name: #{$newValue}");
+    protected function getConfirmationDetails(mixed $value): string
+    {
+        return "New name: #{$value}";
     }
 }

@@ -4,48 +4,34 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\DiscordService;
+use App\Jobs\NativeCommand\Base\ProcessChannelEditBaseJob;
 use Exception;
 
-final class ProcessEditChannelTopicJob extends ProcessBaseJob
+final class ProcessEditChannelTopicJob extends ProcessChannelEditBaseJob
 {
-    public function __construct(
-        string $discordUserId,
-        string $channelId,
-        string $guildId,
-        string $messageContent,
-        array $command,
-        string $commandSlug,
-        array $parameters = []
-    ) {
-        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
+    protected function getCommandName(): string
+    {
+        return 'edit-channel-topic';
     }
 
-    protected function executeCommand(): void
+    protected function getUpdateField(): string
     {
-        // 1. Check permissions
-        $this->requireChannelPermission();
+        return 'topic';
+    }
 
-        // 2. Parse channel edit command
-        [$channelId, $newValue] = DiscordService::parseChannelEditCommand($this->messageContent, 'edit-channel-topic');
-
-        if (! $channelId || ! $newValue) {
-            $this->sendUsageAndExample();
-            throw new Exception('Missing required parameters.', 400);
+    protected function validateValue(string $value): string
+    {
+        // Topic can be up to 1024 characters
+        if (strlen($value) > 1024) {
+            $this->sendErrorMessage('Topic too long (max 1024 characters)');
+            throw new Exception('Topic too long.', 400);
         }
 
-        $this->validateChannelId($channelId);
+        return $value;
+    }
 
-        // 3. Perform update using service
-        $discordApiService = app(DiscordService::class);
-        $success = $discordApiService->updateChannel($channelId, ['topic' => $newValue]);
-
-        if (! $success) {
-            $this->sendApiError('update channel');
-            throw new Exception('Failed to update channel.', 500);
-        }
-
-        // 4. Send confirmation
-        $this->sendChannelActionConfirmation('updated', $channelId, "New topic: {$newValue}");
+    protected function getConfirmationDetails(mixed $value): string
+    {
+        return "New topic: {$value}";
     }
 }

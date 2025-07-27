@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\DiscordService;
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use Exception;
-use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Log;
 
 final class ProcessAssignChannelJob extends ProcessBaseJob
 {
-    use Queueable;
+    private readonly ?string $targetChannelInput;
+    private readonly ?string $targetCategoryInput;
 
     public function __construct(
         string $discordUserId,
@@ -23,191 +22,81 @@ final class ProcessAssignChannelJob extends ProcessBaseJob
         array $parameters = []
     ) {
         parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
+
+        // Parse assignment parameters in constructor
+        [$this->targetChannelInput, $this->targetCategoryInput] = $this->parseAssignCommand($messageContent);
     }
 
-    /**
-     * Execute the job.
-     */
     protected function executeCommand(): void
     {
-        // Ensure the user has permission to manage channels
-        $discord = app(DiscordService::class);
-        if (! $discord->guild($this->guildId)->member($this->discordUserId)->canManageChannels()) {
-            $discord->channel($this->channelId)->send('❌ You do not have permission to manage channels in this server.');
+        // 1. Check permissions
+        $this->requireChannelPermission();
 
-            $this->nativeCommandRequest->update([
-                'status' => 'unauthorized',
-                'failed_at' => now(),
-                'error_message' => [
-                    'message' => 'User does not have permission to manage channels.',
-                    'status_code' => 403,
-                ],
-            ]);
-
-            return;
+        // 2. Validate input
+        if (! $this->targetChannelInput || ! $this->targetCategoryInput) {
+            $this->sendUsageAndExample();
+            throw new Exception('Missing required parameters.', 400);
         }
 
-        // Parse the command message
-        [$channelInput, $categoryInput] = $this->parseMessage($this->messageContent);
+        // 3. Find the channel and category
+        $channels = $this->getDiscord()->getGuildChannels($this->guildId);
 
-        if (! $channelInput || ! $categoryInput) {
-            $discord->channel($this->channelId)->send("{$this->command['usage']}\n{$this->command['example']}");
-
-            $this->nativeCommandRequest->update([
-                'status' => 'failed',
-                'failed_at' => now(),
-                'error_message' => [
-                    'message' => 'Missing required IDs.',
-                    'details' => 'Required Ids not found in the message.',
-                    'status_code' => 400,
-                ],
-            ]);
-
-            return;
-        }
-
-        // 2️⃣ Fetch all channels in the guild
-        try {
-            $channelsResponse = $discord->guild($this->guildId)->channels();
-
-            if (! $channelsResponse) {
-                Log::error("Failed to fetch channels for guild {$this->guildId}");
-                $discord->channel($this->channelId)->send('❌ Failed to retrieve channels from the server.');
-
-                $this->nativeCommandRequest->update([
-                    'status' => 'discord-api-error',
-                    'failed_at' => now(),
-                    'error_message' => [
-                        'message' => 'Failed to fetch channels from the server.',
-                        'status_code' => 500,
-                        'response' => 'Failed to fetch channels',
-                    ],
-                ]);
-
-                return;
-            }
-        } catch (Exception $e) {
-            Log::error("Exception while fetching channels for guild {$this->guildId}", ['error' => $e->getMessage()]);
-            $discord->channel($this->channelId)->send('❌ Failed to retrieve channels from the server.');
-
-            $this->nativeCommandRequest->update([
-                'status' => 'discord-api-error',
-                'failed_at' => now(),
-                'error_message' => [
-                    'message' => 'Failed to fetch channels from the server.',
-                    'details' => $e->getMessage(),
-                    'status_code' => 500,
-                ],
-            ]);
-
-            return;
-        }
-
-        $channels = collect($channelsResponse);
-
-        // 3️⃣ Find the target channel
-        $channel = $channels->first(fn ($c) => $c['id'] === $channelInput || strcasecmp($c['name'], $channelInput) === 0);
-
+        $channel = $this->findChannelByInput($channels, $this->targetChannelInput);
         if (! $channel) {
-            $discord->channel($this->channelId)->send("❌ Channel '{$channelInput}' not found.");
-
-            $this->nativeCommandRequest->update([
-                'status' => 'failed',
-                'failed_at' => now(),
-                'error_message' => [
-                    'message' => 'Channel not found.',
-                    'details' => "Channel '{$channelInput}' not found in the server.",
-                    'status_code' => 404,
-                ],
-            ]);
-
-            return;
+            $this->sendErrorMessage("Channel '{$this->targetChannelInput}' not found.");
+            throw new Exception('Channel not found.', 404);
         }
 
-        $channelId = $channel['id'];
-
-        // 4️⃣ Find the target category
-        // TODO: Implement logic to find the category without requiring a raw category ID.
-        $category = $channels->first(fn ($c) => ($c['id'] === $categoryInput || strcasecmp($c['name'], $categoryInput) === 0) && $c['type'] === 4);
-
+        $category = $this->findCategoryByInput($channels, $this->targetCategoryInput);
         if (! $category) {
-            $discord->channel($this->channelId)->send("❌ Category '{$categoryInput}' not found.");
-
-            $this->nativeCommandRequest->update([
-                'status' => 'failed',
-                'failed_at' => now(),
-                'error_message' => [
-                    'message' => 'Category not found.',
-                    'details' => "Category '{$categoryInput}' not found in the server.",
-                    'status_code' => 404,
-                ],
-            ]);
-
-            return;
+            $this->sendErrorMessage("Category '{$this->targetCategoryInput}' not found.");
+            throw new Exception('Category not found.', 404);
         }
 
-        $categoryId = $category['id'];
+        // 4. Move the channel to the category
+        $success = $this->getDiscord()->updateChannel($channel['id'], ['parent_id' => $category['id']]);
 
-        // 5️⃣ Move the channel to the new category
-        try {
-            $discord->channel($channelId)->update(['parent_id' => $categoryId]);
-        } catch (Exception $e) {
-            Log::error("Exception while moving channel '{$channelInput}' to category '{$categoryInput}' in guild {$this->guildId}", ['error' => $e->getMessage()]);
-
-            $discord->channel($this->channelId)->send("❌ Failed to move channel '{$channelInput}' to category '{$categoryInput}'.");
-
-            $this->nativeCommandRequest->update([
-                'status' => 'discord-api-error',
-                'failed_at' => now(),
-                'error_message' => [
-                    'message' => 'Failed to move channel to category.',
-                    'details' => $e->getMessage(),
-                    'status_code' => 500,
-                ],
-            ]);
-
-            return;
+        if (! $success) {
+            $this->sendApiError('move channel to category');
+            throw new Exception('Failed to move channel.', 500);
         }
 
-        // ✅ Success! Send confirmation message
-        $discord->channel($this->channelId)->sendEmbed(
-            '✅ Channel Moved!',
-            "**Channel Name:** #{$channel['name']} (ID: `{$channelId}`)\n**New Category:** 📂 {$category['name']} (ID: `{$categoryId}`)",
-            3066993 // Green embed
+        // 5. Send confirmation
+        $this->sendSuccessMessage(
+            'Channel Moved!',
+            "**Channel:** <#{$channel['id']}> (#{$channel['name']})\n" .
+            "**New Category:** 📂 {$category['name']}",
+            3066993 // Green
         );
-
-        // 6️⃣ Update the status of the command request
-        $this->nativeCommandRequest->update([
-            'status' => 'executed',
-            'executed_at' => now(),
-        ]);
     }
 
-    /**
-     * Parses the message content for command parameters.
-     */
-    private function parseMessage(string $message): array
+    private function parseAssignCommand(string $message): array
     {
-        // Remove invisible characters (zero-width spaces, control characters)
-        $cleanedMessage = preg_replace('/[\p{Cf}]/u', '', $message); // Removes control characters
-        $cleanedMessage = trim(preg_replace('/\s+/', ' ', $cleanedMessage)); // Normalize spaces
+        // Remove invisible characters and normalize spaces
+        $cleanedMessage = preg_replace('/[\p{Cf}]/u', '', $message);
+        $cleanedMessage = trim(preg_replace('/\s+/', ' ', $cleanedMessage));
 
-        // Use regex to extract the channel ID or name and category ID or name
-        preg_match('/^!assign-channel\s+(<#?(\d{17,19})>|[\w-]+)\s+(<#?(\d{17,19})>|[\w-]+)$/iu', $cleanedMessage, $matches);
+        // Extract channel and category
+        preg_match('/^!assign-channel\s+(<#?(\d{17,19})>|[\w-]+)\s+([\w-]+)$/iu', $cleanedMessage, $matches);
 
-        if (! isset($matches[2], $matches[3])) { // ✅ Fix category index reference
-            return [null, null]; // Invalid input
+        if (! isset($matches[1], $matches[3])) {
+            return [null, null];
         }
 
-        // Extract the channel ID
-        $channelInput = trim($matches[2]); // This could be <#channelID> or channel name
-        $categoryInput = trim($matches[3]); // This could be category ID or name
-
-        // If channel mention format (<#channelID>), extract the numeric ID
-        if (preg_match('/^<#(\d{17,19})>$/', $channelInput, $channelMatches)) {
-            $channelInput = $channelMatches[1]; // Extract numeric channel ID
-        }
+        $channelInput = $matches[2] ?? $matches[1]; // Extract ID from channel mention if present
+        $categoryInput = $matches[3];
 
         return [$channelInput, $categoryInput];
+    }
+
+    private function findChannelByInput($channels, string $input): ?array
+    {
+        return $channels->first(fn ($c) => $c['id'] === $input || strcasecmp($c['name'], $input) === 0);
+    }
+
+    private function findCategoryByInput($channels, string $input): ?array
+    {
+        return $channels->first(fn ($c) => ($c['id'] === $input || strcasecmp($c['name'], $input) === 0) && $c['type'] === 4
+        );
     }
 }

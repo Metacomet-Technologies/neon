@@ -4,37 +4,41 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Helpers\Discord\SendMessage;
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use App\Models\NativeCommand;
-use App\Services\CommandAnalyticsService;
-use App\Services\Discord\DiscordService;
 use Exception;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 final class ProcessNeonDiscordExecutionJob extends ProcessBaseJob
 {
-    public function __construct(
-        public string $channelId,
-        public string $discordUserId,
-        public string $guildId,
-        public bool $userConfirmed
-    ) {}
+    private readonly bool $userConfirmed;
 
-    public function handle(CommandAnalyticsService $analytics): void
+    public function __construct(
+        string $discordUserId,
+        string $channelId,
+        string $guildId,
+        string $messageContent,
+        array $command,
+        string $commandSlug,
+        array $parameters = []
+    ) {
+        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
+        $this->userConfirmed = $parameters['user_confirmed'] ?? false;
+    }
+
+    protected function executeCommand(): void
     {
         $cacheKey = "neon_discord_{$this->channelId}_{$this->discordUserId}";
         $cachedData = Cache::get($cacheKey);
 
         if (! $cachedData) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => true,
-                'embed_title' => '⏰ Neon AI - Expired',
-                'embed_description' => 'The Discord command session has expired. Please run `!neon` with your request again.',
-                'embed_color' => 15158332, // Red
-            ]);
-
-            return;
+            $this->getDiscord()->channel($this->channelId)->sendEmbed(
+                '⏰ Neon AI - Expired',
+                'The Discord command session has expired. Please run `!neon` with your request again.',
+                15158332 // Red
+            );
+            throw new Exception('Session expired.', 410);
         }
 
         // For bulk operations, extend cache to prevent expiration during execution
@@ -51,14 +55,12 @@ final class ProcessNeonDiscordExecutionJob extends ProcessBaseJob
         Cache::forget($cacheKey);
 
         if (! $this->userConfirmed) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => true,
-                'embed_title' => '❌ Neon AI - Cancelled',
-                'embed_description' => 'Discord command execution cancelled by user.',
-                'embed_color' => 15158332, // Red
-            ]);
-
-            return;
+            $this->getDiscord()->channel($this->channelId)->sendEmbed(
+                '❌ Neon AI - Cancelled',
+                'Discord command execution cancelled by user.',
+                15158332 // Red
+            );
+            throw new Exception('Cancelled by user.', 200);
         }
 
         try {
@@ -80,12 +82,11 @@ final class ProcessNeonDiscordExecutionJob extends ProcessBaseJob
             }));
 
             if ($destructiveCommandCount > 5) {
-                SendMessage::sendMessage($this->channelId, [
-                    'is_embed' => true,
-                    'embed_title' => '⚡ Bulk Operation Detected',
-                    'embed_description' => "Executing {$destructiveCommandCount} destructive commands with adaptive rate limiting and exponential backoff. This may take " . ($destructiveCommandCount * 5) . '-' . ($destructiveCommandCount * 8) . ' seconds to complete safely.',
-                    'embed_color' => 16776960, // Yellow
-                ]);
+                $this->getDiscord()->channel($this->channelId)->sendEmbed(
+                    '⚡ Bulk Operation Detected',
+                    "Executing {$destructiveCommandCount} destructive commands with adaptive rate limiting and exponential backoff. This may take " . ($destructiveCommandCount * 5) . '-' . ($destructiveCommandCount * 8) . ' seconds to complete safely.',
+                    16776960 // Yellow
+                );
 
                 // Extend cache duration for bulk operations to prevent session expiration
                 $cacheKey = "neon_ai_session_{$this->discordUserId}_{$this->channelId}";
@@ -143,22 +144,12 @@ final class ProcessNeonDiscordExecutionJob extends ProcessBaseJob
                 'guild_id' => $this->guildId,
             ]);
 
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => true,
-                'embed_title' => '❌ Neon AI - Execution Error',
-                'embed_description' => 'An error occurred while executing the Discord commands.',
-                'embed_color' => 15158332, // Red
-            ]);
+            $this->getDiscord()->channel($this->channelId)->sendEmbed(
+                '❌ Neon AI - Execution Error',
+                'An error occurred while executing the Discord commands.',
+                15158332 // Red
+            );
         }
-    }
-
-    /**
-     * Main execution method called by ProcessBaseJob
-     */
-    protected function executeCommand(): void
-    {
-        // This method is called by the base class but ProcessNeonDiscordExecutionJob
-        // has its own execution flow, so we leave this empty
     }
 
     protected function executeDiscordCommand(string $discordCommand, int $index, array $nativeCommands, array &$results, int &$executedCommands): void
@@ -436,15 +427,10 @@ final class ProcessNeonDiscordExecutionJob extends ProcessBaseJob
     protected function categoryExists(string $categoryName): bool
     {
         try {
-            $discordService = app(DiscordService::class);
-            $response = $discordService->get("/guilds/{$this->guildId}/channels");
-
-            if ($response->successful()) {
-                $channels = $response->json();
-                foreach ($channels as $channel) {
-                    if ($channel['type'] === 4 && $channel['name'] === $categoryName) { // Type 4 = category
-                        return true;
-                    }
+            $channels = $this->getDiscord()->getGuildChannels($this->guildId);
+            foreach ($channels as $channel) {
+                if ($channel['type'] === 4 && $channel['name'] === $categoryName) { // Type 4 = category
+                    return true;
                 }
             }
 
@@ -466,15 +452,10 @@ final class ProcessNeonDiscordExecutionJob extends ProcessBaseJob
     protected function channelExists(string $channelName): bool
     {
         try {
-            $discordService = app(DiscordService::class);
-            $response = $discordService->get("/guilds/{$this->guildId}/channels");
-
-            if ($response->successful()) {
-                $channels = $response->json();
-                foreach ($channels as $channel) {
-                    if (($channel['type'] === 0 || $channel['type'] === 2) && $channel['name'] === $channelName) { // Text or voice channel
-                        return true;
-                    }
+            $channels = $this->getDiscord()->getGuildChannels($this->guildId);
+            foreach ($channels as $channel) {
+                if (($channel['type'] === 0 || $channel['type'] === 2) && $channel['name'] === $channelName) { // Text or voice channel
+                    return true;
                 }
             }
 
@@ -496,31 +477,26 @@ final class ProcessNeonDiscordExecutionJob extends ProcessBaseJob
     protected function roleExists(string $roleName): bool
     {
         try {
-            $discordService = app(DiscordService::class);
-            $response = $discordService->get("/guilds/{$this->guildId}/roles");
+            $roles = $this->getDiscord()->getGuildRoles($this->guildId);
 
-            if ($response->successful()) {
-                $roles = $response->json();
-
-                // Try exact match first
-                foreach ($roles as $role) {
-                    if ($role['name'] === $roleName) {
-                        return true;
-                    }
+            // Try exact match first
+            foreach ($roles as $role) {
+                if ($role['name'] === $roleName) {
+                    return true;
                 }
+            }
 
-                // Try with special character handling for roles with quotes/special chars
-                $cleanRoleName = trim($roleName, ' "\'"');
-                foreach ($roles as $role) {
-                    if (trim($role['name'], ' "\'"') === $cleanRoleName) {
-                        Log::info('Role found with special character handling', [
-                            'original_search' => $roleName,
-                            'cleaned_search' => $cleanRoleName,
-                            'found_role' => $role['name'],
-                        ]);
+            // Try with special character handling for roles with quotes/special chars
+            $cleanRoleName = trim($roleName, ' "\'"');
+            foreach ($roles as $role) {
+                if (trim($role['name'], ' "\'"') === $cleanRoleName) {
+                    Log::info('Role found with special character handling', [
+                        'original_search' => $roleName,
+                        'cleaned_search' => $cleanRoleName,
+                        'found_role' => $role['name'],
+                    ]);
 
-                        return true;
-                    }
+                    return true;
                 }
             }
 
@@ -823,12 +799,11 @@ final class ProcessNeonDiscordExecutionJob extends ProcessBaseJob
             $description .= "• Real-time success verification for production reliability\n";
         }
 
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => true,
-            'embed_title' => $successRate === 100.0 ? '🎉 Neon AI - 100% Success!' : '🤖 Neon AI - Execution Results',
-            'embed_description' => trim($description),
-            'embed_color' => $color,
-        ]);
+        $this->getDiscord()->channel($this->channelId)->sendEmbed(
+            $successRate === 100.0 ? '🎉 Neon AI - 100% Success!' : '🤖 Neon AI - Execution Results',
+            trim($description),
+            $color
+        );
     }
 
     /**

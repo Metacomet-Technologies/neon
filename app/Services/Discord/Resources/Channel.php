@@ -107,4 +107,71 @@ final class Channel
     {
         return $this->update(['nsfw' => $nsfw]);
     }
+
+    /**
+     * Send poll to channel.
+     */
+    public function sendPoll(string $question, array $options, int $duration = 24, bool $allowMultiselect = false): array
+    {
+        $answers = array_map(fn ($option, $index) => [
+            'answer_id' => $index + 1,
+            'poll_media' => ['text' => $option],
+        ], $options, array_keys($options));
+
+        return $this->send([
+            'poll' => [
+                'question' => ['text' => $question],
+                'answers' => $answers,
+                'duration' => $duration,
+                'allow_multiselect' => $allowMultiselect,
+            ],
+        ]);
+    }
+
+    /**
+     * Bulk delete messages.
+     */
+    public function bulkDelete(array $messageIds): bool
+    {
+        return $this->client->post("/channels/{$this->channelId}/messages/bulk-delete", [
+            'messages' => $messageIds,
+        ]);
+    }
+
+    /**
+     * Pin message.
+     */
+    public function pinMessage(string $messageId): bool
+    {
+        return $this->client->put("/channels/{$this->channelId}/pins/{$messageId}");
+    }
+
+    /**
+     * Unpin message.
+     */
+    public function unpinMessage(string $messageId): bool
+    {
+        return $this->client->delete("/channels/{$this->channelId}/pins/{$messageId}");
+    }
+
+    /**
+     * Get pinned messages.
+     */
+    public function getPinnedMessages(): array
+    {
+        return $this->client->get("/channels/{$this->channelId}/pins");
+    }
+
+    /**
+     * Get messages from channel.
+     */
+    public function getMessages(int $limit = 100, ?string $before = null): array
+    {
+        $params = ['limit' => $limit];
+        if ($before) {
+            $params['before'] = $before;
+        }
+
+        return $this->client->get("/channels/{$this->channelId}/messages", $params);
+    }
 }

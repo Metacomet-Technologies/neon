@@ -4,15 +4,12 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use App\Services\Discord\DiscordService;
 use Exception;
-use Illuminate\Support\Facades\Log;
 
 final class ProcessUnmuteUserJob extends ProcessBaseJob
 {
-    private int $retryDelay = 2000;
-    private int $maxRetries = 3;
-
     protected function executeCommand(): void
     {
         // 1. Check permissions using trait
@@ -28,8 +25,8 @@ final class ProcessUnmuteUserJob extends ProcessBaseJob
 
         $this->validateUserId($targetUserId);
 
-        // 3. Perform unmute by removing channel permission overrides
-        $success = $this->unmuteUserInVoiceChannels($targetUserId);
+        // 3. Perform unmute using Discord service
+        $success = $this->getDiscord()->unmuteUser($this->guildId, $targetUserId);
 
         if (! $success) {
             $this->sendApiError('unmute user');
@@ -38,44 +35,5 @@ final class ProcessUnmuteUserJob extends ProcessBaseJob
 
         // 4. Send confirmation using trait
         $this->sendUserActionConfirmation('unmuted', $targetUserId, '🔊');
-    }
-
-    /**
-     * Unmute user by removing permission overrides in all voice channels
-     */
-    private function unmuteUserInVoiceChannels(string $userId): bool
-    {
-        // Fetch all voice channels in the guild
-        $discordService = app(DiscordService::class);
-        $channelsResponse = retry($this->maxRetries, function () use ($discordService) {
-            return $discordService->get("/guilds/{$this->guildId}/channels");
-        }, $this->retryDelay);
-
-        if ($channelsResponse->failed()) {
-            Log::error("Failed to fetch channels for guild {$this->guildId}");
-
-            return false;
-        }
-
-        $channels = collect($channelsResponse->json());
-        $voiceChannels = $channels->filter(fn ($ch) => $ch['type'] === 2); // Voice channels only
-
-        $failedChannels = [];
-
-        foreach ($voiceChannels as $channel) {
-            $channelId = $channel['id'];
-
-            // Delete the permission override to restore default permissions
-            $permissionsResponse = retry($this->maxRetries, function () use ($discordService, $channelId, $userId) {
-                return $discordService->delete("/channels/{$channelId}/permissions/{$userId}");
-            }, $this->retryDelay);
-
-            if ($permissionsResponse->failed()) {
-                $failedChannels[] = $channelId;
-            }
-        }
-
-        // Return true if all channels were successfully processed (no failures)
-        return empty($failedChannels);
     }
 }

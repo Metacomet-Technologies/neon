@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\DiscordService;
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use Exception;
 
 final class ProcessSetInactiveJob extends ProcessBaseJob
@@ -18,11 +18,35 @@ final class ProcessSetInactiveJob extends ProcessBaseJob
     {
         $this->requireChannelPermission();
 
-        $params = DiscordService::extractParameters($this->messageContent, 'set-inactive');
-        $this->validateRequiredParameters($params, 2, 'Channel and timeout are required.');
+        // Extract parameters from message
+        $paramString = trim(str_replace('!set-inactive', '', $this->messageContent));
+
+        if (empty($paramString)) {
+            $this->sendUsageAndExample();
+            throw new Exception('Channel and timeout are required.', 400);
+        }
+
+        // Parse parameters - format: channelName/ID timeout
+        $params = explode(' ', $paramString);
+        if (count($params) < 2) {
+            $this->sendUsageAndExample();
+            throw new Exception('Channel and timeout are required.', 400);
+        }
 
         $channelInput = $params[0];
-        $timeout = $this->validateNumericRange($params[1], 60, 3600, 'Timeout');
+        $timeoutInput = $params[1];
+
+        // Validate timeout is numeric and in range
+        if (! is_numeric($timeoutInput)) {
+            $this->sendErrorMessage('Timeout must be a number.');
+            throw new Exception('Invalid timeout value.', 400);
+        }
+
+        $timeout = (int) $timeoutInput;
+        if ($timeout < 60 || $timeout > 3600) {
+            $this->sendErrorMessage('Timeout must be between 60 and 3600 seconds.');
+            throw new Exception('Timeout out of range.', 400);
+        }
 
         // Validate timeout is in allowed values
         if (! in_array($timeout, $this->allowedTimeouts)) {
@@ -32,9 +56,8 @@ final class ProcessSetInactiveJob extends ProcessBaseJob
         }
 
         $channelId = $this->resolveVoiceChannelId($channelInput);
-        $this->validateChannelId($channelId);
 
-        $success = $this->discord->setGuildAfkChannel($this->guildId, $channelId, $timeout);
+        $success = $this->getDiscord()->setGuildAfkChannel($this->guildId, $channelId, $timeout);
 
         if (! $success) {
             $this->sendApiError('set inactive voice channel');
@@ -52,13 +75,13 @@ final class ProcessSetInactiveJob extends ProcessBaseJob
      */
     private function resolveVoiceChannelId(string $input): string
     {
-        // If input is already a valid channel ID, return it
-        if (DiscordService::isValidDiscordId($input)) {
+        // If input is already a valid channel ID (snowflake format), return it
+        if (preg_match('/^\d{17,19}$/', $input)) {
             return $input;
         }
 
         // Try to find channel by name
-        $channels = $this->discord->getGuildChannels($this->guildId);
+        $channels = $this->getDiscord()->getGuildChannels($this->guildId);
 
         foreach ($channels as $channel) {
             if ($channel['type'] === 2 && strcasecmp($channel['name'], $input) === 0) {

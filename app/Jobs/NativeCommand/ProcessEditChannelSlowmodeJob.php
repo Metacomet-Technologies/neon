@@ -4,51 +4,28 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\DiscordService;
-use Exception;
+use App\Jobs\NativeCommand\Base\ProcessChannelEditBaseJob;
 
-final class ProcessEditChannelSlowmodeJob extends ProcessBaseJob
+final class ProcessEditChannelSlowmodeJob extends ProcessChannelEditBaseJob
 {
-    public function __construct(
-        string $discordUserId,
-        string $channelId,
-        string $guildId,
-        string $messageContent,
-        array $command,
-        string $commandSlug,
-        array $parameters = []
-    ) {
-        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
+    protected function getCommandName(): string
+    {
+        return 'edit-channel-slowmode';
     }
 
-    protected function executeCommand(): void
+    protected function getUpdateField(): string
     {
-        // 1. Check permissions
-        $this->requireChannelPermission();
+        return 'rate_limit_per_user';
+    }
 
-        // 2. Parse channel edit command
-        [$channelId, $newValue] = DiscordService::parseChannelEditCommand($this->messageContent, 'edit-channel-slowmode');
+    protected function validateValue(string $value): int
+    {
+        // Validate numeric range (0-21600 seconds / 6 hours)
+        return $this->validateNumericRange($value, 0, 21600, 'Slowmode');
+    }
 
-        if (! $channelId || ! $newValue) {
-            $this->sendUsageAndExample();
-            throw new Exception('Missing required parameters.', 400);
-        }
-
-        $this->validateChannelId($channelId);
-
-        // 3. Validate numeric range (0-21600 seconds / 6 hours)
-        $slowmodeSetting = $this->validateNumericRange($newValue, 0, 21600, 'Slowmode');
-
-        // 4. Perform update using service
-        $discordApiService = app(DiscordService::class);
-        $success = $discordApiService->updateChannel($channelId, ['rate_limit_per_user' => $slowmodeSetting]);
-
-        if (! $success) {
-            $this->sendApiError('update channel');
-            throw new Exception('Failed to update channel.', 500);
-        }
-
-        // 5. Send confirmation
-        $this->sendChannelActionConfirmation('updated', $channelId, "Slowmode: {$slowmodeSetting} seconds");
+    protected function getConfirmationDetails(mixed $value): string
+    {
+        return "Slowmode: {$value} seconds";
     }
 }

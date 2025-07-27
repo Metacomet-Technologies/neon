@@ -4,16 +4,13 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\DiscordService;
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use Exception;
 
 final class ProcessUnpinMessagesJob extends ProcessBaseJob
 {
-    private ?string $messageId = null;
-    private ?string $unpinType = null; // "latest" or "oldest"
-
-    private int $retryDelay = 2000;
-    private int $maxRetries = 3;
+    private readonly ?string $messageId;
+    private readonly ?string $unpinType; // "latest" or "oldest"
 
     public function __construct(
         string $discordUserId,
@@ -25,100 +22,81 @@ final class ProcessUnpinMessagesJob extends ProcessBaseJob
         array $parameters = []
     ) {
         parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
+
+        // Parse unpin parameters in constructor
+        [$this->messageId, $this->unpinType] = $this->parseUnpinCommand($messageContent);
     }
 
     protected function executeCommand(): void
     {
-        // Parse the message content
-        [$this->messageId, $this->unpinType] = $this->parseMessage($this->messageContent);
+        // 1. Check permissions
+        $member = $this->getDiscord()->guild($this->guildId)->member($this->discordUserId);
+        if (! $member->canManageMessages()) {
+            $this->sendPermissionDenied('manage messages');
+            throw new Exception('User does not have permission to manage messages', 403);
+        }
 
-        // 🚨 If no valid argument is provided, show help message
-        if (empty(trim($this->messageContent)) || ($this->messageId === null && $this->unpinType === null)) {
+        // 2. Validate input
+        if (! $this->messageId && ! $this->unpinType) {
             $this->sendUsageAndExample();
+            throw new Exception('Invalid input for unpin command.', 400);
+        }
 
-            throw new Exception('Operation failed', 500);
-            throw new Exception('Invalid input for !unpin. Expected a valid message ID, "latest", or "oldest".');
-        }
-        // 1️⃣ Ensure the user has permission to pin messages
-        $discord = app(DiscordService::class);
-        $canManageChannels = $discord->guild($this->guildId)->member($this->discordUserId)->canManageChannels();
-        if (! $canManageChannels) {
-            $discord->channel($this->channelId)->send('❌ You are not allowed to pin messages.');
-            throw new Exception('User does not have permission to manage channels', 403);
-        }
-        // 2️⃣ Handle specific unpin types (latest/oldest)
+        // 3. Handle unpinning
         if ($this->unpinType) {
-            $this->unpinPinnedMessage($this->unpinType);
-
+            $this->unpinByType($this->unpinType);
+        } else {
+            $this->unpinSpecificMessage($this->messageId);
         }
-        // 3️⃣ Unpin specific message by ID
-        $this->unpinMessage($this->messageId);
     }
 
-    private function parseMessage(string $message): array
+    private function parseUnpinCommand(string $message): array
     {
         $message = strtolower(trim($message));
 
         // Handle specific keywords
-        if ($message === '!unpin latest') {
+        if (str_contains($message, 'latest')) {
             return [null, 'latest'];
-        } elseif ($message === '!unpin oldest') {
+        } elseif (str_contains($message, 'oldest')) {
             return [null, 'oldest'];
         }
+
         // Handle direct message ID
         preg_match('/^!unpin\s+(\d{17,19})$/', $message, $matches);
 
         return isset($matches[1]) ? [$matches[1], null] : [null, null];
     }
 
-    private function userHasPermission(string $userId): bool
+    private function unpinSpecificMessage(string $messageId): void
     {
-        $discord = app(DiscordService::class);
-        $member = $discord->guild($this->guildId)->member($userId);
+        $success = $this->getDiscord()->unpinMessage($this->channelId, $messageId);
 
-        return $member->canManageChannels() || $member->canManageMessages();
+        if (! $success) {
+            $this->sendApiError('unpin message');
+            throw new Exception('Failed to unpin message.', 500);
+        }
+
+        $this->sendSuccessMessage(
+            'Message Unpinned',
+            "📌 Successfully unpinned message ID `{$messageId}` in this channel.",
+            3066993 // Green
+        );
     }
 
-    private function unpinMessage(string $messageId): void
+    private function unpinByType(string $type): void
     {
+        $pinnedMessages = $this->getDiscord()->getPinnedMessages($this->channelId);
 
-        try {
-            $discord = app(DiscordService::class);
-            $discord->channel($this->channelId)->unpinMessage($messageId);
-
-            // ✅ Success
-            $discord->channel($this->channelId)->sendEmbed(
-                '📌 Message Unpinned',
-                "✅ Successfully unpinned message ID `{$messageId}` in this channel.",
-                3066993
-            );
-        } catch (Exception $e) {
-            $discord->channel($this->channelId)->send("❌ Failed to unpin message ID `{$messageId}`. Please try again later.");
-            throw new Exception('Operation failed', 500);
+        if (empty($pinnedMessages)) {
+            $this->sendErrorMessage('There are no pinned messages in this channel.');
+            throw new Exception('No pinned messages found.', 400);
         }
-    }
 
-    private function unpinPinnedMessage(string $type): void
-    {
+        // Determine which message to unpin
+        $messageToUnpin = ($type === 'latest')
+            ? end($pinnedMessages) // Most recent pinned message
+            : reset($pinnedMessages); // Oldest pinned message
 
-        try {
-            $discord = app(DiscordService::class);
-            $pinnedMessages = $discord->channel($this->channelId)->getPinnedMessages();
-
-            if (empty($pinnedMessages)) {
-                $discord->channel($this->channelId)->send('❌ There are no pinned messages in this channel.');
-                throw new Exception('No pinned messages found.', 400);
-            }
-            // Determine which message to unpin
-            $messageToUnpin = ($type === 'latest')
-                ? end($pinnedMessages) // Most recent pinned message
-                : reset($pinnedMessages); // Oldest pinned message
-
-            $this->unpinMessage($messageToUnpin['id']);
-        } catch (Exception $e) {
-            $discord = app(DiscordService::class);
-            $discord->channel($this->channelId)->send('❌ Failed to fetch pinned messages. Please try again later.');
-            throw new Exception('Operation failed', 500);
-        }
+        $this->unpinSpecificMessage($messageToUnpin['id']);
     }
 }

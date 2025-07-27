@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\DiscordService;
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use Carbon\Carbon;
 use Exception;
 
@@ -26,19 +26,33 @@ final class ProcessScheduledMessageJob extends ProcessBaseJob
     {
         $this->requireMemberPermission();
 
-        $parsed = DiscordService::parseScheduledMessageCommand($this->messageContent);
-        if (! $parsed['channel_id'] || ! $parsed['datetime'] || ! $parsed['message']) {
+        // Extract parameters from message - format: !schedule-message #channel YYYY-MM-DD HH:MM message
+        $content = trim(str_replace('!schedule-message', '', $this->messageContent));
+
+        if (empty($content)) {
             $this->sendUsageAndExample();
             throw new Exception('Missing required parameters.', 400);
         }
 
-        $this->validateChannelId($parsed['channel_id']);
-        $scheduledTime = $this->validateDateTime($parsed['datetime']);
+        // Parse channel, datetime and message
+        // Match: #channel_id YYYY-MM-DD HH:MM message...
+        preg_match('/^<?#?(\d{17,19})>?\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})\s+(.+)$/s', $content, $matches);
+
+        if (count($matches) < 4) {
+            $this->sendUsageAndExample();
+            throw new Exception('Invalid format. Use: !schedule-message #channel YYYY-MM-DD HH:MM message', 400);
+        }
+
+        $channelId = $matches[1];
+        $datetime = $matches[2];
+        $message = $matches[3];
+
+        $scheduledTime = $this->validateDateTime($datetime);
 
         // Queue the message for later
-        $this->scheduleMessage($parsed['channel_id'], $parsed['message'], $scheduledTime);
+        $this->scheduleMessage($channelId, $message, $scheduledTime);
 
-        $this->sendSuccessMessage('Message Scheduled', "Message will be sent at {$parsed['datetime']}");
+        $this->sendSuccessMessage('Message Scheduled', "Message will be sent at {$datetime}");
     }
 
     private function validateDateTime(string $datetime): Carbon
@@ -57,7 +71,7 @@ final class ProcessScheduledMessageJob extends ProcessBaseJob
             }
 
             return $carbonTime;
-        } catch (Exception $e) {
+        } catch (Exception) {
             $this->sendErrorMessage('Invalid datetime format. Use YYYY-MM-DD HH:MM format.');
             throw new Exception('Invalid datetime format.', 400);
         }

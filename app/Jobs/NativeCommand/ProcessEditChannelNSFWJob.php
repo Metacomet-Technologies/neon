@@ -4,52 +4,30 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\DiscordService;
-use Exception;
+use App\Jobs\NativeCommand\Base\ProcessChannelEditBaseJob;
 
-final class ProcessEditChannelNSFWJob extends ProcessBaseJob
+final class ProcessEditChannelNSFWJob extends ProcessChannelEditBaseJob
 {
-    public function __construct(
-        string $discordUserId,
-        string $channelId,
-        string $guildId,
-        string $messageContent,
-        array $command,
-        string $commandSlug,
-        array $parameters = []
-    ) {
-        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
+    protected function getCommandName(): string
+    {
+        return 'edit-channel-nsfw';
     }
 
-    protected function executeCommand(): void
+    protected function getUpdateField(): string
     {
-        // 1. Check permissions
-        $this->requireChannelPermission();
+        return 'nsfw';
+    }
 
-        // 2. Parse channel edit command
-        [$channelId, $newValue] = DiscordService::parseChannelEditCommand($this->messageContent, 'edit-channel-nsfw');
+    protected function validateValue(string $value): bool
+    {
+        // Validate boolean input
+        return $this->validateBoolean($value, 'NSFW setting');
+    }
 
-        if (! $channelId || ! $newValue) {
-            $this->sendUsageAndExample();
-            throw new Exception('Missing required parameters.', 400);
-        }
+    protected function getConfirmationDetails(mixed $value): string
+    {
+        $statusText = $value ? 'Enabled' : 'Disabled';
 
-        $this->validateChannelId($channelId);
-
-        // 3. Validate boolean input
-        $nsfwSetting = $this->validateBoolean($newValue, 'NSFW setting');
-
-        // 4. Perform update using service
-        $discordApiService = app(DiscordService::class);
-        $success = $discordApiService->updateChannel($channelId, ['nsfw' => $nsfwSetting]);
-
-        if (! $success) {
-            $this->sendApiError('update channel');
-            throw new Exception('Failed to update channel.', 500);
-        }
-
-        // 5. Send confirmation
-        $statusText = $nsfwSetting ? 'Enabled' : 'Disabled';
-        $this->sendChannelActionConfirmation('updated', $channelId, "NSFW: {$statusText}");
+        return "NSFW: {$statusText}";
     }
 }

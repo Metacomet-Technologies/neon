@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use App\Services\Discord\DiscordService;
 use Exception;
 
@@ -24,8 +25,8 @@ final class ProcessBanUserJob extends ProcessBaseJob
         $this->validateUserId($targetUserId);
 
         // 3. Check role hierarchy using service
-        $senderRole = $this->discord->getUserHighestRolePosition($this->guildId, $this->discordUserId);
-        $targetRole = $this->discord->getUserHighestRolePosition($this->guildId, $targetUserId);
+        $senderRole = $this->getDiscord()->getUserHighestRolePosition($this->guildId, $this->discordUserId);
+        $targetRole = $this->getDiscord()->getUserHighestRolePosition($this->guildId, $targetUserId);
 
         if ($senderRole <= $targetRole) {
             $this->sendErrorMessage('You cannot ban this user. Their role is equal to or higher than yours.');
@@ -33,7 +34,7 @@ final class ProcessBanUserJob extends ProcessBaseJob
         }
 
         // 4. Perform ban using service
-        $success = $this->discord->banUser($this->guildId, $targetUserId);
+        $success = $this->getDiscord()->banUser($this->guildId, $targetUserId);
 
         if (! $success) {
             $this->sendApiError('ban user');

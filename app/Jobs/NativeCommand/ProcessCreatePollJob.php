@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 // Helpers replaced by SDK
-use App\Services\Discord\DiscordService;
 use Exception;
 
 final class ProcessCreatePollJob extends ProcessBaseJob
@@ -36,12 +36,11 @@ final class ProcessCreatePollJob extends ProcessBaseJob
      */
     protected function executeCommand(): void
     {
-        // Check permissions using SDK
-        $discord = app(DiscordService::class);
-        $member = $discord->guild($this->guildId)->member($this->discordUserId);
+        // Check permissions using Discord service
+        $member = $this->getDiscord()->guild($this->guildId)->member($this->discordUserId);
 
         if (! $member->canSendPolls()) {
-            $discord->channel($this->channelId)->send('❌ You do not have permission to send polls in this server.');
+            $this->sendErrorMessage('You do not have permission to send polls in this server.');
             throw new Exception('User does not have permission to send polls in this server.', 403);
         }
 
@@ -49,26 +48,23 @@ final class ProcessCreatePollJob extends ProcessBaseJob
         if (! $this->question || count($this->options) < 2 || count($this->options) > 10) {
             $this->sendUsageAndExample();
             if (count($this->options) > 10) {
-                $discord->channel($this->channelId)->send('❌ Polls can have a maximum of 10 options.');
+                $this->sendErrorMessage('Polls can have a maximum of 10 options.');
             }
             throw new Exception('Operation failed', 500);
         }
-        try {
-            // Discord instance already created above
-            $channel = $discord->channel($this->channelId);
 
-            // Create the poll using the SDK's sendPoll method
-            $channel->sendPoll(
+        try {
+            // Create the poll using the Discord service
+            $this->getDiscord()->channel($this->channelId)->sendPoll(
                 $this->question,
                 $this->options,
                 duration: 24, // 24 hours
                 allowMultiselect: false
             );
 
-            // The SDK automatically handles the formatting, so we don't need to send a separate success message
             // The poll itself is the confirmation
         } catch (Exception $e) {
-            $discord->channel($this->channelId)->send('❌ Failed to create the poll.');
+            $this->sendApiError('create the poll');
             throw new Exception('Operation failed', 500);
         }
     }

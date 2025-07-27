@@ -1,21 +1,18 @@
 <?php
 
-// TODO: Check backoff strategy and retry logic. doesnt seem to be in parity with number stated in message
 declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\DiscordService;
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use Exception;
 
 final class ProcessPurgeMessagesJob extends ProcessBaseJob
 {
-    private ?string $targetChannelId = null;
-    private ?int $messageCount = null;
+    private const BATCH_SIZE = 100;
 
-    private int $retryDelay = 6000; // 4-second delay
-    private int $maxRetries = 3;
-    private int $batchSize = 100; // Max messages per API call
+    private readonly ?string $targetChannelId;
+    private readonly ?int $messageCount;
 
     public function __construct(
         string $discordUserId,
@@ -27,115 +24,100 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob
         array $parameters = []
     ) {
         parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
+
+        // Parse purge parameters in constructor
+        [$this->targetChannelId, $this->messageCount] = $this->parsePurgeCommand($messageContent);
     }
 
     protected function executeCommand(): void
     {
-        // Parse the message
-        [$this->targetChannelId, $this->messageCount] = $this->parseMessage($this->messageContent);
+        // 1. Check permissions
+        $member = $this->getDiscord()->guild($this->guildId)->member($this->discordUserId);
+        if (! $member->canManageMessages()) {
+            $this->sendPermissionDenied('manage messages');
+            throw new Exception('User does not have permission to manage messages.', 403);
+        }
 
-        // 🚨 **Validation: Show help message if no arguments are provided**
-        if (empty(trim($this->messageContent)) || $this->targetChannelId === null || $this->messageCount === null) {
+        // 2. Validate input
+        if (! $this->targetChannelId || ! $this->messageCount) {
             $this->sendUsageAndExample();
+            throw new Exception('Missing required parameters.', 400);
+        }
 
-            throw new Exception('No arguments provided.', 400);
+        if ($this->messageCount < 2) {
+            $this->sendErrorMessage('The number of messages to purge must be at least 2.');
+            throw new Exception('Invalid message count.', 400);
         }
-        // Ensure the user has permission to manage messages in the target channel
-        $discord = app(DiscordService::class);
-        if (! $discord->guild($this->guildId)->member($this->discordUserId)->canManageMessages()) {
-            $discord->channel($this->channelId)->send('❌ You do not have permission to manage messages in this server.');
-            throw new Exception('User does not have permission to manage messages in this server.', 403);
-        }
+
+        $this->validateChannelId($this->targetChannelId);
+
+        // 3. Purge messages
         $this->purgeMessages();
     }
 
-    private function parseMessage(string $message): array
+    private function parsePurgeCommand(string $message): array
     {
         preg_match('/^!purge\s+<#?(\d{17,19})>\s+(\d+)$/', $message, $matches);
 
         return isset($matches[1], $matches[2]) ? [$matches[1], (int) $matches[2]] : [null, null];
     }
 
-    private function userHasPermission(string $userId): bool
-    {
-        $discord = app(DiscordService::class);
-        $member = $discord->guild($this->guildId)->member($userId);
-
-        return $member->canManageChannels() || $member->canManageMessages();
-    }
-
     private function purgeMessages(): void
     {
-        if ($this->messageCount < 2) {
-            $discord = app(DiscordService::class);
-            $discord->channel($this->channelId)->send('❌ The number of messages to purge must be at least 2.');
-            throw new Exception('The number of messages to purge must be at least 2.', 400);
-        }
         $messagesToFetch = $this->messageCount;
-        $allMessages = [];
+        $allMessageIds = [];
         $lastMessageId = null;
 
-        $discordService = app(DiscordService::class);
+        // Fetch messages in batches
         while ($messagesToFetch > 0) {
-            $limit = min($messagesToFetch, 100);
-            $queryParams = ['limit' => $limit];
-            if ($lastMessageId) {
-                $queryParams['before'] = $lastMessageId;
-            }
+            $limit = min($messagesToFetch, self::BATCH_SIZE);
+            $messages = $this->getDiscord()->getChannelMessages($this->targetChannelId, $limit, $lastMessageId);
 
-            $response = retry(5, function () use ($discordService, $queryParams) {
-                return $discordService->get("/channels/{$this->targetChannelId}/messages", $queryParams);
-            }, [4000, 6000, 12000, 20000, 30000]); // Backoff strategy
-
-            if ($response->failed()) {
-                $discord->channel($this->channelId)->send('❌ Failed to fetch messages. Please try again later.');
-                throw new Exception('Failed to fetch messages. Please try again later.', 400);
-            }
-            $messages = $response->json();
             if (empty($messages)) {
                 break;
             }
+
+            // Filter messages newer than 14 days
             foreach ($messages as $msg) {
-                if ((time() - strtotime($msg['timestamp'])) > (14 * 24 * 60 * 60)) {
-                    continue; // Skip messages older than 14 days
+                if ((time() - strtotime($msg['timestamp'])) <= (14 * 24 * 60 * 60)) {
+                    $allMessageIds[] = $msg['id'];
                 }
-                $allMessages[] = $msg;
             }
+
             $messagesToFetch -= count($messages);
-            $lastMessageId = end($messages)['id'];
+            $lastMessage = end($messages);
+            $lastMessageId = $lastMessage['id'] ?? null;
 
             if (! $lastMessageId) {
                 break;
             }
         }
-        $messageIds = array_column($allMessages, 'id');
 
-        if (empty($messageIds)) {
-            $discord->channel($this->channelId)->send('❌ No messages found to delete. Messages older than 14 days cannot be deleted in bulk.');
-            throw new Exception('No messages found to delete. Messages older than 14 days cannot be deleted in bulk.', 400);
+        if (empty($allMessageIds)) {
+            $this->sendErrorMessage('No messages found to delete. Messages older than 14 days cannot be deleted in bulk.');
+            throw new Exception('No deletable messages found.', 400);
         }
-        $batches = array_chunk($messageIds, 100);
-        $failedBatches = 0;
 
-        foreach ($batches as $batchIndex => $batch) {
-            $deleteResponse = retry(5, function () use ($discordService, $batch) {
-                return $discordService->post("/channels/{$this->targetChannelId}/messages/bulk-delete", ['messages' => $batch]);
-            }, [6000, 8000, 12000, 20000, 30000]);
+        // Delete messages in batches
+        $totalDeleted = 0;
+        $batches = array_chunk($allMessageIds, self::BATCH_SIZE);
 
-            if ($deleteResponse->failed()) {
-                $failedBatches++;
+        foreach ($batches as $batch) {
+            $success = $this->getDiscord()->bulkDeleteMessages($this->targetChannelId, $batch);
+            if ($success) {
+                $totalDeleted += count($batch);
             }
-            throw new Exception('Operation failed', 500);
         }
-        if ($failedBatches === count($batches)) {
-            $discord->channel($this->channelId)->send('❌ Failed to delete all messages due to rate limits or API errors.');
-            throw new Exception('Operation failed', 500);
-        } else {
-            $discord->channel($this->channelId)->sendEmbed(
-                '🧹 Messages Purged',
-                '✅ Successfully purged ' . count($messageIds) . " messages from <#{$this->targetChannelId}>.",
-                3066993
-            );
+
+        if ($totalDeleted === 0) {
+            $this->sendApiError('delete messages');
+            throw new Exception('Failed to delete messages.', 500);
         }
+
+        $this->sendSuccessMessage(
+            'Messages Purged',
+            "🧹 Successfully purged {$totalDeleted} messages from <#{$this->targetChannelId}>.",
+            3066993 // Green
+        );
     }
 }

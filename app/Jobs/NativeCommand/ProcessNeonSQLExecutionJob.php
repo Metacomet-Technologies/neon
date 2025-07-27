@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Helpers\Discord\SendMessage;
-use App\Services\CommandAnalyticsService;
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use Exception;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -13,40 +12,45 @@ use Illuminate\Support\Facades\Log;
 
 final class ProcessNeonSQLExecutionJob extends ProcessBaseJob
 {
-    public function __construct(
-        public string $channelId,
-        public string $discordUserId,
-        public bool $userConfirmed
-    ) {}
+    private readonly bool $userConfirmed;
 
-    public function handle(CommandAnalyticsService $analytics): void
+    public function __construct(
+        string $discordUserId,
+        string $channelId,
+        string $guildId,
+        string $messageContent,
+        array $command,
+        string $commandSlug,
+        array $parameters = []
+    ) {
+        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
+        $this->userConfirmed = $parameters['user_confirmed'] ?? false;
+    }
+
+    protected function executeCommand(): void
     {
         $cacheKey = "neon_sql_{$this->channelId}_{$this->discordUserId}";
         $sqlCommands = Cache::get($cacheKey);
 
         if (! $sqlCommands) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => true,
-                'embed_title' => '⏰ Neon AI - Expired',
-                'embed_description' => 'The SQL command session has expired. Please run `!neon` with your query again.',
-                'embed_color' => 15158332, // Red
-            ]);
-
-            return;
+            $this->getDiscord()->channel($this->channelId)->sendEmbed(
+                '⏰ Neon AI - Expired',
+                'The SQL command session has expired. Please run `!neon` with your query again.',
+                15158332 // Red
+            );
+            throw new Exception('Session expired.', 410);
         }
 
         // Clear the cache immediately
         Cache::forget($cacheKey);
 
         if (! $this->userConfirmed) {
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => true,
-                'embed_title' => '❌ Neon AI - Cancelled',
-                'embed_description' => 'SQL execution cancelled by user.',
-                'embed_color' => 15158332, // Red
-            ]);
-
-            return;
+            $this->getDiscord()->channel($this->channelId)->sendEmbed(
+                '❌ Neon AI - Cancelled',
+                'SQL execution cancelled by user.',
+                15158332 // Red
+            );
+            throw new Exception('Cancelled by user.', 200);
         }
 
         try {
@@ -94,12 +98,7 @@ final class ProcessNeonSQLExecutionJob extends ProcessBaseJob
                 'channel_id' => $this->channelId,
             ]);
 
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => true,
-                'embed_title' => '❌ Neon AI - Execution Error',
-                'embed_description' => 'An error occurred while executing the SQL commands.',
-                'embed_color' => 15158332, // Red
-            ]);
+            $this->sendErrorMessage('An error occurred while executing the SQL commands.');
         }
     }
 
@@ -179,11 +178,10 @@ final class ProcessNeonSQLExecutionJob extends ProcessBaseJob
             $description = substr($description, 0, 3900) . "\n\n... (truncated)";
         }
 
-        SendMessage::sendMessage($this->channelId, [
-            'is_embed' => true,
-            'embed_title' => '🤖 Neon AI - Execution Results',
-            'embed_description' => $description,
-            'embed_color' => $executedCommands > 0 ? 3066993 : 15158332, // Green if successful, red if all failed
-        ]);
+        $this->getDiscord()->channel($this->channelId)->sendEmbed(
+            '🤖 Neon AI - Execution Results',
+            $description,
+            $executedCommands > 0 ? 3066993 : 15158332 // Green if successful, red if all failed
+        );
     }
 }

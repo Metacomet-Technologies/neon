@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Jobs\NativeCommand;
+namespace App\Jobs\NativeCommand\Base;
 
 use App\Services\CommandAnalyticsService;
 use App\Services\Discord\DiscordService;

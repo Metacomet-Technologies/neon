@@ -4,23 +4,12 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use App\Services\Discord\DiscordService;
 use Exception;
 
 final class ProcessDeleteChannelJob extends ProcessBaseJob
 {
-    public function __construct(
-        string $discordUserId,
-        string $channelId,
-        string $guildId,
-        string $messageContent,
-        array $command,
-        string $commandSlug,
-        array $parameters = []
-    ) {
-        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
-    }
-
     protected function executeCommand(): void
     {
         // 1. Check permissions
@@ -37,8 +26,7 @@ final class ProcessDeleteChannelJob extends ProcessBaseJob
         $this->validateChannelId($targetChannelId);
 
         // 3. Delete channel using service
-        $discordApiService = app(DiscordService::class);
-        $success = $discordApiService->deleteChannel($targetChannelId);
+        $success = $this->getDiscord()->deleteChannel($targetChannelId);
 
         if (! $success) {
             $this->sendApiError('delete channel');

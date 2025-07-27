@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use App\Services\Discord\DiscordService;
 use Exception;
 
@@ -25,7 +26,7 @@ final class ProcessUnbanUserJob extends ProcessBaseJob
         $this->validateUserId($targetUserId);
 
         // 3. Perform unban using service
-        $success = $this->discord->unbanUser($this->guildId, $targetUserId);
+        $success = $this->getDiscord()->unbanUser($this->guildId, $targetUserId);
 
         if (! $success) {
             $this->sendApiError('unban user');

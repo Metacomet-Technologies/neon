@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\DiscordService;
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use Exception;
 
 final class ProcessNewRoleJob extends ProcessBaseJob
@@ -13,23 +13,39 @@ final class ProcessNewRoleJob extends ProcessBaseJob
     {
         $this->requireRolePermission();
 
-        $params = DiscordService::extractParameters($this->messageContent, 'new-role');
-        $this->validateRequiredParameters($params, 1, 'Role name is required.');
+        // Extract parameters from message
+        $paramString = trim(str_replace('!new-role', '', $this->messageContent));
 
+        if (empty($paramString)) {
+            $this->sendUsageAndExample();
+            throw new Exception('Role name is required.', 400);
+        }
+
+        // Parse parameters - format: roleName [color] [hoist]
+        $params = explode(' ', $paramString);
         $roleName = $params[0];
         $color = isset($params[1]) ? $this->parseColorValue($params[1]) : 0xFFFFFF;
-        $hoist = isset($params[2]) ? $this->validateBoolean($params[2], 'hoist') : false;
+
+        // Parse hoist parameter if provided
+        $hoist = false;
+        if (isset($params[2])) {
+            $hoistValue = strtolower($params[2]);
+            if (! in_array($hoistValue, ['true', 'false', '1', '0', 'yes', 'no', 'on', 'off'])) {
+                $this->sendErrorMessage('Invalid hoist value. Please use true/false, yes/no, on/off, or 1/0.');
+                throw new Exception('Invalid boolean value for hoist.', 400);
+            }
+            $hoist = in_array($hoistValue, ['true', '1', 'yes', 'on']);
+        }
 
         // Check if role already exists
-        $existingRole = $this->discord->findRoleByName($this->guildId, $roleName);
+        $existingRole = $this->getDiscord()->findRoleByName($this->guildId, $roleName);
         if ($existingRole) {
             $this->sendErrorMessage("Role '{$roleName}' already exists.");
             throw new Exception('Role already exists.', 409);
         }
 
         $roleData = ['name' => $roleName, 'color' => $color, 'hoist' => $hoist];
-        $discordApiService = app(DiscordService::class);
-        $role = $discordApiService->createRole($this->guildId, $roleData);
+        $role = $this->getDiscord()->createRole($this->guildId, $roleData);
 
         if (! $role) {
             $this->sendApiError('create role');

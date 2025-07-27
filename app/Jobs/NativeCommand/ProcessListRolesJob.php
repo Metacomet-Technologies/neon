@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Helpers\Discord\SendMessage;
-use App\Services\CommandAnalyticsService;
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 final class ProcessListRolesJob extends ProcessBaseJob implements ShouldQueue
@@ -28,43 +26,19 @@ final class ProcessListRolesJob extends ProcessBaseJob implements ShouldQueue
         parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
     }
 
-    /**
-     * Execute the job.
-     */
-    public function handle(CommandAnalyticsService $analytics): void
+    protected function executeCommand(): void
     {
         try {
             // Fetch all roles from the Discord server
-            $rolesResponse = Http::withHeaders([
-                'Authorization' => 'Bot ' . config('discord.token'),
-                'Content-Type' => 'application/json',
-            ])->get("{$this->baseUrl}/guilds/{$this->guildId}/roles");
+            $roles = $this->getDiscord()->guild($this->guildId)->roles();
 
-            if ($rolesResponse->failed()) {
-                Log::error("Failed to fetch roles for guild {$this->guildId}", [
-                    'status_code' => $rolesResponse->status(),
-                    'response' => $rolesResponse->json(),
-                    'guild_id' => $this->guildId,
-                    'user_id' => $this->discordUserId,
-                ]);
-
-                SendMessage::sendMessage($this->channelId, [
-                    'is_embed' => false,
-                    'response' => '❌ Failed to fetch server roles. Please try again later.',
-                ]);
-
-                Log::error('Failed to fetch roles from Discord API', [
-                    'status' => $rolesResponse->status(),
-                    'guild_id' => $this->guildId,
-                ]);
-
-                return;
+            if (! $roles) {
+                $this->sendApiError('fetch server roles');
+                throw new Exception('Failed to fetch roles.', 500);
             }
 
-            $roles = $rolesResponse->json();
-
             // Filter out @everyone role and sort by position (higher position = higher in hierarchy)
-            $filteredRoles = array_filter($roles, function ($role) {
+            $filteredRoles = array_filter($roles->toArray(), function ($role) {
                 return $role['name'] !== '@everyone';
             });
 
@@ -74,16 +48,11 @@ final class ProcessListRolesJob extends ProcessBaseJob implements ShouldQueue
             });
 
             if (empty($filteredRoles)) {
-                SendMessage::sendMessage($this->channelId, [
-                    'is_embed' => true,
-                    'embed_title' => '📋 Server Roles',
-                    'embed_description' => 'No custom roles found in this server.',
-                    'embed_color' => 3447003, // Blue color
-                ]);
-
-                Log::info('Roles listed successfully (none found)', [
-                    'guild_id' => $this->guildId,
-                ]);
+                $this->getDiscord()->channel($this->channelId)->sendEmbed(
+                    '📋 Server Roles',
+                    'No custom roles found in this server.',
+                    3447003 // Blue
+                );
 
                 return;
             }
@@ -121,12 +90,11 @@ final class ProcessListRolesJob extends ProcessBaseJob implements ShouldQueue
             if (strlen($description) > 4000) {
                 $this->sendRoleListInChunks($filteredRoles);
             } else {
-                SendMessage::sendMessage($this->channelId, [
-                    'is_embed' => true,
-                    'embed_title' => '📋 Server Roles',
-                    'embed_description' => $description,
-                    'embed_color' => 3447003, // Blue color
-                ]);
+                $this->getDiscord()->channel($this->channelId)->sendEmbed(
+                    '📋 Server Roles',
+                    $description,
+                    3447003 // Blue
+                );
             }
 
             Log::info('Roles listed successfully', [
@@ -142,15 +110,7 @@ final class ProcessListRolesJob extends ProcessBaseJob implements ShouldQueue
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => false,
-                'response' => '❌ An error occurred while fetching server roles. Please try again later.',
-            ]);
-
-            Log::error('Error in ProcessListRolesJob', [
-                'error' => $e->getMessage(),
-                'guild_id' => $this->guildId,
-            ]);
+            $this->sendErrorMessage('An error occurred while fetching server roles. Please try again later.');
             throw $e;
         }
     }
@@ -161,18 +121,11 @@ final class ProcessListRolesJob extends ProcessBaseJob implements ShouldQueue
     private function getRoleMemberCount(string $roleId): int
     {
         try {
-            $membersResponse = Http::withHeaders([
-                'Authorization' => 'Bot ' . config('discord.token'),
-                'Content-Type' => 'application/json',
-            ])->get("{$this->baseUrl}/guilds/{$this->guildId}/members", [
-                'limit' => 1000, // Discord's max limit
-            ]);
+            $members = $this->getDiscord()->getGuildMembers($this->guildId, 1000);
 
-            if ($membersResponse->failed()) {
+            if (! $members) {
                 return 0;
             }
-
-            $members = $membersResponse->json();
             $count = 0;
 
             foreach ($members as $member) {
@@ -228,12 +181,11 @@ final class ProcessListRolesJob extends ProcessBaseJob implements ShouldQueue
                               $description;
             }
 
-            SendMessage::sendMessage($this->channelId, [
-                'is_embed' => true,
-                'embed_title' => $title,
-                'embed_description' => $description,
-                'embed_color' => 3447003, // Blue color
-            ]);
+            $this->getDiscord()->channel($this->channelId)->sendEmbed(
+                $title,
+                $description,
+                3447003 // Blue
+            );
 
             // Small delay between messages
             sleep(1);

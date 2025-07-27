@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use Exception;
 
 final class ProcessPruneInactiveMembersJob extends ProcessBaseJob
@@ -30,9 +31,19 @@ final class ProcessPruneInactiveMembersJob extends ProcessBaseJob
             throw new Exception('Number of days not specified.', 400);
         }
 
-        $validatedDays = $this->validateNumericRange($days, 1, 30, 'Days');
+        // Validate days is numeric and in range
+        if (! is_numeric($days)) {
+            $this->sendErrorMessage('Days must be a number.');
+            throw new Exception('Invalid days value.', 400);
+        }
 
-        $result = $this->discord->pruneInactiveMembers($this->guildId, $validatedDays);
+        $validatedDays = (int) $days;
+        if ($validatedDays < 1 || $validatedDays > 30) {
+            $this->sendErrorMessage('Days must be between 1 and 30.');
+            throw new Exception('Days out of range.', 400);
+        }
+
+        $result = $this->getDiscord()->pruneInactiveMembers($this->guildId, $validatedDays);
 
         if (! $result) {
             $this->sendApiError('prune inactive members');

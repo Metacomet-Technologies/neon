@@ -4,25 +4,13 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use App\Services\Discord\DiscordService;
-use Discord\Parts\Channel\Channel;
 use Exception;
 
 final class ProcessNewChannelJob extends ProcessBaseJob
 {
     private array $channelTypes = ['text', 'voice'];
-
-    public function __construct(
-        string $discordUserId,
-        string $channelId,
-        string $guildId,
-        string $messageContent,
-        array $command,
-        string $commandSlug,
-        array $parameters = []
-    ) {
-        parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
-    }
 
     protected function executeCommand(): void
     {
@@ -43,9 +31,8 @@ final class ProcessNewChannelJob extends ProcessBaseJob
             throw new Exception('Invalid channel name provided.', 400);
         }
 
-        $discordApiService = app(DiscordService::class);
-        $validationResult = $discordApiService->validateChannelName($channelName);
-        if (! $validationResult['is_valid']) {
+        $validationResult = DiscordService::validateChannelName($channelName);
+        if (! $validationResult['valid']) {
             $this->sendErrorMessage($validationResult['message']);
             throw new Exception('Invalid channel name provided.', 400);
         }
@@ -59,7 +46,7 @@ final class ProcessNewChannelJob extends ProcessBaseJob
         // 5. Construct payload and create channel
         $payload = [
             'name' => $channelName,
-            'type' => $channelType === 'text' ? Channel::TYPE_GUILD_TEXT : Channel::TYPE_GUILD_VOICE,
+            'type' => $channelType === 'text' ? 0 : 2, // 0 = text channel, 2 = voice channel
         ];
 
         if ($categoryId) {
@@ -69,7 +56,7 @@ final class ProcessNewChannelJob extends ProcessBaseJob
             $payload['topic'] = $channelTopic;
         }
 
-        $createdChannel = $discordApiService->createChannel($this->guildId, $payload);
+        $createdChannel = $this->getDiscord()->createChannel($this->guildId, $payload);
 
         if (! $createdChannel) {
             $this->sendApiError('create channel');

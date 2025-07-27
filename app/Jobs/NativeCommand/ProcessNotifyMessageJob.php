@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\DiscordService;
+use App\Jobs\NativeCommand\Base\ProcessBaseJob;
 use Exception;
 
 final class ProcessNotifyMessageJob extends ProcessBaseJob
@@ -25,15 +25,31 @@ final class ProcessNotifyMessageJob extends ProcessBaseJob
     {
         $this->requireMemberPermission();
 
-        $parsed = DiscordService::parseNotifyCommand($this->messageContent);
-        if (! $parsed['channel_id'] || ! $parsed['message']) {
+        // Extract parameters from message - format: !notify #channel message
+        $content = trim(str_replace('!notify', '', $this->messageContent));
+
+        if (empty($content)) {
             $this->sendUsageAndExample();
             throw new Exception('Missing required parameters.', 400);
         }
 
-        $this->validateChannelId($parsed['channel_id']);
+        // Parse channel and message
+        preg_match('/^<?#?(\d{17,19})>?\s+(.+)$/s', $content, $matches);
 
-        $success = $this->discord->sendNotification($parsed['channel_id'], $parsed);
+        if (count($matches) < 3) {
+            $this->sendUsageAndExample();
+            throw new Exception('Invalid format. Use: !notify #channel message', 400);
+        }
+
+        $channelId = $matches[1];
+        $message = $matches[2];
+
+        $notificationData = [
+            'channel_id' => $channelId,
+            'message' => $message,
+        ];
+
+        $success = $this->getDiscord()->sendNotification($channelId, $notificationData);
 
         if (! $success) {
             $this->sendApiError('send notification');
