@@ -83,6 +83,6 @@ final class WelcomeSettingController
         );
 
         return redirect()->route('server.settings.welcome', ['serverId' => $serverId])
-            ->with(['type' => 'success', 'message' => 'Welcome settings updated successfully']);
+            ->with('success', 'Welcome settings updated successfully');
     }
 }

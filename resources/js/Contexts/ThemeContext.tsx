@@ -1,5 +1,5 @@
-import { router } from '@inertiajs/react';
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import axios from 'axios';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -17,7 +17,15 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children, initialTheme = 'system' }: ThemeProviderProps) {
-    const [theme, setThemeState] = useState<Theme>(initialTheme);
+    const [theme, setThemeState] = useState<Theme>(() => {
+        if (typeof window !== 'undefined') {
+            const storedTheme = localStorage.getItem('theme') as Theme | null;
+            if (storedTheme && ['light', 'dark', 'system'].includes(storedTheme)) {
+                return storedTheme;
+            }
+        }
+        return initialTheme;
+    });
     const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('dark');
 
     // Function to get system preference
@@ -52,22 +60,23 @@ export function ThemeProvider({ children, initialTheme = 'system' }: ThemeProvid
         }
     };
 
-    // Set theme and persist to backend
-    const setTheme = (newTheme: Theme) => {
+    // Set theme and persist to backend and localStorage
+    const setTheme = async (newTheme: Theme) => {
         setThemeState(newTheme);
+        
+        // Persist to localStorage
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('theme', newTheme);
+        }
 
         // Persist to backend
-        router.post(
-            '/api/user/settings',
-            {
+        try {
+            await axios.post('/api/user/settings', {
                 theme: newTheme,
-            },
-            {
-                preserveState: true,
-                preserveScroll: true,
-                only: [], // Don't reload any props
-            }
-        );
+            });
+        } catch (error) {
+            console.error('Failed to save theme preference:', error);
+        }
     };
 
     // Update resolved theme when theme changes

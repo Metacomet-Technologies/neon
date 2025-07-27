@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\LicenseController;
 use App\Http\Controllers\Api\StripeWebhookController;
 use App\Http\Controllers\Api\Twitch\EventSubWebhookController;
 use App\Http\Controllers\Api\UpdateUserCurrentServerController;
+use App\Http\Controllers\Api\UserSettingsController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -24,6 +25,12 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
         return json_encode($request->user());
     });
     Route::patch('user/{user}/current-server', UpdateUserCurrentServerController::class)->name('user.current-server');
+
+    // User settings routes
+    Route::prefix('user')->group(function () {
+        Route::get('settings', [UserSettingsController::class, 'show'])->name('user.settings.show');
+        Route::post('settings', [UserSettingsController::class, 'update'])->name('user.settings.update');
+    });
 
     // Billing routes
     Route::prefix('checkout')->group(function () {

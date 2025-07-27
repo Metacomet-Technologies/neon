@@ -1,4 +1,4 @@
-import { Button } from '@/Components/button';
+import { Button } from '@/Components/catalyst/button';
 import ServerScopedLayout from '@/Layout/ServerScopedLayout';
 import { ArrowLeftIcon } from '@heroicons/react/16/solid';
 import { Head } from '@inertiajs/react';

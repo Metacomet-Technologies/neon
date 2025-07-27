@@ -1,20 +1,14 @@
-import { Badge } from '@/Components/badge';
-import { Button } from '@/Components/button';
-import { Combobox, ComboboxLabel, ComboboxOption } from '@/Components/combobox';
-import { Divider } from '@/Components/divider';
-import { Heading, Subheading } from '@/Components/heading';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/table';
-import { Text } from '@/Components/text';
+import { Badge } from '@/Components/catalyst/badge';
+import { Button } from '@/Components/catalyst/button';
+import { Combobox, ComboboxLabel, ComboboxOption } from '@/Components/catalyst/combobox';
+import { Divider } from '@/Components/catalyst/divider';
+import { Heading, Subheading } from '@/Components/catalyst/heading';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/catalyst/table';
+import { Text } from '@/Components/catalyst/text';
 import { Layout } from '@/Layout/Layout';
 import { Head, router, usePage } from '@inertiajs/react';
+import { Guild } from '@/types';
 import React, { useState } from 'react';
-
-interface Guild {
-    id: string;
-    name: string;
-    icon?: string;
-    is_bot_member: boolean;
-}
 
 interface BillingProps {
     billing: {

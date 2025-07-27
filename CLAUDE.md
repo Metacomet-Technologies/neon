@@ -95,3 +95,5 @@ return redirect()->back()->with('success', 'Done!');
 ## Development Tools
 
 - **Use duster not pint**
+
+- We should use catalyst components then ui components then custom html and css

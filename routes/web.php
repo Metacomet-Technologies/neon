@@ -17,7 +17,6 @@ use App\Http\Controllers\Server\WelcomeSettingController;
 use App\Http\Controllers\ServerController;
 use App\Http\Controllers\TermsOfServiceController;
 use App\Http\Controllers\UnsubscribeController;
-use App\Http\Controllers\UserSettingsController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -56,12 +55,6 @@ Route::middleware(['auth'])->group(function () {
     Route::get('checkout', function () {
         return Inertia::render('Checkout/Index');
     })->name('checkout');
-
-    // API routes for user settings
-    Route::prefix('api/user')->group(function () {
-        Route::get('settings', [UserSettingsController::class, 'show'])->name('api.user.settings.show');
-        Route::post('settings', [UserSettingsController::class, 'update'])->name('api.user.settings.update');
-    });
 });
 
 Route::get('unsubscribe/{email}', [UnsubscribeController::class, 'update'])->name('unsubscribe.update');

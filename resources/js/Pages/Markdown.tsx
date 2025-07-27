@@ -1,6 +1,6 @@
-import { Button } from '@/Components/button';
-import { StackedLayout } from '@/Components/stacked-layout';
-import { Text } from '@/Components/text';
+import { Button } from '@/Components/catalyst/button';
+import { StackedLayout } from '@/Components/catalyst/stacked-layout';
+import { Text } from '@/Components/catalyst/text';
 import ThemeToggle from '@/Components/ThemeToggle';
 import { ArrowLeftIcon } from '@heroicons/react/16/solid';
 import ReactMarkdown from 'react-markdown';

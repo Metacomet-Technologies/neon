@@ -91,5 +91,19 @@ export default function Flash({ flash }: { flash: PageProps['flash'] }) {
         return null;
     }
 
-    return <FlashMessage type={flash.type as FlashType} message={flash.message} onDismiss={handleDismiss} />;
+    // Check each flash type and render the first one found
+    if (flash.success) {
+        return <FlashMessage type="success" message={flash.success} onDismiss={handleDismiss} />;
+    }
+    if (flash.error) {
+        return <FlashMessage type="error" message={flash.error} onDismiss={handleDismiss} />;
+    }
+    if (flash.info) {
+        return <FlashMessage type="info" message={flash.info} onDismiss={handleDismiss} />;
+    }
+    if (flash.warning) {
+        return <FlashMessage type="warning" message={flash.warning} onDismiss={handleDismiss} />;
+    }
+
+    return null;
 }

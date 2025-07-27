@@ -105,7 +105,7 @@ final class CommandController
 
         return redirect()
             ->route('server.command.index', $serverId)
-            ->with(['type' => 'success', 'message' => 'Command created successfully.']);
+            ->with('success', 'Command created successfully.');
     }
 
     /**
@@ -167,7 +167,7 @@ final class CommandController
 
         return redirect()
             ->route('server.command.index', $serverId)
-            ->with(['type' => 'success', 'message' => 'Command updated successfully.']);
+            ->with('success', 'Command updated successfully.');
     }
 
     /**
@@ -193,6 +193,6 @@ final class CommandController
 
         return redirect()
             ->route('server.command.index', $serverId)
-            ->with(['type' => 'success', 'message' => 'Command deleted successfully.']);
+            ->with('success', 'Command deleted successfully.');
     }
 }

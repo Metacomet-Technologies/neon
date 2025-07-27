@@ -1,4 +1,4 @@
-import { Avatar } from '@/Components/avatar';
+import { Avatar } from '@/Components/catalyst/avatar';
 import {
     Dropdown,
     DropdownButton,
@@ -6,8 +6,8 @@ import {
     DropdownItem,
     DropdownLabel,
     DropdownMenu,
-} from '@/Components/dropdown';
-import { Navbar, NavbarDivider, NavbarItem, NavbarSection, NavbarSpacer } from '@/Components/navbar';
+} from '@/Components/catalyst/dropdown';
+import { Navbar, NavbarDivider, NavbarItem, NavbarSection, NavbarSpacer } from '@/Components/catalyst/navbar';
 import {
     Sidebar,
     SidebarBody,
@@ -16,8 +16,8 @@ import {
     SidebarItem,
     SidebarLabel,
     SidebarSection,
-} from '@/Components/sidebar';
-import { StackedLayout } from '@/Components/stacked-layout';
+} from '@/Components/catalyst/sidebar';
+import { StackedLayout } from '@/Components/catalyst/stacked-layout';
 import { PageProps } from '@/types';
 import {
     ArrowRightStartOnRectangleIcon,
@@ -31,9 +31,8 @@ import {
 import { usePage } from '@inertiajs/react';
 
 import ThemeToggle from '@/Components/ThemeToggle';
-import { Toaster } from '@/Components/ui/toaster';
+import { ToastHandler } from '@/Components/ToastHandler';
 import { useCallback } from 'react';
-import Flash from './Flash';
 
 /**
  * Layout component that provides the structure for the application.
@@ -50,8 +49,7 @@ export function Layout({
     scopeDropDown?: React.ReactNode | null;
 }) {
     const { component, props } = usePage<PageProps>();
-    const { auth, flash } = props;
-    console.log(flash);
+    const { auth } = props;
 
     const currentServerId = auth?.user?.current_server_id || null;
 
@@ -227,9 +225,8 @@ export function Layout({
                 </Sidebar>
             }
         >
-            <Flash flash={flash} />
+            <ToastHandler />
             {children}
-            <Toaster />
         </StackedLayout>
     );
 }

@@ -5,7 +5,7 @@ import {
     PaginationNext,
     PaginationPage,
     PaginationPrevious,
-} from '@/Components/pagination';
+} from '@/Components/catalyst/pagination';
 import { PaginationLink } from '@/types';
 
 export default function PaginationRow({

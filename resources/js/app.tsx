@@ -7,6 +7,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { ThemeProvider } from './Contexts/ThemeContext';
+import { ToastProvider } from './Contexts/ToastContext';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Neon';
 
@@ -14,15 +15,15 @@ createInertiaApp({
     title: (title) => (title ? `${title} &middot; ${appName}` : appName),
     resolve: (name) => resolvePageComponent(`./Pages/${name}.tsx`, import.meta.glob('./Pages/**/*.tsx')),
     setup({ el, App, props }) {
-        el.style.visibility = 'hidden';
         createRoot(el).render(
             <StrictMode>
                 <ThemeProvider initialTheme={props.initialPage.props.theme}>
-                    <App {...props} />
+                    <ToastProvider>
+                        <App {...props} />
+                    </ToastProvider>
                 </ThemeProvider>
             </StrictMode>
         );
-        el.style.visibility = 'visible';
     },
     progress: {
         color: '#4B5563',

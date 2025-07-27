@@ -1,10 +1,10 @@
-import { Button } from '@/Components/button';
-import { Checkbox, CheckboxField } from '@/Components/checkbox';
-import { Dialog, DialogActions, DialogBody, DialogTitle } from '@/Components/dialog';
-import { Divider } from '@/Components/divider';
-import { Description, ErrorMessage, Field, Fieldset, Label } from '@/Components/fieldset';
-import { Input } from '@/Components/input';
-import { Textarea } from '@/Components/textarea';
+import { Button } from '@/Components/catalyst/button';
+import { Checkbox, CheckboxField } from '@/Components/catalyst/checkbox';
+import { Dialog, DialogActions, DialogBody, DialogTitle } from '@/Components/catalyst/dialog';
+import { Divider } from '@/Components/catalyst/divider';
+import { Description, ErrorMessage, Field, Fieldset, Label } from '@/Components/catalyst/fieldset';
+import { Input } from '@/Components/catalyst/input';
+import { Textarea } from '@/Components/catalyst/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { useForm } from '@inertiajs/react';
 import React, { useCallback, useState } from 'react';

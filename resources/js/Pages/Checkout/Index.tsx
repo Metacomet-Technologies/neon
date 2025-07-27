@@ -1,8 +1,9 @@
-import { InlineAlert } from '@/Components/InlineAlert';
-import { Badge } from '@/Components/badge';
-import { Button } from '@/Components/button';
-import { Heading, Subheading } from '@/Components/heading';
-import { Text } from '@/Components/text';
+import { Alert, AlertDescription } from '@/Components/ui/alert';
+import { XMarkIcon } from '@heroicons/react/20/solid';
+import { Badge } from '@/Components/catalyst/badge';
+import { Button } from '@/Components/catalyst/button';
+import { Heading, Subheading } from '@/Components/catalyst/heading';
+import { Text } from '@/Components/catalyst/text';
 import { Layout } from '@/Layout/Layout';
 import { CheckIcon, StarIcon } from '@heroicons/react/16/solid';
 import { Head } from '@inertiajs/react';
@@ -54,15 +55,35 @@ const CheckoutPage: React.FC = () => {
             </div>
 
             {error && (
-                <InlineAlert color="red" className="mb-6" onClose={() => setError(null)}>
-                    {error}
-                </InlineAlert>
+                <Alert variant="destructive" className="mb-6">
+                    <AlertDescription className="flex justify-between items-center">
+                        <span>{error}</span>
+                        <button
+                            type="button"
+                            onClick={() => setError(null)}
+                            className="ml-3 inline-flex rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2"
+                        >
+                            <span className="sr-only">Dismiss</span>
+                            <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+                        </button>
+                    </AlertDescription>
+                </Alert>
             )}
 
             {showCancelledMessage && (
-                <InlineAlert color="amber" className="mb-6" onClose={() => setShowCancelledMessage(false)}>
-                    Payment was cancelled. You can try again when you're ready!
-                </InlineAlert>
+                <Alert className="mb-6 border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+                    <AlertDescription className="flex justify-between items-center">
+                        <span>Payment was cancelled. You can try again when you're ready!</span>
+                        <button
+                            type="button"
+                            onClick={() => setShowCancelledMessage(false)}
+                            className="ml-3 inline-flex rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2"
+                        >
+                            <span className="sr-only">Dismiss</span>
+                            <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+                        </button>
+                    </AlertDescription>
+                </Alert>
             )}
 
             <div className="grid lg:grid-cols-2 gap-8 max-w-4xl mx-auto">

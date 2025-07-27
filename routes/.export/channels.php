@@ -3,8 +3,7 @@
 use Illuminate\Support\Facades\Broadcast;
 
 Broadcast::private('App.Models.User.{id}', function ($user, $id) {
-    return true;
-    // return (int) $user->id === (int) $id;
+    return (int) $user->id === (int) $id;
 });
 
 Broadcast::channel('system', function () {

@@ -1,13 +1,8 @@
+import { Guild } from '@/types';
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
-import { Select } from './select';
-import { Text } from './text';
-
-interface Guild {
-    id: string;
-    name: string;
-    icon: string | null;
-}
+import { Select } from './catalyst/select';
+import { Text } from './catalyst/text';
 
 interface GuildSelectorProps {
     value: string;

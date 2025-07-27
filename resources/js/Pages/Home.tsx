@@ -1,5 +1,5 @@
-import { Button } from '@/Components/button';
-import { Link } from '@/Components/link';
+import { Button } from '@/Components/catalyst/button';
+import { Link } from '@/Components/catalyst/link';
 import ThemeToggle from '@/Components/ThemeToggle';
 import { useTheme } from '@/Contexts/ThemeContext';
 import { PageProps } from '@/types';
