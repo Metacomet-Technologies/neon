@@ -29,6 +29,14 @@ final class DiscordService
         return new self(DiscordClient::forUser($user));
     }
 
+    /**
+     * Create Discord instance for bot.
+     */
+    public function bot(): self
+    {
+        return new self(new DiscordClient());
+    }
+
     // ========== Parser Utilities ==========
 
     /**
