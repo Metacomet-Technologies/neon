@@ -6,6 +6,7 @@
         "dev": "vite"
     },
     "devDependencies": {
+        "@laravel/echo-react": "^2.1.7",
         "@tailwindcss/postcss": "^4.0.6",
         "@tailwindcss/typography": "^0.5.16",
         "@types/react-color": "^3.0.13",
@@ -30,7 +31,6 @@
         "@headlessui/react": "^2.2.0",
         "@heroicons/react": "^2.2.0",
         "@inertiajs/react": "^2.0.3",
-        "@laravel/echo-react": "^2.1.7",
         "@radix-ui/react-accordion": "^1.2.11",
         "@radix-ui/react-slot": "^1.2.3",
         "@radix-ui/react-toast": "^1.2.6",

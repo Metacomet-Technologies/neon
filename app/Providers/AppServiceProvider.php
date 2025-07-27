@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace App\Providers;
 
@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Cashier\Cashier;
 use SocialiteProviders\Discord\Provider as DiscordProvider;
@@ -55,6 +56,8 @@ final class AppServiceProvider extends ServiceProvider
             // Enable model events for all models
             Model::shouldBeStrict();
         }
+
+        Vite::prefetch(concurrency: 5);
 
         // Configure Cashier to use the User model
         Cashier::useCustomerModel(User::class);
