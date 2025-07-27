@@ -1,4 +1,4 @@
-import { Guild } from '@/types';
+import { DiscordGuild, Guild } from '@/types';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -16,7 +16,7 @@ export function cn(...inputs: ClassValue[]): string {
  *
  * @param guild The guild to get the icon for.
  */
-export function getGuildIcon(guild: Guild | null): string {
+export function getGuildIcon(guild: Guild | DiscordGuild | null): string {
     if (guild?.icon) {
         return `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`;
     }

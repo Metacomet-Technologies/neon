@@ -34,10 +34,11 @@ final class BillingController
                 } elseif ($request->has('cancelled')) {
                     // User clicked the back/cancel button
                     session()->flash('warning', 'Payment was cancelled. Ready to try again when you are!');
-                    
+
                     // Provide a direct retry link if session is still valid
                     if ($session->status === 'open' && $session->url) {
                         session()->flash('info', 'Your checkout session is still active. You can continue where you left off.');
+
                         return redirect()->away($session->url);
                     }
                 } elseif ($session->status === 'expired') {

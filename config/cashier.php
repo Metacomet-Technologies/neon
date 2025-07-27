@@ -124,4 +124,19 @@ return [
 
     'logger' => env('CASHIER_LOGGER'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Stripe Price IDs
+    |--------------------------------------------------------------------------
+    |
+    | These are the Stripe price IDs for your products. You can configure
+    | different price IDs for development and production environments.
+    |
+    */
+
+    'prices' => [
+        'monthly' => env('STRIPE_PRICE_MONTHLY'),
+        'lifetime' => env('STRIPE_PRICE_LIFETIME'),
+    ],
+
 ];

@@ -1,7 +1,7 @@
 import { Avatar } from '@/Components/catalyst/avatar';
 import { Dropdown, DropdownButton, DropdownItem, DropdownLabel, DropdownMenu } from '@/Components/catalyst/dropdown';
 import { NavbarItem, NavbarLabel } from '@/Components/catalyst/navbar';
-import { Guild, PageProps } from '@/types';
+import { DiscordGuild, DiscordGuildsResponse, PageProps } from '@/types';
 import { ChevronDownIcon } from '@heroicons/react/16/solid';
 import { router, usePage } from '@inertiajs/react';
 import { Layout } from './Layout';
@@ -21,11 +21,12 @@ function ServerDropDownMenu() {
     const { auth } = props;
 
     const user = auth?.user || null;
-    const guilds = user.guilds || [];
+    const guildsResponse = user.guilds || {};
+    const guilds = Object.values(guildsResponse) as DiscordGuild[];
 
     const currentGuildId = user.current_server_id || null;
 
-    const currentGuild = guilds.find((guild: Guild) => guild.id === currentGuildId) || null;
+    const currentGuild = guilds.find((guild: DiscordGuild) => guild.id === currentGuildId) || null;
 
     const currentRoute: string = route().current() as string;
     const currentRouteParams: { [key: string]: string } = route().params;
@@ -50,12 +51,12 @@ function ServerDropDownMenu() {
     return (
         <Dropdown>
             <DropdownButton as={NavbarItem}>
-                <Avatar src={getGuildIcon(currentGuild)} className="size-10" alt={currentGuild?.name} />
+                <Avatar src={currentGuild ? getGuildIcon(currentGuild) : ''} className="size-10" alt={currentGuild?.name} />
                 <NavbarLabel>{currentGuild?.name || 'Servers'}</NavbarLabel>
                 <ChevronDownIcon />
             </DropdownButton>
             <DropdownMenu className="min-w-80 lg:min-w-64" anchor="bottom start">
-                {guilds.map((guild: Guild) => (
+                {guilds.map((guild: DiscordGuild) => (
                     <DropdownItem
                         key={guild.id}
                         onClick={() => guild.id && handleServerChange(guild.id)}

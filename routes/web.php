@@ -53,7 +53,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('billing/portal', BillingPortalController::class)->name('billing.portal');
 
     Route::get('checkout', function () {
-        return Inertia::render('Checkout/Index');
+        return Inertia::render('Checkout/Index', [
+            'stripePrices' => [
+                'monthly' => config('cashier.prices.monthly'),
+                'lifetime' => config('cashier.prices.lifetime'),
+            ],
+        ]);
     })->name('checkout');
 });
 

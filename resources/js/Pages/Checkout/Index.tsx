@@ -10,12 +10,14 @@ import { Head } from '@inertiajs/react';
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 
-const STRIPE_PRICES = {
-    monthly: 'price_1Row5OHSbCCl70iIAbAlLKrU',
-    lifetime: 'price_1Row5iHSbCCl70iIhRPa7TDZ',
-};
+interface CheckoutPageProps {
+    stripePrices: {
+        monthly: string;
+        lifetime: string;
+    };
+}
 
-const CheckoutPage: React.FC = () => {
+const CheckoutPage: React.FC<CheckoutPageProps> = ({ stripePrices }) => {
     const [loading, setLoading] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [showRetryMessage, setShowRetryMessage] = useState(false);
@@ -123,7 +125,7 @@ const CheckoutPage: React.FC = () => {
                         </ul>
 
                         <Button
-                            onClick={() => handleCheckout('monthly', STRIPE_PRICES.monthly)}
+                            onClick={() => handleCheckout('monthly', stripePrices.monthly)}
                             disabled={!!loading}
                             color="blue"
                             className="w-full"
@@ -180,7 +182,7 @@ const CheckoutPage: React.FC = () => {
                         </ul>
 
                         <Button
-                            onClick={() => handleCheckout('lifetime', STRIPE_PRICES.lifetime)}
+                            onClick={() => handleCheckout('lifetime', stripePrices.lifetime)}
                             disabled={!!loading}
                             color="green"
                             className="w-full"

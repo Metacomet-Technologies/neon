@@ -138,7 +138,7 @@ export interface User {
     pm_type?: string;
     pm_last_four?: string;
     trial_ends_at?: string;
-    guilds?: DiscordGuildsResponse[];
+    guilds?: DiscordGuildsResponse;
 }
 
 export interface UserIntegration {

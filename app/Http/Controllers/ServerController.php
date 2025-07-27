@@ -25,7 +25,7 @@ final class ServerController
         }
 
         $guilds = $user->guilds;
-        
+
         // Get list of guild IDs where bot is a member
         $botGuilds = Guild::where('is_bot_member', true)
             ->pluck('id')

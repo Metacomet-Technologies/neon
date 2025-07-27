@@ -1,7 +1,7 @@
 import { Heading, Subheading } from '@/Components/catalyst/heading';
 import { Text } from '@/Components/catalyst/text';
 import ServerScopedLayout from '@/Layout/ServerScopedLayout';
-import type { Guild, WelcomeSetting as WelcomeSettingProp } from '@/types';
+import type { DiscordGuild, WelcomeSetting as WelcomeSettingProp } from '@/types';
 import { PageProps } from '@/types';
 import { Head, usePage } from '@inertiajs/react';
 import React from 'react';
@@ -21,7 +21,9 @@ export default function Show({
 }): React.JSX.Element {
     const { auth } = usePage<PageProps>().props;
 
-    const guild = auth.user?.guilds?.find((guild: Guild) => guild.id === auth.user?.current_server_id);
+    const guildsResponse = auth.user?.guilds || {};
+    const guilds = Object.values(guildsResponse) as DiscordGuild[];
+    const guild = guilds.find((guild: DiscordGuild) => guild.id === auth.user?.current_server_id);
 
     return (
         <>

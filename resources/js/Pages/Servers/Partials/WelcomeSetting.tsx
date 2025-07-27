@@ -4,7 +4,7 @@ import { Description, Field, FieldGroup, Label } from '@/Components/catalyst/fie
 import { Switch, SwitchField } from '@/Components/catalyst/switch';
 import { Textarea } from '@/Components/catalyst/textarea';
 import { Card, CardContent, CardFooter, CardHeader } from '@/Components/ui/card';
-import type { Guild, WelcomeSetting } from '@/types';
+import type { DiscordGuild, WelcomeSetting } from '@/types';
 import { PageProps } from '@/types';
 import { useForm, usePage } from '@inertiajs/react';
 import { JSX } from 'react';
@@ -18,7 +18,9 @@ export default function WelcomeSetting({
 }): JSX.Element {
     const { auth } = usePage<PageProps>().props;
 
-    const guild = auth.user?.guilds?.find((guild: Guild) => guild.id === auth.user?.current_server_id);
+    const guildsResponse = auth.user?.guilds || {};
+    const guilds = Object.values(guildsResponse) as DiscordGuild[];
+    const guild = guilds.find((guild: DiscordGuild) => guild.id === auth.user?.current_server_id);
     const serverId = guild?.id;
 
     function getChannelFromId(id: string) {
