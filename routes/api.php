@@ -39,7 +39,7 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
     });
 
     Route::prefix('billing')->group(function () {
-        Route::get('portal', BillingPortalController::class)->name('billing.portal');
+        Route::get('portal', BillingPortalController::class)->name('api.billing.portal');
         Route::get('info', GetBillingInfoController::class)->name('billing.info');
         Route::post('subscription/cancel', CancelSubscriptionController::class)->name('billing.subscription.cancel');
         Route::post('subscription/resume', ResumeSubscriptionController::class)->name('billing.subscription.resume');
