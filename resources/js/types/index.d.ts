@@ -42,3 +42,19 @@ export type FlashType = 'success' | 'error' | 'info' | 'warning';
 
 // Re-export model interfaces
 export { Guild, User, WelcomeSetting } from './models';
+
+// Discord API Guild Response
+export interface DiscordGuild {
+    id: string;
+    name: string;
+    icon: string | null;
+    banner: string | null;
+    owner: boolean;
+    permissions: string;
+    features: string[];
+}
+
+// Discord API Guilds Response (keyed by index)
+export interface DiscordGuildsResponse {
+    [key: string]: DiscordGuild;
+}

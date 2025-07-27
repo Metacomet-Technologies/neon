@@ -36,6 +36,10 @@ final class CheckoutSubscriptionController
                         'user_id' => $user->id,
                         'license_type' => 'subscription',
                     ],
+                    'expires_at' => now()->addHours(1)->timestamp, // Expire session after 1 hour
+                    'payment_method_types' => ['card'],
+                    'allow_promotion_codes' => true,
+                    'billing_address_collection' => 'auto',
                 ]);
 
             return response()->json([

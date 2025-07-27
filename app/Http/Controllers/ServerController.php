@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Models\Guild;
 use App\Models\WelcomeSetting;
 use App\Services\Discord\DiscordService;
 use Illuminate\Http\Request;
@@ -23,10 +24,16 @@ final class ServerController
             abort(403, 'You are not authorized to view this page.');
         }
 
-        $discord = app(DiscordService::class);
+        $guilds = $user->guilds;
+        
+        // Get list of guild IDs where bot is a member
+        $botGuilds = Guild::where('is_bot_member', true)
+            ->pluck('id')
+            ->toArray();
 
         return Inertia::render('Servers/Index', [
-            'botGuilds' => $discord->guilds(),
+            'guilds' => $guilds,
+            'botGuilds' => $botGuilds,
         ]);
     }
 

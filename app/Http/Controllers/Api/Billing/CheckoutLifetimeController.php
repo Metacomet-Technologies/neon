@@ -38,6 +38,14 @@ final class CheckoutLifetimeController
                     'license_type' => 'lifetime',
                     'price_id' => $request->price_id,
                 ],
+                'expires_at' => now()->addHours(1)->timestamp, // Expire session after 1 hour
+                'payment_method_types' => ['card'],
+                'mode' => 'payment',
+                'allow_promotion_codes' => true,
+                'billing_address_collection' => 'auto',
+                'payment_intent_data' => [
+                    'description' => 'Neon Lifetime License',
+                ],
             ]);
 
             return response()->json([

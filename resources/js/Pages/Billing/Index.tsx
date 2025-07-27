@@ -7,24 +7,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Text } from '@/Components/catalyst/text';
 import { Layout } from '@/Layout/Layout';
 import { Head, router, usePage } from '@inertiajs/react';
-import { Guild } from '@/types';
+import { Guild, PageProps } from '@/types';
 import React, { useState } from 'react';
 
-interface BillingProps {
+interface BillingPageProps extends PageProps {
     billing: {
         licenses: any[];
         subscriptions: any[];
         payment_methods: any[];
     };
     guilds: Guild[];
-    checkout?: {
-        message?: string;
-        type?: 'success' | 'error';
-    };
 }
 
-const BillingDashboard: React.FC<BillingProps> = ({ billing, guilds, checkout }) => {
-    const { props } = usePage();
+export default function BillingDashboard() {
+    const { props } = usePage<BillingPageProps>();
+    const { billing, guilds } = props;
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [assignGuild, setAssignGuild] = useState<{ [key: string]: Guild | null }>({});
     const [transferGuild, setTransferGuild] = useState<{ [key: string]: Guild | null }>({});
@@ -97,39 +94,6 @@ const BillingDashboard: React.FC<BillingProps> = ({ billing, guilds, checkout })
                 </div>
             </div>
 
-            {checkout?.message && (
-                <div
-                    className={`mb-6 border rounded-md p-4 ${
-                        checkout.type === 'success' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
-                    }`}
-                >
-                    <Text className={checkout.type === 'success' ? 'text-green-800' : 'text-red-800'}>
-                        {checkout.message}
-                    </Text>
-                    {checkout.type === 'error' && (
-                        <Text className="text-red-600 mt-2 text-sm">
-                            You can{' '}
-                            <a href="/checkout" className="underline">
-                                try purchasing again
-                            </a>{' '}
-                            or contact support if the issue persists.
-                        </Text>
-                    )}
-                </div>
-            )}
-
-            {(props as any).flash?.success && (
-                <div className="mb-6 bg-green-50 border border-green-200 rounded-md p-4">
-                    <Text className="text-green-800">{(props as any).flash.success}</Text>
-                </div>
-            )}
-
-            {(props as any).flash?.error && (
-                <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
-                    <Text className="text-red-800">{(props as any).flash.error}</Text>
-                </div>
-            )}
-
             <Subheading className="mt-8 mb-4">Your Licenses</Subheading>
 
             {billing.licenses.length === 0 ? (
@@ -191,7 +155,7 @@ const BillingDashboard: React.FC<BillingProps> = ({ billing, guilds, checkout })
                                                     className="flex items-center gap-2"
                                                 >
                                                     <Combobox
-                                                        options={guilds}
+                                                        options={guilds || []}
                                                         value={assignGuild[license.id] || null}
                                                         onChange={(selectedGuild) =>
                                                             setAssignGuild({
@@ -248,7 +212,7 @@ const BillingDashboard: React.FC<BillingProps> = ({ billing, guilds, checkout })
                                                     className="flex items-center gap-2"
                                                 >
                                                     <Combobox
-                                                        options={guilds}
+                                                        options={guilds || []}
                                                         value={transferGuild[license.id] || null}
                                                         onChange={(selectedGuild) =>
                                                             setTransferGuild({
@@ -371,6 +335,4 @@ const BillingDashboard: React.FC<BillingProps> = ({ billing, guilds, checkout })
     );
 };
 
-(BillingDashboard as any).layout = (page: React.ReactNode) => <Layout>{page}</Layout>;
-
-export default BillingDashboard;
+BillingDashboard.layout = (page: React.ReactNode) => <Layout>{page}</Layout>;

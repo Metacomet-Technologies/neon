@@ -131,6 +131,24 @@ final class StripeWebhookController extends CashierWebhookController
 
         return $this->successMethod();
     }
+    
+    /**
+     * Handle checkout session expired events.
+     */
+    public function handleCheckoutSessionExpired(array $payload): Response
+    {
+        $session = $payload['data']['object'];
+        
+        Log::info('Checkout session expired', [
+            'session_id' => $session['id'],
+            'customer' => $session['customer'],
+            'metadata' => $session['metadata'],
+        ]);
+        
+        // Could send an email reminder here if needed
+        
+        return $this->successMethod();
+    }
 
     /**
      * Handle invoice payment failed events.

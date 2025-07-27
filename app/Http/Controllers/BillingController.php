@@ -24,35 +24,37 @@ final class BillingController
         $user = $request->user();
 
         // Handle Stripe checkout success/failure
-        $checkoutMessage = null;
-        $checkoutType = null;
-
-        if ($request->has('session_id') && $request->has('success')) {
-            $checkoutMessage = 'Payment successful! Your license has been created and is ready to assign.';
-            $checkoutType = 'success';
-        } elseif ($request->has('session_id') && $request->has('cancelled')) {
-            $checkoutMessage = 'Payment was cancelled. You can try again when you\'re ready.';
-            $checkoutType = 'error';
-        } elseif ($request->has('session_id')) {
-            // Check the session status to provide better error details
+        if ($request->has('session_id')) {
             try {
                 Stripe::setApiKey(config('cashier.secret'));
                 $session = Session::retrieve($request->session_id);
 
-                if ($session->payment_status === 'unpaid') {
-                    $checkoutMessage = 'Payment was not completed. Please try again or contact support if you continue to have issues.';
-                    $checkoutType = 'error';
+                if ($request->has('success') && $session->payment_status === 'paid') {
+                    session()->flash('success', 'Payment successful! Your license has been created and is ready to assign.');
+                } elseif ($request->has('cancelled')) {
+                    // User clicked the back/cancel button
+                    session()->flash('warning', 'Payment was cancelled. Ready to try again when you are!');
+                    
+                    // Provide a direct retry link if session is still valid
+                    if ($session->status === 'open' && $session->url) {
+                        session()->flash('info', 'Your checkout session is still active. You can continue where you left off.');
+                        return redirect()->away($session->url);
+                    }
                 } elseif ($session->status === 'expired') {
-                    $checkoutMessage = 'Your checkout session has expired. Please start a new purchase.';
-                    $checkoutType = 'error';
+                    session()->flash('error', 'Your checkout session has expired. Please start a new purchase.');
+                } elseif ($session->payment_status === 'unpaid') {
+                    // Payment failed or was incomplete
+                    session()->flash('error', 'Payment could not be processed. Please try again with a different payment method.');
+                } elseif ($session->status === 'complete' && $session->payment_status === 'paid') {
+                    // Session was already completed successfully
+                    session()->flash('info', 'This payment has already been processed. Check your licenses below.');
                 }
             } catch (Exception $e) {
                 Log::error('Failed to retrieve checkout session', [
                     'session_id' => $request->session_id,
                     'error' => $e->getMessage(),
                 ]);
-                $checkoutMessage = 'There was an issue processing your payment. Please contact support.';
-                $checkoutType = 'error';
+                session()->flash('error', 'Unable to verify payment status. Please contact support if you were charged.');
             }
         }
 
@@ -155,10 +157,6 @@ final class BillingController
                 'payment_methods' => $paymentMethods,
             ],
             'guilds' => $userGuilds,
-            'checkout' => [
-                'message' => $checkoutMessage,
-                'type' => $checkoutType,
-            ],
         ]);
     }
 }

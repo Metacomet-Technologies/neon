@@ -1,6 +1,8 @@
 // Auto-generated TypeScript interfaces from Laravel models
 // Generated at: 2025-07-27T03:29:31+00:00
 
+import { DiscordGuildsResponse } from '.';
+
 export interface CommandUsageMetric {
     id?: number;
     command_type?: string;
@@ -136,7 +138,7 @@ export interface User {
     pm_type?: string;
     pm_last_four?: string;
     trial_ends_at?: string;
-    guilds?: Guild[];
+    guilds?: DiscordGuildsResponse[];
 }
 
 export interface UserIntegration {

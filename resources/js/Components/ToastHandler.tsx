@@ -29,7 +29,6 @@ export function ToastHandler() {
 
     // Listen for toast events on the user's private channel
     if (userId) {
-        console.log(`App.Models.User.${userId}`);
         useEcho(
             `App.Models.User.${userId}`,
             'ToastNotification',

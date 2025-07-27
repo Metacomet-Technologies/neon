@@ -18,13 +18,13 @@ const STRIPE_PRICES = {
 const CheckoutPage: React.FC = () => {
     const [loading, setLoading] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [showCancelledMessage, setShowCancelledMessage] = useState(false);
+    const [showRetryMessage, setShowRetryMessage] = useState(false);
 
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('cancelled')) {
-            setShowCancelledMessage(true);
-            // Remove cancelled param from URL
+        if (urlParams.get('retry')) {
+            setShowRetryMessage(true);
+            // Remove retry param from URL
             window.history.replaceState({}, document.title, window.location.pathname);
         }
     }, []);
@@ -70,13 +70,13 @@ const CheckoutPage: React.FC = () => {
                 </Alert>
             )}
 
-            {showCancelledMessage && (
-                <Alert className="mb-6 border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+            {showRetryMessage && (
+                <Alert className="mb-6 border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-200">
                     <AlertDescription className="flex justify-between items-center">
-                        <span>Payment was cancelled. You can try again when you're ready!</span>
+                        <span>Ready to complete your purchase? Choose your license type below.</span>
                         <button
                             type="button"
-                            onClick={() => setShowCancelledMessage(false)}
+                            onClick={() => setShowRetryMessage(false)}
                             className="ml-3 inline-flex rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2"
                         >
                             <span className="sr-only">Dismiss</span>
@@ -135,11 +135,11 @@ const CheckoutPage: React.FC = () => {
 
                 {/* Lifetime License */}
                 <div className="relative rounded-xl border-2 border-green-600 bg-white p-8 shadow-sm dark:border-green-500 dark:bg-zinc-900">
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                        <Badge color="green" className="flex items-center gap-1">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2 py-0.5 text-xs font-medium text-white dark:bg-green-500">
                             <StarIcon className="size-4" />
                             BEST VALUE
-                        </Badge>
+                        </span>
                     </div>
 
                     <div className="flex flex-col items-center text-center">
