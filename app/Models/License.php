@@ -9,6 +9,8 @@ use App\Events\LicenseTransferred;
 use App\Exceptions\License\GuildAlreadyHasLicenseException;
 use App\Exceptions\License\LicenseNotAssignedException;
 use App\Exceptions\License\LicenseOnCooldownException;
+use App\Policies\LicensePolicy;
+use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -48,6 +50,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @mixin \Eloquent
  */
+#[UsePolicy(LicensePolicy::class)]
 final class License extends Model
 {
     /** @use HasFactory<\Database\Factories\LicenseFactory> */
@@ -64,27 +67,6 @@ final class License extends Model
      */
     public const STATUS_ACTIVE = 'active';
     public const STATUS_PARKED = 'parked';
-
-    /**
-     * The policy class for the model.
-     *
-     * @var string
-     */
-    protected $policy = \App\Policies\LicensePolicy::class;
-
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
-    protected $fillable = [
-        'user_id',
-        'type',
-        'stripe_id',
-        'status',
-        'assigned_guild_id',
-        'last_assigned_at',
-    ];
 
     /**
      * The attributes that should be cast.

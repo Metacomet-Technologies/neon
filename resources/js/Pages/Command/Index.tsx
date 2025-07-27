@@ -1,7 +1,7 @@
-import { Button } from '@/Components/button';
-import { Heading } from '@/Components/heading';
-import { Link } from '@/Components/link';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/table';
+import { Button } from '@/Components/catalyst/button';
+import { Heading } from '@/Components/catalyst/heading';
+import { Link } from '@/Components/catalyst/link';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/catalyst/table';
 import PaginationRow from '@/Layout/PaginationRow';
 import ServerScopedLayout from '@/Layout/ServerScopedLayout';
 import { Pagination } from '@/types';

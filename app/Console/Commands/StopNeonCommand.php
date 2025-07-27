@@ -35,9 +35,9 @@ final class StopNeonCommand extends Command
         $pidFile = storage_path('app/neon.pid');
 
         if (! file_exists($pidFile)) {
-            $this->components->error('No PID file found. Is Neon running?');
+            $this->components->warn('Neon is not currently running.');
 
-            return 1;
+            return 0;
         }
 
         $pid = file_get_contents($pidFile);
@@ -73,6 +73,16 @@ final class StopNeonCommand extends Command
             }
         } else {
             // Unix-based systems: Use posix_kill
+            // First check if the process exists
+            if (! posix_kill((int) $pid, 0)) {
+                // Process doesn't exist, clean up PID file
+                unlink($pidFile);
+                $this->components->warn('Neon process not found (PID: ' . $pid . '). Cleaned up stale PID file.');
+
+                return 0;
+            }
+
+            // Try to stop the process
             if (! posix_kill((int) $pid, SIGTERM)) {
                 $this->components->error('Failed to stop Neon process.');
 

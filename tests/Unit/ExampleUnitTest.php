@@ -1,5 +1,5 @@
 <?php
 
-it('can be created', function () {
+it('asserts true', function () {
     $this->assertTrue(true);
 });

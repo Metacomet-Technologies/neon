@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Server;
 
-use App\Helpers\Discord\GetGuildChannels;
 use App\Models\WelcomeSetting;
+use App\Services\Discord\DiscordService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Inertia\Response;
 
-class WelcomeSettingController
+final class WelcomeSettingController
 {
-    public function index(Request $request, string $serverId)
+    public function index(Request $request, string $serverId): Response
     {
         $user = $request->user();
 
@@ -29,25 +31,30 @@ class WelcomeSettingController
         $user->current_server_id = $serverId;
         $user->save();
 
-        $channels = (new GetGuildChannels($serverId))->getTextChannels();
-        $channels = array_map(function ($channel) {
-            return [
-                'id' => $channel['id'],
-                'name' => $channel['name'],
-                'position' => $channel['position'],
-            ];
-        }, $channels);
-        $channels = array_values($channels);
-        // order by position
-        usort($channels, function ($a, $b) {
-            return $a['position'] <=> $b['position'];
-        });
-        // remove position
-        $channels = array_map(function ($channel) {
-            unset($channel['position']);
+        $discord = app(DiscordService::class);
+        $channels = $discord->guild($serverId)->channels();
 
-            return $channel;
-        }, $channels);
+        // Filter text channels and sort by position
+        $channels = $channels
+            ->filter(function ($channel) {
+                // Type 0 is text channel in Discord API
+                return ($channel['type'] ?? 0) === 0;
+            })
+            ->map(function ($channel) {
+                return [
+                    'id' => $channel['id'],
+                    'name' => $channel['name'],
+                    'position' => $channel['position'] ?? 0,
+                ];
+            })
+            ->sortBy('position')
+            ->map(function ($channel) {
+                unset($channel['position']);
+
+                return $channel;
+            })
+            ->values()
+            ->toArray();
 
         $existingSetting = WelcomeSetting::whereGuildId($serverId)
             ->first();
@@ -58,7 +65,7 @@ class WelcomeSettingController
         ]);
     }
 
-    public function store(Request $request, string $serverId)
+    public function store(Request $request, string $serverId): RedirectResponse
     {
         $request->validate([
             'channel.id' => 'required|string',
@@ -66,7 +73,7 @@ class WelcomeSettingController
             'is_active' => 'required|boolean',
         ]);
 
-        $welcomeSetting = WelcomeSetting::updateOrCreate(
+        WelcomeSetting::updateOrCreate(
             ['guild_id' => $serverId],
             [
                 'channel_id' => $request->input('channel.id'),
@@ -76,6 +83,6 @@ class WelcomeSettingController
         );
 
         return redirect()->route('server.settings.welcome', ['serverId' => $serverId])
-            ->with(['type' => 'success', 'message' => 'Welcome settings updated successfully']);
+            ->with('success', 'Welcome settings updated successfully');
     }
 }

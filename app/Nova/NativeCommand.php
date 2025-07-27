@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Nova;
 
+use App\Models\NativeCommand as ModelsNativeCommand;
 use Laravel\Nova\Actions\ExportAsCsv;
 use Laravel\Nova\Fields\Boolean;
 use Laravel\Nova\Fields\DateTime;
@@ -19,7 +20,7 @@ final class NativeCommand extends Resource
      *
      * @var class-string<\App\Models\NativeCommand>
      */
-    public static $model = \App\Models\NativeCommand::class;
+    public static $model = ModelsNativeCommand::class;
 
     /**
      * The single value that should be used to represent the resource when being displayed.
@@ -45,7 +46,7 @@ final class NativeCommand extends Resource
     /**
      * Get the fields displayed by the resource.
      *
-     * @return array<int, \Laravel\Nova\Fields\Field>
+     * @return array<int, Field>
      */
     public function fields(NovaRequest $request): array
     {

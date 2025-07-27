@@ -20,6 +20,8 @@
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.10",
         "league/flysystem-aws-s3-v3": "^3.29",
+        "openai-php/client": "^0.14.0",
+        "openai-php/laravel": "^0.14.0",
         "socialiteproviders/discord": "^4.2",
         "socialiteproviders/twitch": "^5.4",
         "symfony/http-client": "^7.2",
@@ -68,7 +70,7 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently -c \"#FF2D20,#38BDF8,#5865F2\" \"nodemon --config nodemon-queue.json\" \"npm run dev\" \"nodemon --config nodemon-neon.json\" --names=queue,vite,neon"
+            "npx concurrently -c \"#FF2D20,#38BDF8,#EC4899,#635BFF\" --kill-others --handle-input \"php artisan queue:listen --tries=1\" \"npm run dev\" \"php artisan neon:start --watch\" \"stripe listen --forward-to=https://neon.test/api/stripe/webhook\" --names=queue,vite,neon,stripe"
         ]
     },
     "extra": {

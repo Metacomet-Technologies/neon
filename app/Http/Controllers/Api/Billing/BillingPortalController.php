@@ -8,7 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Stripe\Exception\ApiErrorException;
 
-class BillingPortalController
+final class BillingPortalController
 {
     /**
      * Redirect to Stripe billing portal.
@@ -30,7 +30,7 @@ class BillingPortalController
             $billingPortal = $user->billingPortalUrl('https://neon.test/dashboard');
 
             return response()->json([
-                'portal_url' => $billingPortal,
+                'url' => $billingPortal,
             ]);
 
         } catch (ApiErrorException $e) {

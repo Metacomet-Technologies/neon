@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -14,7 +16,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $data_type
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \App\Models\NativeCommand|null $command
+ * @property-read \App\Models\NativeCommand $command
  *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommandParameter newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|NativeCommandParameter newQuery()
@@ -31,20 +33,13 @@ use Illuminate\Database\Eloquent\Model;
  *
  * @mixin \Eloquent
  */
-class NativeCommandParameter extends Model
+final class NativeCommandParameter extends Model
 {
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
-    protected $guarded = [];
-
     /**
      * Get the command that owns the NativeCommandParameter
      */
     public function command(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
-        return $this->belongsTo(NativeCommand::class);
+        return $this->belongsTo(NativeCommand::class, 'native_command_id');
     }
 }

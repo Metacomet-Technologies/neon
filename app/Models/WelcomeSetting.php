@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Observers\WelcomeSettingObserver;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property int $id
@@ -14,6 +17,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property bool $is_active
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\Guild $guild
  *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|WelcomeSetting newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|WelcomeSetting newQuery()
@@ -29,11 +33,17 @@ use Illuminate\Database\Eloquent\Model;
  * @mixin \Eloquent
  */
 #[ObservedBy(WelcomeSettingObserver::class)]
-class WelcomeSetting extends Model
+final class WelcomeSetting extends Model
 {
-    protected $guarded = [];
-
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    /**
+     * Get the guild that owns this welcome setting.
+     */
+    public function guild(): BelongsTo
+    {
+        return $this->belongsTo(Guild::class, 'guild_id', 'id');
+    }
 }

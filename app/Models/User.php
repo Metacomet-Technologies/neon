@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Enums\DiscordPermissionEnum;
-use App\Helpers\Discord\GetGuilds;
+use App\Services\Discord\DiscordService;
+use App\Services\Discord\Enums\PermissionEnum;
+use Exception;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -30,6 +31,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string|null $access_token
  * @property string|null $refresh_token
  * @property \Illuminate\Support\Carbon|null $refresh_token_expires_at
+ * @property \Illuminate\Support\Carbon|null $token_expires_at
  * @property bool $is_admin
  * @property bool $is_on_mailing_list
  * @property string|null $current_server_id
@@ -44,6 +46,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read int|null $licenses_count
  * @property-read \Illuminate\Notifications\DatabaseNotificationCollection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
  * @property-read int|null $notifications_count
+ * @property-read \App\Models\UserSetting|null $settings
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \Laravel\Cashier\Subscription> $subscriptions
  * @property-read int|null $subscriptions_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \Laravel\Sanctum\PersonalAccessToken> $tokens
@@ -73,6 +76,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereRefreshTokenExpiresAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereRememberToken($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereStripeId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereTokenExpiresAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereTrialEndsAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereTwoFactorConfirmedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereTwoFactorRecoveryCodes($value)
@@ -87,26 +91,6 @@ final class User extends Authenticatable
     use Billable, HasApiTokens, HasFactory, Notifiable;
 
     /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
-        'email_verified_at',
-        'avatar',
-        'discord_id',
-        'access_token',
-        'refresh_token',
-        'refresh_token_expires_at',
-        'is_admin',
-        'is_on_mailing_list',
-        'current_server_id',
-    ];
-
-    /**
      * The attributes that should be hidden for serialization.
      *
      * @var list<string>
@@ -117,6 +101,7 @@ final class User extends Authenticatable
         'access_token',
         'refresh_token',
         'refresh_token_expires_at',
+        'token_expires_at',
         'two_factor_secret',
         'two_factor_recovery_codes',
         'two_factor_confirmed_at',
@@ -140,6 +125,7 @@ final class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'refresh_token_expires_at' => 'datetime',
+            'token_expires_at' => 'datetime',
             'is_admin' => 'boolean',
             'is_on_mailing_list' => 'boolean',
             'trial_ends_at' => 'datetime',
@@ -162,8 +148,13 @@ final class User extends Authenticatable
     public function getGuildsAttribute(): array
     {
         $guilds = Cache::remember('user-guilds-' . $this->id, now()->addMinutes(1), function () {
-            return (new GetGuilds($this))
-                ->getGuildsWhereUserHasPermission(DiscordPermissionEnum::ADMINISTRATOR);
+            try {
+                $discord = DiscordService::forUser($this);
+
+                return $discord->userGuildsWithPermission(PermissionEnum::ADMINISTRATOR);
+            } catch (Exception $e) {
+                return [];
+            }
         });
 
         return $guilds;
@@ -196,5 +187,47 @@ final class User extends Authenticatable
     public function parkedLicenses()
     {
         return $this->licenses()->parked();
+    }
+
+    /**
+     * Check if the user's Discord access token is expired.
+     */
+    public function hasExpiredDiscordToken(): bool
+    {
+        return $this->token_expires_at && $this->token_expires_at->isPast();
+    }
+
+    /**
+     * Check if the user's Discord refresh token is expired.
+     */
+    public function hasExpiredDiscordRefreshToken(): bool
+    {
+        return $this->refresh_token_expires_at && $this->refresh_token_expires_at->isPast();
+    }
+
+    /**
+     * Check if the user can refresh their Discord token.
+     */
+    public function canRefreshDiscordToken(): bool
+    {
+        return $this->refresh_token && ! $this->hasExpiredDiscordRefreshToken();
+    }
+
+    /**
+     * Get the user's settings.
+     */
+    public function settings()
+    {
+        return $this->hasOne(UserSetting::class);
+    }
+
+    /**
+     * Get or create user settings.
+     */
+    public function getOrCreateSettings(): UserSetting
+    {
+        return $this->settings()->firstOrCreate([
+            'user_id' => $this->id,
+        ]);
     }
 }

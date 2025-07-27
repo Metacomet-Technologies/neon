@@ -42,11 +42,13 @@ final class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user(),
+                'user' => $request->user() ? $request->user()->append('guilds') : null,
             ],
             'flash' => [
-                'type' => $request->session()->get('type'),
-                'message' => $request->session()->get('message'),
+                'success' => $request->session()->get('success'),
+                'error' => $request->session()->get('error'),
+                'warning' => $request->session()->get('warning'),
+                'info' => $request->session()->get('info'),
             ],
             'ziggy' => fn () => [
                 ...(new Ziggy)->toArray(),
@@ -54,9 +56,13 @@ final class HandleInertiaRequests extends Middleware
             ],
             'appName' => config('app.name'),
             'theme' => function () use ($request) {
-                $theme = $request->cookie('theme', 'dark');
+                if ($request->user()) {
+                    $settings = $request->user()->getOrCreateSettings();
 
-                return $theme;
+                    return $settings->theme;
+                }
+
+                return 'system';
             },
         ];
     }

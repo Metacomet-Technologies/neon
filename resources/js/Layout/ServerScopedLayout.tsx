@@ -1,7 +1,7 @@
-import { Avatar } from '@/Components/avatar';
-import { Dropdown, DropdownButton, DropdownItem, DropdownLabel, DropdownMenu } from '@/Components/dropdown';
-import { NavbarItem, NavbarLabel } from '@/Components/navbar';
-import { PageProps } from '@/types';
+import { Avatar } from '@/Components/catalyst/avatar';
+import { Dropdown, DropdownButton, DropdownItem, DropdownLabel, DropdownMenu } from '@/Components/catalyst/dropdown';
+import { NavbarItem, NavbarLabel } from '@/Components/catalyst/navbar';
+import { Guild, PageProps } from '@/types';
 import { ChevronDownIcon } from '@heroicons/react/16/solid';
 import { router, usePage } from '@inertiajs/react';
 import { Layout } from './Layout';
@@ -25,7 +25,7 @@ function ServerDropDownMenu() {
 
     const currentGuildId = user.current_server_id || null;
 
-    const currentGuild = guilds.find((guild) => guild.id === currentGuildId) || null;
+    const currentGuild = guilds.find((guild: Guild) => guild.id === currentGuildId) || null;
 
     const currentRoute: string = route().current() as string;
     const currentRouteParams: { [key: string]: string } = route().params;
@@ -55,10 +55,10 @@ function ServerDropDownMenu() {
                 <ChevronDownIcon />
             </DropdownButton>
             <DropdownMenu className="min-w-80 lg:min-w-64" anchor="bottom start">
-                {guilds.map((guild) => (
+                {guilds.map((guild: Guild) => (
                     <DropdownItem
                         key={guild.id}
-                        onClick={() => handleServerChange(guild.id)}
+                        onClick={() => guild.id && handleServerChange(guild.id)}
                         disabled={guild.id === currentGuildId}
                     >
                         <Avatar src={getGuildIcon(guild)} className="size-10" alt={guild.name} />

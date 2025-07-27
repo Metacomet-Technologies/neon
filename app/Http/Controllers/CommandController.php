@@ -6,15 +6,17 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\NeonCommandRequest;
 use App\Models\NeonCommand;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Inertia\Response;
 
 final class CommandController
 {
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request, string $serverId): \Inertia\Response
+    public function index(Request $request, string $serverId): Response
     {
         $user = $request->user();
 
@@ -30,8 +32,8 @@ final class CommandController
             abort(403, 'You are not authorized to view this page.');
         }
 
-        $page = request()->input('page', 1);
-        $perPage = request()->input('perPage', 10);
+        $page = $request->input('page', 1);
+        $perPage = $request->input('perPage', 10);
 
         return Inertia::render('Command/Index', [
             'commands' => NeonCommand::query()
@@ -46,7 +48,7 @@ final class CommandController
     /**
      * Show the form for creating a new resource.
      */
-    public function create(Request $request, string $serverId): \Inertia\Response
+    public function create(Request $request, string $serverId): Response
     {
         $user = $request->user();
 
@@ -70,7 +72,7 @@ final class CommandController
     /**
      * Store a newly created resource in storage.
      */
-    public function store(NeonCommandRequest $request, string $serverId): \Illuminate\Http\RedirectResponse
+    public function store(NeonCommandRequest $request, string $serverId): RedirectResponse
     {
         $user = $request->user();
 
@@ -86,34 +88,30 @@ final class CommandController
             abort(403, 'You are not authorized to view this page.');
         }
 
-        $now = now();
-
-        $newCommand = new NeonCommand;
-        $newCommand->command = $request->input('command');
-        $newCommand->response = $request->input('response');
-        $newCommand->description = $request->input('description', null);
-        $newCommand->guild_id = $serverId;
-        $newCommand->is_enabled = $request->input('is_enabled');
-        $newCommand->is_public = $request->input('is_public');
-        $newCommand->is_embed = $request->input('is_embed');
-        $newCommand->embed_title = $request->input('embed_title', null);
-        $newCommand->embed_description = $request->input('embed_description', null);
-        $newCommand->embed_color = $request->input('embed_color', null);
-        $newCommand->created_by = $user->id;
-        $newCommand->updated_by = $user->id;
-        $newCommand->created_at = $now;
-        $newCommand->updated_at = $now;
-        $newCommand->save();
+        NeonCommand::create([
+            'command' => $request->validated('command'),
+            'response' => $request->validated('response'),
+            'description' => $request->validated('description'),
+            'guild_id' => $serverId,
+            'is_enabled' => $request->validated('is_enabled'),
+            'is_public' => $request->validated('is_public'),
+            'is_embed' => $request->validated('is_embed'),
+            'embed_title' => $request->validated('embed_title'),
+            'embed_description' => $request->validated('embed_description'),
+            'embed_color' => $request->validated('embed_color'),
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
 
         return redirect()
             ->route('server.command.index', $serverId)
-            ->with(['type' => 'success', 'message' => 'Command created successfully.']);
+            ->with('success', 'Command created successfully.');
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Request $request, string $serverId, NeonCommand $command): \Inertia\Response
+    public function edit(Request $request, string $serverId, NeonCommand $command): Response
     {
         $user = $request->user();
 
@@ -138,7 +136,7 @@ final class CommandController
     /**
      * Update the specified resource in storage.
      */
-    public function update(NeonCommandRequest $request, string $serverId, NeonCommand $command): \Illuminate\Http\RedirectResponse
+    public function update(NeonCommandRequest $request, string $serverId, NeonCommand $command): RedirectResponse
     {
         $user = $request->user();
 
@@ -154,30 +152,28 @@ final class CommandController
             abort(403, 'You are not authorized to view this page.');
         }
 
-        $now = now();
-        $now = now();
-        $command->command = $request->input('command');
-        $command->response = $request->input('response');
-        $command->description = $request->input('description', null);
-        $command->is_enabled = $request->input('is_enabled');
-        $command->is_public = $request->input('is_public');
-        $command->is_embed = $request->input('is_embed');
-        $command->embed_title = $request->input('embed_title', null);
-        $command->embed_description = $request->input('embed_description', null);
-        $command->embed_color = $request->input('embed_color', null);
-        $command->updated_by = $user->id;
-        $command->updated_at = $now;
-        $command->save();
+        $command->update([
+            'command' => $request->validated('command'),
+            'response' => $request->validated('response'),
+            'description' => $request->validated('description'),
+            'is_enabled' => $request->validated('is_enabled'),
+            'is_public' => $request->validated('is_public'),
+            'is_embed' => $request->validated('is_embed'),
+            'embed_title' => $request->validated('embed_title'),
+            'embed_description' => $request->validated('embed_description'),
+            'embed_color' => $request->validated('embed_color'),
+            'updated_by' => $user->id,
+        ]);
 
         return redirect()
             ->route('server.command.index', $serverId)
-            ->with(['type' => 'success', 'message' => 'Command updated successfully.']);
+            ->with('success', 'Command updated successfully.');
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Request $request, string $serverId, NeonCommand $command): \Illuminate\Http\RedirectResponse
+    public function destroy(Request $request, string $serverId, NeonCommand $command): RedirectResponse
     {
         $user = $request->user();
 
@@ -197,6 +193,6 @@ final class CommandController
 
         return redirect()
             ->route('server.command.index', $serverId)
-            ->with(['type' => 'success', 'message' => 'Command deleted successfully.']);
+            ->with('success', 'Command deleted successfully.');
     }
 }

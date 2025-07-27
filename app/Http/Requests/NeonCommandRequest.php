@@ -5,8 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use App\Models\NeonCommand;
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * @method User|null user()
+ */
 final class NeonCommandRequest extends FormRequest
 {
     /**

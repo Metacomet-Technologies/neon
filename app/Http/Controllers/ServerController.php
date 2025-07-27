@@ -4,18 +4,19 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Helpers\Discord\GetBotGuilds;
-use App\Helpers\Discord\GetGuildChannels;
+use App\Models\Guild;
 use App\Models\WelcomeSetting;
+use App\Services\Discord\DiscordService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Inertia\Response;
 
 final class ServerController
 {
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): \Inertia\Response
+    public function index(Request $request): Response
     {
         $user = $request->user();
 
@@ -23,15 +24,23 @@ final class ServerController
             abort(403, 'You are not authorized to view this page.');
         }
 
+        $guilds = $user->guilds;
+        
+        // Get list of guild IDs where bot is a member
+        $botGuilds = Guild::where('is_bot_member', true)
+            ->pluck('id')
+            ->toArray();
+
         return Inertia::render('Servers/Index', [
-            'botGuilds' => GetBotGuilds::make(),
+            'guilds' => $guilds,
+            'botGuilds' => $botGuilds,
         ]);
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Request $request, string $serverId): \Inertia\Response
+    public function show(Request $request, string $serverId): Response
     {
         $user = $request->user();
 
@@ -49,25 +58,30 @@ final class ServerController
         $user->current_server_id = $serverId;
         $user->save();
 
-        $channels = (new GetGuildChannels($serverId))->getTextChannels();
-        $channels = array_map(function ($channel) {
-            return [
-                'id' => $channel['id'],
-                'name' => $channel['name'],
-                'position' => $channel['position'],
-            ];
-        }, $channels);
-        $channels = array_values($channels);
-        // order by position
-        usort($channels, function ($a, $b) {
-            return $a['position'] <=> $b['position'];
-        });
-        // remove position
-        $channels = array_map(function ($channel) {
-            unset($channel['position']);
+        $discord = app(DiscordService::class);
+        $channels = $discord->guild($serverId)->channels();
 
-            return $channel;
-        }, $channels);
+        // Filter text channels and sort by position
+        $channels = $channels
+            ->filter(function ($channel) {
+                // Type 0 is text channel in Discord API
+                return ($channel['type'] ?? 0) === 0;
+            })
+            ->map(function ($channel) {
+                return [
+                    'id' => $channel['id'],
+                    'name' => $channel['name'],
+                    'position' => $channel['position'] ?? 0,
+                ];
+            })
+            ->sortBy('position')
+            ->map(function ($channel) {
+                unset($channel['position']);
+
+                return $channel;
+            })
+            ->values()
+            ->toArray();
 
         $existingSetting = WelcomeSetting::whereGuildId($serverId)
             ->first();

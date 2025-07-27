@@ -1,9 +1,9 @@
-import { Alert, AlertActions, AlertDescription, AlertTitle } from '@/Components/alert';
-import { Avatar } from '@/Components/avatar';
-import { Button } from '@/Components/button';
-import { Heading } from '@/Components/heading';
-import { Link } from '@/Components/link';
-import { Strong, Text } from '@/Components/text';
+import { Alert, AlertActions, AlertDescription, AlertTitle } from '@/Components/catalyst/alert';
+import { Avatar } from '@/Components/catalyst/avatar';
+import { Button } from '@/Components/catalyst/button';
+import { Heading } from '@/Components/catalyst/heading';
+import { Link } from '@/Components/catalyst/link';
+import { Strong, Text } from '@/Components/catalyst/text';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Layout } from '@/Layout/Layout';
 import { PageProps } from '@/types';

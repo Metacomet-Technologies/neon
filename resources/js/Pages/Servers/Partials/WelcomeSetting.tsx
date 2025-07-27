@@ -1,10 +1,10 @@
-import { Button } from '@/Components/button';
-import { Combobox, ComboboxLabel, ComboboxOption } from '@/Components/combobox';
-import { Description, Field, FieldGroup, Label } from '@/Components/fieldset';
-import { Switch, SwitchField } from '@/Components/switch';
-import { Textarea } from '@/Components/textarea';
+import { Button } from '@/Components/catalyst/button';
+import { Combobox, ComboboxLabel, ComboboxOption } from '@/Components/catalyst/combobox';
+import { Description, Field, FieldGroup, Label } from '@/Components/catalyst/fieldset';
+import { Switch, SwitchField } from '@/Components/catalyst/switch';
+import { Textarea } from '@/Components/catalyst/textarea';
 import { Card, CardContent, CardFooter, CardHeader } from '@/Components/ui/card';
-import type { WelcomeSetting } from '@/types';
+import type { Guild, WelcomeSetting } from '@/types';
 import { PageProps } from '@/types';
 import { useForm, usePage } from '@inertiajs/react';
 import { JSX } from 'react';
@@ -18,7 +18,7 @@ export default function WelcomeSetting({
 }): JSX.Element {
     const { auth } = usePage<PageProps>().props;
 
-    const guild = auth.user?.guilds.find((guild) => guild.id === auth.user.current_server_id);
+    const guild = auth.user?.guilds?.find((guild: Guild) => guild.id === auth.user?.current_server_id);
     const serverId = guild?.id;
 
     function getChannelFromId(id: string) {

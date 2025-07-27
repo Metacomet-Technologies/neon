@@ -8,7 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Stripe\Exception\ApiErrorException;
 
-class CheckoutLifetimeController
+final class CheckoutLifetimeController
 {
     /**
      * Create a one-time payment checkout session for lifetime license.
@@ -31,12 +31,20 @@ class CheckoutLifetimeController
             $checkout = $user->checkout([
                 $request->price_id => 1,
             ], [
-                'success_url' => 'https://neon.test/dashboard?session_id={CHECKOUT_SESSION_ID}',
-                'cancel_url' => 'https://neon.test/dashboard',
+                'success_url' => url('/billing?session_id={CHECKOUT_SESSION_ID}&success=1'),
+                'cancel_url' => url('/billing?session_id={CHECKOUT_SESSION_ID}&cancelled=1'),
                 'metadata' => [
                     'user_id' => $user->id,
                     'license_type' => 'lifetime',
                     'price_id' => $request->price_id,
+                ],
+                'expires_at' => now()->addHours(1)->timestamp, // Expire session after 1 hour
+                'payment_method_types' => ['card'],
+                'mode' => 'payment',
+                'allow_promotion_codes' => true,
+                'billing_address_collection' => 'auto',
+                'payment_intent_data' => [
+                    'description' => 'Neon Lifetime License',
                 ],
             ]);
 

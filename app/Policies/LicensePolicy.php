@@ -7,7 +7,7 @@ namespace App\Policies;
 use App\Models\License;
 use App\Models\User;
 
-class LicensePolicy
+final class LicensePolicy
 {
     /**
      * Determine whether the user can view any models.

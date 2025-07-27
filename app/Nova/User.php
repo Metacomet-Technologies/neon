@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Nova;
 
+use App\Models\User as ModelsUser;
 use Laravel\Nova\Fields\Avatar;
 use Laravel\Nova\Fields\Boolean;
+use Laravel\Nova\Fields\HasMany;
 use Laravel\Nova\Fields\ID;
+use Laravel\Nova\Fields\Number;
 use Laravel\Nova\Fields\Text;
 use Laravel\Nova\Http\Requests\NovaRequest;
 
@@ -17,7 +20,7 @@ final class User extends Resource
      *
      * @var class-string<\App\Models\User>
      */
-    public static $model = \App\Models\User::class;
+    public static $model = ModelsUser::class;
 
     /**
      * The single value that should be used to represent the resource when being displayed.
@@ -40,7 +43,7 @@ final class User extends Resource
     /**
      * Get the fields displayed by the resource.
      *
-     * @return array<int, \Laravel\Nova\Fields\Field|\Laravel\Nova\Panel|\Laravel\Nova\ResourceTool|\Illuminate\Http\Resources\MergeValue>
+     * @return array<int, Field|Panel|ResourceTool|\Illuminate\Http\Resources\MergeValue>
      */
     public function fields(NovaRequest $request): array
     {
@@ -74,6 +77,30 @@ final class User extends Resource
                 ->filterable()
                 ->default(true)
                 ->rules('boolean'),
+
+            Text::make('Discord ID', 'discord_id')
+                ->sortable()
+                ->readonly()
+                ->hideFromIndex(),
+
+            Text::make('Stripe Customer ID', 'stripe_id')
+                ->sortable()
+                ->readonly()
+                ->hideFromIndex(),
+
+            Number::make('Total Licenses', function () {
+                return $this->licenses()->count();
+            })
+                ->sortable()
+                ->readonly(),
+
+            Number::make('Active Licenses', function () {
+                return $this->licenses()->where('status', 'active')->count();
+            })
+                ->sortable()
+                ->readonly(),
+
+            HasMany::make('Licenses'),
 
         ];
     }

@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\User $createdByUser
+ * @property-read \App\Models\Guild $guild
  * @property-read \App\Models\User $updatedByUser
  *
  * @method static Builder<static>|NeonCommand aciveGuildCommands(string $guildId)
@@ -54,13 +55,6 @@ use Illuminate\Database\Eloquent\Model;
 final class NeonCommand extends Model
 {
     /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<string>
-     */
-    protected $guarded = [];
-
-    /**
      * The attributes that should be cast.
      *
      * @var array<string, string>
@@ -84,7 +78,15 @@ final class NeonCommand extends Model
      */
     public function updatedByUser(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    /**
+     * Get the guild that owns this command.
+     */
+    public function guild(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Guild::class, 'guild_id', 'id');
     }
 
     /**
@@ -103,5 +105,78 @@ final class NeonCommand extends Model
                 'embed_description',
                 'embed_color',
             ]);
+    }
+
+    /**
+     * Record usage analytics for this Neon command.
+     */
+    public function recordUsage(
+        string $discordUserId,
+        string $messageContent = '',
+        ?string $channelType = null,
+        ?int $executionTimeMs = null,
+        string $status = 'success',
+        ?string $errorCategory = null
+    ): CommandUsageMetric {
+        // Tokenize the message content to extract parameters safely
+        $parameters = $this->extractParameters($messageContent);
+
+        return CommandUsageMetric::recordUsage(
+            commandType: 'neon',
+            commandSlug: $this->command,
+            guildId: $this->guild_id,
+            discordUserId: $discordUserId,
+            parameters: $parameters,
+            channelType: $channelType,
+            executionTimeMs: $executionTimeMs,
+            status: $status,
+            errorCategory: $errorCategory
+        );
+    }
+
+    /**
+     * Extract parameters from message content for analytics.
+     * This tokenizes the content without storing sensitive information.
+     */
+    private function extractParameters(string $messageContent): array
+    {
+        // Remove the command name from the message
+        $commandPrefix = '!' . $this->command;
+        $parametersString = trim(str_replace($commandPrefix, '', $messageContent));
+
+        if (empty($parametersString)) {
+            return [];
+        }
+
+        // Split by spaces, but respect quoted strings
+        $parameters = [];
+        $inQuotes = false;
+        $currentParam = '';
+        $chars = str_split($parametersString);
+
+        foreach ($chars as $char) {
+            if ($char === '"' && ! $inQuotes) {
+                $inQuotes = true;
+            } elseif ($char === '"' && $inQuotes) {
+                $inQuotes = false;
+                if (! empty($currentParam)) {
+                    $parameters[] = $currentParam;
+                    $currentParam = '';
+                }
+            } elseif ($char === ' ' && ! $inQuotes) {
+                if (! empty($currentParam)) {
+                    $parameters[] = $currentParam;
+                    $currentParam = '';
+                }
+            } else {
+                $currentParam .= $char;
+            }
+        }
+
+        if (! empty($currentParam)) {
+            $parameters[] = $currentParam;
+        }
+
+        return $parameters;
     }
 }

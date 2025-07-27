@@ -1,14 +1,22 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace App\Providers;
 
 use App\Models\User;
+use App\Services\Discord\DiscordClient;
+use App\Services\Discord\DiscordService;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Cashier\Cashier;
+use SocialiteProviders\Discord\Provider as DiscordProvider;
+use SocialiteProviders\Manager\SocialiteWasCalled;
+use SocialiteProviders\Twitch\Provider as TwitchProvider;
 
 /**
  * Class AppServiceProvider
@@ -20,7 +28,11 @@ final class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Register Discord services as singletons
+        $this->app->singleton(DiscordClient::class);
+        $this->app->singleton(DiscordService::class, function ($app) {
+            return new DiscordService($app->make(DiscordClient::class));
+        });
     }
 
     /**
@@ -28,12 +40,31 @@ final class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Disable mass assignment protection in all environments
+        Model::unguard();
+
+        // Development settings for better coding experience
+        if ($this->app->environment('local')) {
+            // Enable query logging for debugging
+            DB::enableQueryLog();
+
+            // Prevent lazy loading to catch N+1 queries
+            Model::preventLazyLoading();
+            Model::preventAccessingMissingAttributes();
+            Model::preventSilentlyDiscardingAttributes();
+
+            // Enable model events for all models
+            Model::shouldBeStrict();
+        }
+
+        Vite::prefetch(concurrency: 5);
+
         // Configure Cashier to use the User model
         Cashier::useCustomerModel(User::class);
 
-        Event::listen(function (\SocialiteProviders\Manager\SocialiteWasCalled $event) {
-            $event->extendSocialite('discord', \SocialiteProviders\Discord\Provider::class);
-            $event->extendSocialite('twitch', \SocialiteProviders\Twitch\Provider::class);
+        Event::listen(function (SocialiteWasCalled $event) {
+            $event->extendSocialite('discord', DiscordProvider::class);
+            $event->extendSocialite('twitch', TwitchProvider::class);
         });
 
         Gate::before(function (User $user) {
@@ -43,10 +74,6 @@ final class AppServiceProvider extends ServiceProvider
         });
 
         Gate::define('viewPulse', function (User $user) {
-            return $user->isAdmin();
-        });
-
-        Gate::define('viewAdminPanel', function (User $user) {
             return $user->isAdmin();
         });
     }

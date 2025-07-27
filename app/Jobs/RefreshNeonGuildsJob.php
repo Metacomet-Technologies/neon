@@ -1,13 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Jobs;
 
-use App\Helpers\Discord\GetBotGuilds;
+use App\Services\Discord\DiscordService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Cache;
 
-class RefreshNeonGuildsJob implements ShouldQueue
+final class RefreshNeonGuildsJob implements ShouldQueue
 {
     use Queueable;
 
@@ -19,8 +21,10 @@ class RefreshNeonGuildsJob implements ShouldQueue
         $key = 'neon:guilds';
         $ttl = 300;
 
-        $guilds = new GetBotGuilds;
+        $discord = app(DiscordService::class);
+        $guilds = $discord->bot()->guilds();
+        $guildIds = $guilds->pluck('id')->toArray();
 
-        Cache::put($key, $guilds->getGuildIds(), $ttl);
+        Cache::put($key, $guildIds, $ttl);
     }
 }

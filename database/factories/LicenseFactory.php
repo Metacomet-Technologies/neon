@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Models\Guild;
 use App\Models\License;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -42,11 +43,15 @@ class LicenseFactory extends Factory
      */
     public function active(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'status' => License::STATUS_ACTIVE,
-            'assigned_guild_id' => fake()->numerify('##################'),
-            'last_assigned_at' => fake()->dateTimeBetween('-90 days', '-31 days'), // Beyond cooldown period
-        ]);
+        return $this->state(function (array $attributes) {
+            $guild = Guild::factory()->create();
+
+            return [
+                'status' => License::STATUS_ACTIVE,
+                'assigned_guild_id' => $guild->id,
+                'last_assigned_at' => fake()->dateTimeBetween('-90 days', '-31 days'), // Beyond cooldown period
+            ];
+        });
     }
 
     /**
@@ -110,11 +115,18 @@ class LicenseFactory extends Factory
      */
     public function assignedToGuild(string $guildId): static
     {
-        return $this->state(fn (array $attributes) => [
-            'status' => License::STATUS_ACTIVE,
-            'assigned_guild_id' => $guildId,
-            'last_assigned_at' => fake()->dateTimeBetween('-90 days', '-31 days'), // Beyond cooldown period
-        ]);
+        return $this->state(function (array $attributes) use ($guildId) {
+            // Create the guild if it doesn't exist
+            if (! Guild::where('id', $guildId)->exists()) {
+                Guild::factory()->create(['id' => $guildId]);
+            }
+
+            return [
+                'status' => License::STATUS_ACTIVE,
+                'assigned_guild_id' => $guildId,
+                'last_assigned_at' => fake()->dateTimeBetween('-90 days', '-31 days'), // Beyond cooldown period
+            ];
+        });
     }
 
     /**

@@ -32,7 +32,7 @@ return [
     |
     */
 
-    'lifetime' => env('SESSION_LIFETIME', 120),
+    'lifetime' => env('SESSION_LIFETIME', 60), // Match Discord token lifetime
 
     'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', false),
 

@@ -1,6 +1,6 @@
-import { Button } from '@/Components/button';
-import { Dialog, DialogActions, DialogDescription, DialogTitle } from '@/Components/dialog';
-import { Strong } from '@/Components/text';
+import { Button } from '@/Components/catalyst/button';
+import { Dialog, DialogActions, DialogDescription, DialogTitle } from '@/Components/catalyst/dialog';
+import { Strong } from '@/Components/catalyst/text';
 import ServerScopedLayout from '@/Layout/ServerScopedLayout';
 import { ArrowLeftIcon, TrashIcon } from '@heroicons/react/16/solid';
 import { Head } from '@inertiajs/react';

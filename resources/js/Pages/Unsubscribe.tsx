@@ -1,5 +1,5 @@
-import { Heading } from '@/Components/heading';
-import { Text } from '@/Components/text';
+import { Heading } from '@/Components/catalyst/heading';
+import { Text } from '@/Components/catalyst/text';
 import { Head } from '@inertiajs/react';
 import React from 'react';
 

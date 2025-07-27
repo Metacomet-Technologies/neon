@@ -1,4 +1,4 @@
-import { Avatar } from '@/Components/avatar';
+import { Avatar } from '@/Components/catalyst/avatar';
 import {
     Dropdown,
     DropdownButton,
@@ -6,8 +6,8 @@ import {
     DropdownItem,
     DropdownLabel,
     DropdownMenu,
-} from '@/Components/dropdown';
-import { Navbar, NavbarDivider, NavbarItem, NavbarSection, NavbarSpacer } from '@/Components/navbar';
+} from '@/Components/catalyst/dropdown';
+import { Navbar, NavbarDivider, NavbarItem, NavbarSection, NavbarSpacer } from '@/Components/catalyst/navbar';
 import {
     Sidebar,
     SidebarBody,
@@ -16,8 +16,8 @@ import {
     SidebarItem,
     SidebarLabel,
     SidebarSection,
-} from '@/Components/sidebar';
-import { StackedLayout } from '@/Components/stacked-layout';
+} from '@/Components/catalyst/sidebar';
+import { StackedLayout } from '@/Components/catalyst/stacked-layout';
 import { PageProps } from '@/types';
 import {
     ArrowRightStartOnRectangleIcon,
@@ -30,10 +30,9 @@ import {
 } from '@heroicons/react/16/solid';
 import { usePage } from '@inertiajs/react';
 
-import { Toaster } from '@/Components/ui/toaster';
+import ThemeToggle from '@/Components/ThemeToggle';
+import { ToastHandler } from '@/Components/ToastHandler';
 import { useCallback } from 'react';
-import Flash from './Flash';
-import ThemeToggleButton from './ThemeToggleButton';
 
 /**
  * Layout component that provides the structure for the application.
@@ -50,8 +49,7 @@ export function Layout({
     scopeDropDown?: React.ReactNode | null;
 }) {
     const { component, props } = usePage<PageProps>();
-    const { auth, flash } = props;
-    console.log(flash);
+    const { auth } = props;
 
     const currentServerId = auth?.user?.current_server_id || null;
 
@@ -86,6 +84,11 @@ export function Layout({
                                 current={component.startsWith('Commands')}
                             >
                                 Commands
+                            </NavbarItem>
+                        )}
+                        {auth.user && (
+                            <NavbarItem href={route('billing.index')} current={component.startsWith('Billing')}>
+                                Billing
                             </NavbarItem>
                         )}
                     </NavbarSection>
@@ -129,7 +132,7 @@ export function Layout({
                             </DropdownMenu>
                         </Dropdown>
 
-                        <ThemeToggleButton name="theme-toggle-button" />
+                        <ThemeToggle />
                     </NavbarSection>
                 </Navbar>
             }
@@ -160,6 +163,11 @@ export function Layout({
                                     current={component.startsWith('Commands')}
                                 >
                                     Commands
+                                </SidebarItem>
+                            )}
+                            {auth.user && (
+                                <SidebarItem href={route('billing.index')} current={component.startsWith('Billing')}>
+                                    Billing
                                 </SidebarItem>
                             )}
                         </SidebarSection>
@@ -217,9 +225,8 @@ export function Layout({
                 </Sidebar>
             }
         >
-            <Flash flash={flash} />
+            <ToastHandler />
             {children}
-            <Toaster />
         </StackedLayout>
     );
 }

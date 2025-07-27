@@ -7,7 +7,7 @@ namespace App\Http\Controllers\Api\Billing;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class GetBillingInfoController
+final class GetBillingInfoController
 {
     /**
      * Get user's billing information including subscriptions and licenses.

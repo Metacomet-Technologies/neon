@@ -18,6 +18,7 @@ return [
         'client_id' => env('DISCORD_CLIENT_ID'),
         'client_secret' => env('DISCORD_CLIENT_SECRET'),
         'redirect' => env('DISCORD_REDIRECT_URI'),
+        'bot_token' => env('DISCORD_BOT_TOKEN'),
 
         // optional
         'allow_gif_avatars' => (bool) env('DISCORD_AVATAR_GIF', true),
@@ -51,6 +52,13 @@ return [
         'client_id' => env('TWITCH_CLIENT_ID'),
         'client_secret' => env('TWITCH_CLIENT_SECRET'),
         'redirect' => env('TWITCH_REDIRECT_URI'),
+    ],
+
+    'openai' => [
+        'api_key' => env('OPENAI_API_KEY'),
+        'model' => env('OPENAI_MODEL', 'gpt-3.5-turbo'),
+        'organization' => env('OPENAI_ORGANIZATION'),
+        'request_timeout' => env('OPENAI_REQUEST_TIMEOUT', 30),
     ],
 
 ];
