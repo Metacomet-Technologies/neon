@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Nova\Cards;
 
-use App\Services\DiscordApiService;
+use App\Services\Discord\DiscordService;
 use Laravel\Nova\Card;
 
 final class DiscordServiceStatus extends Card
@@ -29,7 +29,7 @@ final class DiscordServiceStatus extends Card
      */
     public function jsonSerialize(): array
     {
-        $service = app(DiscordApiService::class);
+        $service = app(DiscordService::class);
         $stats = $service->getRateLimitStats();
 
         return array_merge(parent::jsonSerialize(), [

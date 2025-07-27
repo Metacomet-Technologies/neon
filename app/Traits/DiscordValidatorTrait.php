@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Traits;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use DateTime;
 use Exception;
 
@@ -21,7 +21,7 @@ trait DiscordValidatorTrait
      */
     protected function validateUserId(string $userId, string $context = 'user'): void
     {
-        if (! Discord::isValidDiscordId($userId)) {
+        if (! DiscordService::isValidDiscordId($userId)) {
             $this->getDiscord()->channel($this->channelId)->send("❌ Invalid {$context} ID format. Please provide a valid Discord {$context} ID.");
             throw new Exception("Invalid {$context} ID format.", 400);
         }
@@ -69,7 +69,7 @@ trait DiscordValidatorTrait
         $userIds = [];
 
         foreach ($mentions as $mention) {
-            $userId = Discord::extractUserId($mention);
+            $userId = DiscordService::extractUserId($mention);
             if (! $userId) {
                 $this->getDiscord()->channel($this->channelId)->send("❌ Invalid user mention format: {$mention}");
                 throw new Exception('Invalid user mention format.', 400);

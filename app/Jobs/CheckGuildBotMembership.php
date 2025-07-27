@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Helpers\Discord\CheckBotMembership;
 use App\Models\Guild;
+use App\Services\Discord\DiscordService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -26,11 +26,10 @@ final class CheckGuildBotMembership implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(): void
+    public function handle(DiscordService $discord): void
     {
-        $checker = new CheckBotMembership;
         $wasInGuild = $this->guild->is_bot_member;
-        $isInGuild = $checker->isBotInGuild($this->guild->id);
+        $isInGuild = $discord->isBotInGuild($this->guild->id);
 
         // Update the guild's bot membership status
         $this->guild->update([

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Models\WelcomeSetting;
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -35,7 +35,7 @@ final class ProcessWelcomeMessageJob implements ShouldQueue
         $message = $welcomeSetting->message;
 
         try {
-            $discord = new Discord;
+            $discord = app(DiscordService::class);
             $discord->channel($channelId)->send(str_replace('{user}', "<@{$this->userId}>", $message));
         } catch (Exception $e) {
             Log::error($e->getMessage());

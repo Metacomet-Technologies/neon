@@ -1,15 +1,17 @@
-# Discord SDK
+# Discord Service
 
-An expressive, fluent interface for interacting with the Discord API in Laravel.
+A unified Discord service for Laravel applications providing an expressive, fluent interface with built-in rate limiting, circuit breaker protection, and token management.
 
 ## Usage Examples
 
 ### Basic Usage
 
 ```php
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 
-$discord = new Discord();
+$discord = app(DiscordService::class);
+// or
+$discord = new DiscordService();
 
 // Get a guild
 $guild = $discord->guild('123456789');
@@ -98,7 +100,7 @@ $discordApi->assignRole($guildId, $userId, $roleId);
 
 **New way (expressive):**
 ```php
-$discord = new Discord();
+$discord = app(DiscordService::class);
 $guild = $discord->guild($guildId);
 $roles = $guild->roles()->get();
 $role = $guild->roles()->findByName('Admin');
@@ -219,4 +221,4 @@ $channel->sendPoll(
 
 ## Integration with Existing Code
 
-The existing `DiscordApiService` can still be used and internally uses the new SDK. This provides backward compatibility while offering the new expressive interface for new code.
+The `DiscordService` combines the functionality of the previous `Discord` SDK and `DiscordApiService`, providing a unified interface with rate limiting, circuit breaker protection, and both resource-based and direct API methods.

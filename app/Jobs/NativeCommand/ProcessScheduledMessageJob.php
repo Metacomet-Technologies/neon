@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Carbon\Carbon;
 use Exception;
 
@@ -26,7 +26,7 @@ final class ProcessScheduledMessageJob extends ProcessBaseJob
     {
         $this->requireMemberPermission();
 
-        $parsed = Discord::parseScheduledMessageCommand($this->messageContent);
+        $parsed = DiscordService::parseScheduledMessageCommand($this->messageContent);
         if (! $parsed['channel_id'] || ! $parsed['datetime'] || ! $parsed['message']) {
             $this->sendUsageAndExample();
             throw new Exception('Missing required parameters.', 400);

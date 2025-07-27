@@ -7,7 +7,6 @@ namespace App\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Auth;
 
 final class UserSettingsController
 {
@@ -16,7 +15,7 @@ final class UserSettingsController
      */
     public function update(Request $request): Response
     {
-        $user = Auth::user();
+        $user = $request->user();
 
         $request->validate([
             'theme' => 'sometimes|in:light,dark,system',
@@ -42,9 +41,9 @@ final class UserSettingsController
     /**
      * Get user settings.
      */
-    public function show(): JsonResponse
+    public function show(Request $request): JsonResponse
     {
-        $user = Auth::user();
+        $user = $request->user();
         $settings = $user->getOrCreateSettings();
 
         return response()->json([

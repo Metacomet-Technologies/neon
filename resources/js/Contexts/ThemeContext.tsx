@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
 import { router } from '@inertiajs/react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -23,7 +23,7 @@ export function ThemeProvider({ children, initialTheme = 'system' }: ThemeProvid
     // Function to get system preference
     const getSystemTheme = (): 'light' | 'dark' => {
         if (typeof window === 'undefined') return 'dark';
-        
+
         try {
             return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         } catch {
@@ -42,9 +42,9 @@ export function ThemeProvider({ children, initialTheme = 'system' }: ThemeProvid
     // Function to apply theme to DOM
     const applyTheme = (themeToApply: 'light' | 'dark') => {
         if (typeof window === 'undefined') return;
-        
+
         const root = window.document.documentElement;
-        
+
         if (themeToApply === 'dark') {
             root.classList.add('dark');
         } else {
@@ -55,15 +55,19 @@ export function ThemeProvider({ children, initialTheme = 'system' }: ThemeProvid
     // Set theme and persist to backend
     const setTheme = (newTheme: Theme) => {
         setThemeState(newTheme);
-        
+
         // Persist to backend
-        router.post('/api/user/settings', {
-            theme: newTheme,
-        }, {
-            preserveState: true,
-            preserveScroll: true,
-            only: [], // Don't reload any props
-        });
+        router.post(
+            '/api/user/settings',
+            {
+                theme: newTheme,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                only: [], // Don't reload any props
+            }
+        );
     };
 
     // Update resolved theme when theme changes
@@ -78,7 +82,7 @@ export function ThemeProvider({ children, initialTheme = 'system' }: ThemeProvid
         if (typeof window === 'undefined') return;
 
         const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        
+
         const handleChange = () => {
             if (theme === 'system') {
                 const resolved = resolveTheme('system');
@@ -88,7 +92,7 @@ export function ThemeProvider({ children, initialTheme = 'system' }: ThemeProvid
         };
 
         mediaQuery.addEventListener('change', handleChange);
-        
+
         return () => mediaQuery.removeEventListener('change', handleChange);
     }, [theme]);
 
@@ -99,11 +103,7 @@ export function ThemeProvider({ children, initialTheme = 'system' }: ThemeProvid
         applyTheme(resolved);
     }, []);
 
-    return (
-        <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme }}>
-            {children}
-        </ThemeContext.Provider>
-    );
+    return <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme }}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme(): ThemeContextType {

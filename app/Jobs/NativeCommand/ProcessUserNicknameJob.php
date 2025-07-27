@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -50,7 +50,7 @@ final class ProcessUserNicknameJob extends ProcessBaseJob
 
         // Check if the user has permission to change nicknames
 
-        $discord = new Discord;
+        $discord = app(DiscordService::class);
         if (! $discord->guild($this->guildId)->member($this->discordUserId)->canManageNicknames()) {
             $discord->channel($this->channelId)->send('❌ You do not have permission to change nicknames in this server.');
             throw new Exception('User lacks permission to change nicknames.', 403);
@@ -63,7 +63,7 @@ final class ProcessUserNicknameJob extends ProcessBaseJob
             throw new Exception('Invalid user ID format.', 400);
         }
         // API Request to change nickname
-        $discordService = app(DiscordApiService::class);
+        $discordService = app(DiscordService::class);
         $payload = ['nick' => $this->newNickname];
 
         try {

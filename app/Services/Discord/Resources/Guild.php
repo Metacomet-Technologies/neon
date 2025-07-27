@@ -4,23 +4,17 @@ declare(strict_types=1);
 
 namespace App\Services\Discord\Resources;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordClient;
 use Illuminate\Support\Collection;
 
 /**
- * Guild resource for expressive Discord API operations.
- *
- * Usage:
- * $guild = $discord->guild('123456789');
- * $roles = $guild->roles()->get();
- * $member = $guild->member('987654321');
- * $channel = $guild->createChannel(['name' => 'general', 'type' => 0]);
+ * Guild resource for Discord operations.
  */
 final class Guild
 {
     public function __construct(
-        private Discord $discord,
-        private string $guildId
+        private readonly DiscordClient $client,
+        private readonly string $guildId
     ) {}
 
     /**
@@ -28,175 +22,114 @@ final class Guild
      */
     public function get(): array
     {
-        return $this->discord->get("/guilds/{$this->guildId}");
+        return $this->client->get("/guilds/{$this->guildId}");
     }
 
     /**
-     * Get a member from this guild.
+     * Get guild roles.
      */
-    public function member(string $userId): Member
+    public function roles(): Collection
     {
-        return new Member($this->discord, $this->guildId, $userId);
+        return collect($this->client->get("/guilds/{$this->guildId}/roles"));
     }
 
     /**
-     * Get all members (paginated).
+     * Find role by name.
      */
-    public function members(int $limit = 1000, ?string $after = null): Collection
+    public function findRole(string $name): ?array
     {
-        $query = "?limit={$limit}";
-        if ($after) {
-            $query .= "&after={$after}";
-        }
-
-        $members = $this->discord->get("/guilds/{$this->guildId}/members{$query}");
-
-        return collect($members);
+        return $this->roles()->first(fn ($role) => strcasecmp($role['name'], $name) === 0);
     }
 
     /**
-     * Get role builder for this guild.
+     * Get guild channels.
      */
-    public function roles(): RoleBuilder
+    public function channels(): Collection
     {
-        return new RoleBuilder($this->discord, $this->guildId);
+        return collect($this->client->get("/guilds/{$this->guildId}/channels"));
     }
 
     /**
-     * Get channel builder for this guild.
+     * Get guild member.
      */
-    public function channels(): ChannelBuilder
+    public function member(string $userId): array
     {
-        return new ChannelBuilder($this->discord, $this->guildId);
+        return $this->client->get("/guilds/{$this->guildId}/members/{$userId}");
     }
 
     /**
-     * Create a new channel.
-     */
-    public function createChannel(array $data): array
-    {
-        return $this->discord->post("/guilds/{$this->guildId}/channels", $data);
-    }
-
-    /**
-     * Create a new role.
+     * Create role.
      */
     public function createRole(array $data): array
     {
-        return $this->discord->post("/guilds/{$this->guildId}/roles", $data);
+        return $this->client->post("/guilds/{$this->guildId}/roles", $data);
     }
 
     /**
-     * Ban a user.
+     * Delete role.
+     */
+    public function deleteRole(string $roleId): bool
+    {
+        return $this->client->delete("/guilds/{$this->guildId}/roles/{$roleId}");
+    }
+
+    /**
+     * Create channel.
+     */
+    public function createChannel(array $data): array
+    {
+        return $this->client->post("/guilds/{$this->guildId}/channels", $data);
+    }
+
+    /**
+     * Assign role to member.
+     */
+    public function assignRole(string $userId, string $roleId): bool
+    {
+        return $this->client->put("/guilds/{$this->guildId}/members/{$userId}/roles/{$roleId}");
+    }
+
+    /**
+     * Remove role from member.
+     */
+    public function removeRole(string $userId, string $roleId): bool
+    {
+        return $this->client->delete("/guilds/{$this->guildId}/members/{$userId}/roles/{$roleId}");
+    }
+
+    /**
+     * Ban member.
      */
     public function ban(string $userId, int $deleteMessageDays = 7): bool
     {
-        return $this->discord->put("/guilds/{$this->guildId}/bans/{$userId}", [
+        return $this->client->put("/guilds/{$this->guildId}/bans/{$userId}", [
             'delete_message_days' => $deleteMessageDays,
         ]);
     }
 
     /**
-     * Unban a user.
+     * Unban member.
      */
     public function unban(string $userId): bool
     {
-        return $this->discord->delete("/guilds/{$this->guildId}/bans/{$userId}");
+        return $this->client->delete("/guilds/{$this->guildId}/bans/{$userId}");
     }
 
     /**
-     * Get everyone role.
+     * Kick member.
      */
-    public function everyoneRole(): ?array
+    public function kick(string $userId): bool
     {
-        $roles = $this->roles()->get();
-
-        return $roles->first(fn ($role) => $role['name'] === '@everyone');
+        return $this->client->delete("/guilds/{$this->guildId}/members/{$userId}");
     }
 
     /**
-     * Get scheduled events.
+     * Move member to voice channel.
      */
-    public function scheduledEvents(): Collection
+    public function moveMember(string $userId, ?string $channelId): bool
     {
-        $events = $this->discord->get("/guilds/{$this->guildId}/scheduled-events");
-
-        return collect($events);
-    }
-
-    /**
-     * Create a scheduled event.
-     */
-    public function createScheduledEvent(array $data): array
-    {
-        return $this->discord->post("/guilds/{$this->guildId}/scheduled-events", $data);
-    }
-
-    /**
-     * Delete a scheduled event.
-     */
-    public function deleteScheduledEvent(string $eventId): bool
-    {
-        return $this->discord->delete("/guilds/{$this->guildId}/scheduled-events/{$eventId}");
-    }
-
-    /**
-     * Disconnect a member from voice channel.
-     */
-    public function disconnectMember(string $userId): bool
-    {
-        return $this->discord->patch("/guilds/{$this->guildId}/members/{$userId}", [
-            'channel_id' => null,
-        ]);
-    }
-
-    /**
-     * Move a member to another voice channel.
-     */
-    public function moveMemberToChannel(string $userId, string $channelId): bool
-    {
-        return $this->discord->patch("/guilds/{$this->guildId}/members/{$userId}", [
+        return $this->client->patch("/guilds/{$this->guildId}/members/{$userId}", [
             'channel_id' => $channelId,
         ]);
-    }
-
-    /**
-     * Set guild AFK channel and timeout.
-     */
-    public function setAfkChannel(string $channelId, int $timeout = 300): bool
-    {
-        return $this->discord->patch("/guilds/{$this->guildId}", [
-            'afk_channel_id' => $channelId,
-            'afk_timeout' => $timeout,
-        ]);
-    }
-
-    /**
-     * Enable/disable guild boost progress bar.
-     */
-    public function setBoostProgressBar(bool $enabled): bool
-    {
-        return $this->discord->patch("/guilds/{$this->guildId}", [
-            'premium_progress_bar_enabled' => $enabled,
-        ]);
-    }
-
-    /**
-     * Prune inactive members.
-     */
-    public function pruneMembers(int $days = 7, bool $computePruneCount = true): array
-    {
-        return $this->discord->post("/guilds/{$this->guildId}/prune", [
-            'days' => $days,
-            'compute_prune_count' => $computePruneCount,
-        ]);
-    }
-
-    /**
-     * Get prune count (dry run).
-     */
-    public function getPruneCount(int $days = 7): array
-    {
-        return $this->discord->get("/guilds/{$this->guildId}/prune?days={$days}");
     }
 }

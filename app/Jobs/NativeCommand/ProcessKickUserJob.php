@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 
 final class ProcessKickUserJob extends ProcessBaseJob
@@ -15,7 +15,7 @@ final class ProcessKickUserJob extends ProcessBaseJob
         $this->requireMemberPermission();
 
         // 2. Parse and validate input using service
-        $targetUserId = Discord::parseUserCommand($this->messageContent, 'kick');
+        $targetUserId = DiscordService::parseUserCommand($this->messageContent, 'kick');
 
         if (! $targetUserId) {
             $this->sendUsageAndExample();

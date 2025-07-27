@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 
 final class ProcessEditChannelSlowmodeJob extends ProcessBaseJob
@@ -27,7 +27,7 @@ final class ProcessEditChannelSlowmodeJob extends ProcessBaseJob
         $this->requireChannelPermission();
 
         // 2. Parse channel edit command
-        [$channelId, $newValue] = Discord::parseChannelEditCommand($this->messageContent, 'edit-channel-slowmode');
+        [$channelId, $newValue] = DiscordService::parseChannelEditCommand($this->messageContent, 'edit-channel-slowmode');
 
         if (! $channelId || ! $newValue) {
             $this->sendUsageAndExample();
@@ -40,7 +40,8 @@ final class ProcessEditChannelSlowmodeJob extends ProcessBaseJob
         $slowmodeSetting = $this->validateNumericRange($newValue, 0, 21600, 'Slowmode');
 
         // 4. Perform update using service
-        $success = $this->discord->updateChannel($channelId, ['rate_limit_per_user' => $slowmodeSetting]);
+        $discordApiService = app(DiscordService::class);
+        $success = $discordApiService->updateChannel($channelId, ['rate_limit_per_user' => $slowmodeSetting]);
 
         if (! $success) {
             $this->sendApiError('update channel');

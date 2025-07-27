@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 
 final class ProcessSetInactiveJob extends ProcessBaseJob
@@ -18,7 +18,7 @@ final class ProcessSetInactiveJob extends ProcessBaseJob
     {
         $this->requireChannelPermission();
 
-        $params = Discord::extractParameters($this->messageContent, 'set-inactive');
+        $params = DiscordService::extractParameters($this->messageContent, 'set-inactive');
         $this->validateRequiredParameters($params, 2, 'Channel and timeout are required.');
 
         $channelInput = $params[0];
@@ -53,7 +53,7 @@ final class ProcessSetInactiveJob extends ProcessBaseJob
     private function resolveVoiceChannelId(string $input): string
     {
         // If input is already a valid channel ID, return it
-        if (Discord::isValidDiscordId($input)) {
+        if (DiscordService::isValidDiscordId($input)) {
             return $input;
         }
 

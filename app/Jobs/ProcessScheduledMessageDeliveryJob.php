@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -25,7 +25,7 @@ final class ProcessScheduledMessageDeliveryJob implements ShouldQueue
     public function handle(): void
     {
         try {
-            $discord = new Discord;
+            $discord = app(DiscordService::class);
             $discord->channel($this->targetChannelId)->send($this->messageContent);
         } catch (Exception $e) {
             // Log the failure but don't throw exception since user isn't waiting

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 
 final class ProcessUnvanishChannelJob extends ProcessBaseJob
@@ -42,7 +42,8 @@ final class ProcessUnvanishChannelJob extends ProcessBaseJob
             'allow' => '1024', // Allow VIEW_CHANNEL
         ];
 
-        $success = $this->discord->updateChannelPermissions($channelId, $everyoneRole['id'], $permissions);
+        $discordApiService = app(DiscordService::class);
+        $success = $discordApiService->updateChannelPermissions($channelId, $everyoneRole['id'], $permissions);
 
         if (! $success) {
             $this->sendApiError('update channel permissions');
@@ -61,6 +62,6 @@ final class ProcessUnvanishChannelJob extends ProcessBaseJob
             return null;
         }
 
-        return Discord::extractChannelId($mentionedChannel);
+        return DiscordService::extractChannelId($mentionedChannel);
     }
 }

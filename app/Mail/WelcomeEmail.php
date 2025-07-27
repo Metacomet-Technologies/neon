@@ -16,10 +16,7 @@ final class WelcomeEmail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public ?string $email = null)
-    {
-        //
-    }
+    public function __construct(public ?string $email = null) {}
 
     /**
      * Get the message envelope.

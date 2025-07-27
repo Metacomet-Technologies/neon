@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 
 final class ProcessBanUserJob extends ProcessBaseJob
@@ -15,7 +15,7 @@ final class ProcessBanUserJob extends ProcessBaseJob
         $this->requireBanPermission();
 
         // 2. Parse and validate input using service
-        $targetUserId = Discord::parseUserCommand($this->messageContent, 'ban');
+        $targetUserId = DiscordService::parseUserCommand($this->messageContent, 'ban');
         if (! $targetUserId) {
             $this->sendUsageAndExample();
             throw new Exception('No user ID provided.', 400);

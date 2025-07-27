@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Models\User;
+use App\Services\Discord\DiscordClient;
+use App\Services\Discord\DiscordService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -25,7 +27,11 @@ final class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Register Discord services as singletons
+        $this->app->singleton(DiscordClient::class);
+        $this->app->singleton(DiscordService::class, function ($app) {
+            return new DiscordService($app->make(DiscordClient::class));
+        });
     }
 
     /**

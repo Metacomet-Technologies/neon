@@ -16,7 +16,7 @@ use App\Jobs\RefreshNeonGuildsJob;
 use App\Models\NativeCommand;
 use App\Models\NeonCommand;
 use App\Models\WelcomeSetting;
-use App\Services\Discord\Discord as DiscordSDK;
+use App\Services\Discord\DiscordService as DiscordSDK;
 use Carbon\Carbon;
 use Discord\Discord;
 use Discord\WebSockets\Event;
@@ -305,7 +305,7 @@ final class StartNeonCommand extends Command
 
     public function handleScheduledMessage(string $channelId, string $messageContent): void
     {
-        $discordSDK = new DiscordSDK;
+        $discordSDK = app(DiscordSDK::class);
         $parts = explode(' ', trim($messageContent), 5); // Allow 5 parts: channel, date, time, and message
 
         // Extract target channel, date, time, and message

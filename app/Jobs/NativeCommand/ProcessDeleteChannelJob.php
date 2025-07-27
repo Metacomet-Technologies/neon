@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 
 final class ProcessDeleteChannelJob extends ProcessBaseJob
@@ -37,7 +37,8 @@ final class ProcessDeleteChannelJob extends ProcessBaseJob
         $this->validateChannelId($targetChannelId);
 
         // 3. Delete channel using service
-        $success = $this->discord->deleteChannel($targetChannelId);
+        $discordApiService = app(DiscordService::class);
+        $success = $discordApiService->deleteChannel($targetChannelId);
 
         if (! $success) {
             $this->sendApiError('delete channel');
@@ -69,6 +70,6 @@ final class ProcessDeleteChannelJob extends ProcessBaseJob
         }
 
         // Extract channel ID using parser service
-        return Discord::extractChannelId($matches[1]);
+        return DiscordService::extractChannelId($matches[1]);
     }
 }

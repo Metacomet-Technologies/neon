@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 use Illuminate\Support\Facades\Log;
 
@@ -19,7 +19,7 @@ final class ProcessMuteUserJob extends ProcessBaseJob
         $this->requireMemberPermission();
 
         // 2. Parse and validate input using service
-        $targetUserId = Discord::parseUserCommand($this->messageContent, 'mute');
+        $targetUserId = DiscordService::parseUserCommand($this->messageContent, 'mute');
 
         if (! $targetUserId) {
             $this->sendUsageAndExample();
@@ -56,7 +56,7 @@ final class ProcessMuteUserJob extends ProcessBaseJob
     {
 
         try {
-            $discord = new Discord;
+            $discord = app(DiscordService::class);
             $guild = $discord->guild($this->guildId);
 
             // Get all voice channels

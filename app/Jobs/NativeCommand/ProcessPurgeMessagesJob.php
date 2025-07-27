@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 
 final class ProcessPurgeMessagesJob extends ProcessBaseJob
@@ -41,7 +41,7 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob
             throw new Exception('No arguments provided.', 400);
         }
         // Ensure the user has permission to manage messages in the target channel
-        $discord = new Discord;
+        $discord = app(DiscordService::class);
         if (! $discord->guild($this->guildId)->member($this->discordUserId)->canManageMessages()) {
             $discord->channel($this->channelId)->send('❌ You do not have permission to manage messages in this server.');
             throw new Exception('User does not have permission to manage messages in this server.', 403);
@@ -58,7 +58,7 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob
 
     private function userHasPermission(string $userId): bool
     {
-        $discord = new Discord;
+        $discord = app(DiscordService::class);
         $member = $discord->guild($this->guildId)->member($userId);
 
         return $member->canManageChannels() || $member->canManageMessages();
@@ -67,7 +67,7 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob
     private function purgeMessages(): void
     {
         if ($this->messageCount < 2) {
-            $discord = new Discord;
+            $discord = app(DiscordService::class);
             $discord->channel($this->channelId)->send('❌ The number of messages to purge must be at least 2.');
             throw new Exception('The number of messages to purge must be at least 2.', 400);
         }
@@ -75,7 +75,7 @@ final class ProcessPurgeMessagesJob extends ProcessBaseJob
         $allMessages = [];
         $lastMessageId = null;
 
-        $discordService = app(DiscordApiService::class);
+        $discordService = app(DiscordService::class);
         while ($messagesToFetch > 0) {
             $limit = min($messagesToFetch, 100);
             $queryParams = ['limit' => $limit];

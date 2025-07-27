@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs\NativeCommand;
 
 use App\Helpers\Discord\SendMessage;
-use App\Services\DiscordApiService;
+use App\Services\Discord\DiscordService;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -476,7 +476,7 @@ Focus on recreating the essence and organization of the analyzed server while us
             ],
         ];
 
-        $discordService = app(DiscordApiService::class);
+        $discordService = app(DiscordService::class);
         $response = $discordService->post("/channels/{$this->channelId}/messages", [
             'embeds' => [$embed],
         ]);
@@ -499,7 +499,7 @@ Focus on recreating the essence and organization of the analyzed server while us
     private function addReactionToMessage(string $messageId, string $emoji): void
     {
         $encodedEmoji = urlencode($emoji);
-        $discordService = app(DiscordApiService::class);
+        $discordService = app(DiscordService::class);
 
         try {
             $discordService->put("/channels/{$this->channelId}/messages/{$messageId}/reactions/{$encodedEmoji}/@me");

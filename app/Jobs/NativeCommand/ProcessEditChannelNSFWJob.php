@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 
 final class ProcessEditChannelNSFWJob extends ProcessBaseJob
@@ -27,7 +27,7 @@ final class ProcessEditChannelNSFWJob extends ProcessBaseJob
         $this->requireChannelPermission();
 
         // 2. Parse channel edit command
-        [$channelId, $newValue] = Discord::parseChannelEditCommand($this->messageContent, 'edit-channel-nsfw');
+        [$channelId, $newValue] = DiscordService::parseChannelEditCommand($this->messageContent, 'edit-channel-nsfw');
 
         if (! $channelId || ! $newValue) {
             $this->sendUsageAndExample();
@@ -40,7 +40,8 @@ final class ProcessEditChannelNSFWJob extends ProcessBaseJob
         $nsfwSetting = $this->validateBoolean($newValue, 'NSFW setting');
 
         // 4. Perform update using service
-        $success = $this->discord->updateChannel($channelId, ['nsfw' => $nsfwSetting]);
+        $discordApiService = app(DiscordService::class);
+        $success = $discordApiService->updateChannel($channelId, ['nsfw' => $nsfwSetting]);
 
         if (! $success) {
             $this->sendApiError('update channel');

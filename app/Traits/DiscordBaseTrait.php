@@ -4,25 +4,21 @@ declare(strict_types=1);
 
 namespace App\Traits;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 
 /**
  * Base trait for Discord functionality.
- * Provides shared Discord SDK instance management.
+ * Provides shared Discord instance management.
  */
 trait DiscordBaseTrait
 {
-    private ?Discord $discord = null;
+    private ?DiscordService $discord = null;
 
     /**
-     * Get Discord SDK instance.
+     * Get Discord instance.
      */
-    protected function getDiscord(): Discord
+    protected function getDiscord(): DiscordService
     {
-        if (! $this->discord) {
-            $this->discord = new Discord;
-        }
-
-        return $this->discord;
+        return $this->discord ??= app(DiscordService::class);
     }
 }

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs\NativeCommand;
 
 // Helpers replaced by SDK
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 
 final class ProcessCreatePollJob extends ProcessBaseJob
@@ -37,7 +37,7 @@ final class ProcessCreatePollJob extends ProcessBaseJob
     protected function executeCommand(): void
     {
         // Check permissions using SDK
-        $discord = new Discord;
+        $discord = app(DiscordService::class);
         $member = $discord->guild($this->guildId)->member($this->discordUserId);
 
         if (! $member->canSendPolls()) {

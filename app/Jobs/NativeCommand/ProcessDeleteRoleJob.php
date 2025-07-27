@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 
 final class ProcessDeleteRoleJob extends ProcessBaseJob
@@ -13,14 +13,15 @@ final class ProcessDeleteRoleJob extends ProcessBaseJob
     {
         $this->requireRolePermission();
 
-        $params = Discord::extractParameters($this->messageContent, 'delete-role');
+        $params = DiscordService::extractParameters($this->messageContent, 'delete-role');
         $this->validateRequiredParameters($params, 1, 'Role name is required.');
 
         $roleName = $params[0];
         $role = $this->discord->findRoleByName($this->guildId, $roleName);
         $this->validateTarget($role, 'Role', $roleName);
 
-        $success = $this->discord->deleteRole($this->guildId, $role['id']);
+        $discordApiService = app(DiscordService::class);
+        $success = $discordApiService->deleteRole($this->guildId, $role['id']);
 
         if (! $success) {
             $this->sendApiError('delete role');

@@ -1,7 +1,7 @@
 import { Button } from '@/Components/button';
 import { Link } from '@/Components/link';
-import { useTheme } from '@/Contexts/ThemeContext';
 import ThemeToggle from '@/Components/ThemeToggle';
+import { useTheme } from '@/Contexts/ThemeContext';
 import { PageProps } from '@/types';
 import { ArrowRightIcon } from '@heroicons/react/16/solid';
 import { Head, usePage } from '@inertiajs/react';

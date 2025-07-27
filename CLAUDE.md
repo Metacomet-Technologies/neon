@@ -13,7 +13,6 @@ Laravel application for managing Discord servers with billing/licensing features
 1. **Use `final` classes** for services, DTOs, controllers
 2. **No extending base Controller** - standalone classes only
 3. **Authentication**: ALWAYS use `$request->user()`, NEVER `auth()` or `Auth::`
-4. **Authorization**: Add `AuthorizesRequests` trait when using `$this->authorize()`
 5. **Strict types**: `declare(strict_types=1);` in all files
 6. **Type hints**: Always use parameter/return types
 7. **Model::unguard()** enabled globally
@@ -92,3 +91,7 @@ return redirect()->back()->with('success', 'Done!');
 3. **Follow existing patterns** exactly
 4. **Keep responses SHORT**
 5. **Run linting after changes**
+
+## Development Tools
+
+- **Use duster not pint**

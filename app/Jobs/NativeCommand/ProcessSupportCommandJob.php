@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 
 // TODO: this may not work, needs testing. Currently set isactive to false. not updateded with processbasejob
@@ -20,7 +20,7 @@ final class ProcessSupportCommandJob extends ProcessBaseJob
 
         // Ensure there is a message to send
         if (empty($supportMessage)) {
-            $discord = new Discord;
+            $discord = app(DiscordService::class);
             $discord->channel($this->channelId)->send('❌ Please provide a message with your support request. Example: `!support I need help with my role.`');
 
             return;
@@ -36,21 +36,21 @@ final class ProcessSupportCommandJob extends ProcessBaseJob
 
         // ✅ Ensure Neon sends the message using Discord SDK
         try {
-            $discord = new Discord;
+            $discord = app(DiscordService::class);
             $discord->channel($this->supportChannelId)->sendEmbed(
                 $messagePayload['embed_title'],
                 $messagePayload['embed_description'],
                 $messagePayload['embed_color']
             );
         } catch (Exception $e) {
-            $discord = new Discord;
+            $discord = app(DiscordService::class);
             $discord->channel($this->channelId)->send('❌ Failed to send the support request. Please try again later.');
 
             return;
         }
 
         // Confirmation to the user
-        $discord = new Discord;
+        $discord = app(DiscordService::class);
         $discord->channel($this->channelId)->sendEmbed(
             '✅ Support Request Sent!',
             'Your request has been forwarded to the support team. They will get back to you soon!',

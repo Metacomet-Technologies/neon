@@ -1,6 +1,6 @@
 import { Badge } from '@/Components/badge';
 import { Button } from '@/Components/button';
-import { Combobox, ComboboxOption, ComboboxLabel } from '@/Components/combobox';
+import { Combobox, ComboboxLabel, ComboboxOption } from '@/Components/combobox';
 import { Divider } from '@/Components/divider';
 import { Heading, Subheading } from '@/Components/heading';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/Components/table';
@@ -104,18 +104,21 @@ const BillingDashboard: React.FC<BillingProps> = ({ billing, guilds, checkout })
             </div>
 
             {checkout?.message && (
-                <div className={`mb-6 border rounded-md p-4 ${
-                    checkout.type === 'success'
-                        ? 'bg-green-50 border-green-200'
-
-                        : 'bg-red-50 border-red-200'
-                }`}>
+                <div
+                    className={`mb-6 border rounded-md p-4 ${
+                        checkout.type === 'success' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                    }`}
+                >
                     <Text className={checkout.type === 'success' ? 'text-green-800' : 'text-red-800'}>
                         {checkout.message}
                     </Text>
                     {checkout.type === 'error' && (
                         <Text className="text-red-600 mt-2 text-sm">
-                            You can <a href="/checkout" className="underline">try purchasing again</a> or contact support if the issue persists.
+                            You can{' '}
+                            <a href="/checkout" className="underline">
+                                try purchasing again
+                            </a>{' '}
+                            or contact support if the issue persists.
                         </Text>
                     )}
                 </div>
@@ -208,10 +211,16 @@ const BillingDashboard: React.FC<BillingProps> = ({ billing, guilds, checkout })
                                                         className="block w-full"
                                                     >
                                                         {(guild) => (
-                                                            <ComboboxOption key={guild.id} value={guild} disabled={!guild.is_bot_member}>
+                                                            <ComboboxOption
+                                                                key={guild.id}
+                                                                value={guild}
+                                                                disabled={!guild.is_bot_member}
+                                                            >
                                                                 <ComboboxLabel>{guild.name}</ComboboxLabel>
                                                                 {!guild.is_bot_member && (
-                                                                    <span className="text-zinc-500 text-sm ml-2">(Bot not in server)</span>
+                                                                    <span className="text-zinc-500 text-sm ml-2">
+                                                                        (Bot not in server)
+                                                                    </span>
                                                                 )}
                                                             </ComboboxOption>
                                                         )}
@@ -259,10 +268,16 @@ const BillingDashboard: React.FC<BillingProps> = ({ billing, guilds, checkout })
                                                         className="block w-full"
                                                     >
                                                         {(guild) => (
-                                                            <ComboboxOption key={guild.id} value={guild} disabled={!guild.is_bot_member}>
+                                                            <ComboboxOption
+                                                                key={guild.id}
+                                                                value={guild}
+                                                                disabled={!guild.is_bot_member}
+                                                            >
                                                                 <ComboboxLabel>{guild.name}</ComboboxLabel>
                                                                 {!guild.is_bot_member && (
-                                                                    <span className="text-zinc-500 text-sm ml-2">(Bot not in server)</span>
+                                                                    <span className="text-zinc-500 text-sm ml-2">
+                                                                        (Bot not in server)
+                                                                    </span>
                                                                 )}
                                                             </ComboboxOption>
                                                         )}

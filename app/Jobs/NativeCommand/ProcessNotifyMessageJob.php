@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 
 final class ProcessNotifyMessageJob extends ProcessBaseJob
@@ -25,7 +25,7 @@ final class ProcessNotifyMessageJob extends ProcessBaseJob
     {
         $this->requireMemberPermission();
 
-        $parsed = Discord::parseNotifyCommand($this->messageContent);
+        $parsed = DiscordService::parseNotifyCommand($this->messageContent);
         if (! $parsed['channel_id'] || ! $parsed['message']) {
             $this->sendUsageAndExample();
             throw new Exception('Missing required parameters.', 400);

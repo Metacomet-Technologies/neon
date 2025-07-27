@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 use Illuminate\Support\Facades\Log;
 
@@ -19,7 +19,7 @@ final class ProcessUnmuteUserJob extends ProcessBaseJob
         $this->requireMemberPermission();
 
         // 2. Parse and validate input using service
-        $targetUserId = Discord::parseUserCommand($this->messageContent, 'unmute');
+        $targetUserId = DiscordService::parseUserCommand($this->messageContent, 'unmute');
 
         if (! $targetUserId) {
             $this->sendUsageAndExample();
@@ -46,7 +46,7 @@ final class ProcessUnmuteUserJob extends ProcessBaseJob
     private function unmuteUserInVoiceChannels(string $userId): bool
     {
         // Fetch all voice channels in the guild
-        $discordService = app(DiscordApiService::class);
+        $discordService = app(DiscordService::class);
         $channelsResponse = retry($this->maxRetries, function () use ($discordService) {
             return $discordService->get("/guilds/{$this->guildId}/channels");
         }, $this->retryDelay);

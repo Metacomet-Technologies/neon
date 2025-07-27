@@ -16,10 +16,7 @@ final class LicensePurchasedMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public License $license, public string $customerEmail, public float $amountPaid, public string $currency = 'USD')
-    {
-        //
-    }
+    public function __construct(public License $license, public string $customerEmail, public float $amountPaid, public string $currency = 'USD') {}
 
     /**
      * Get the message envelope.

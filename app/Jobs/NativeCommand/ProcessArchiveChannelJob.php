@@ -1,11 +1,11 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace App\Jobs\NativeCommand;
 
 // Helpers replaced by SDK
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 
 final class ProcessArchiveChannelJob extends ProcessBaseJob
@@ -31,23 +31,23 @@ final class ProcessArchiveChannelJob extends ProcessBaseJob
     protected function executeCommand(): void
     {
         // Validate input
-        if (! $this->targetChannelId || is_null($this->archiveStatus)) {
+        if (!$this->targetChannelId || is_null($this->archiveStatus)) {
             $this->sendUsageAndExample();
 
             return;
         }
 
         // Check permissions using SDK
-        $discord = new Discord;
+        $discord = app(DiscordService::class);
         $member = $discord->guild($this->guildId)->member($this->discordUserId);
 
-        if (! $member->canManageChannels()) {
+        if (!$member->canManageChannels()) {
             $discord->channel($this->channelId)->send('❌ You do not have permission to manage channels in this server.');
             throw new Exception('User does not have permission to manage channels.', 403);
         }
 
         // Validate channel ID format
-        if (! preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
+        if (!preg_match('/^\d{17,19}$/', $this->targetChannelId)) {
             $discord->channel($this->channelId)->send('❌ Invalid channel ID. Please use `#channel-name` to select a valid channel.');
             throw new Exception('Invalid channel ID provided.', 400);
         }
@@ -68,7 +68,7 @@ final class ProcessArchiveChannelJob extends ProcessBaseJob
             $discord->channel($this->channelId)->sendEmbed(
                 '📁 Channel Archive Status Updated',
                 $message,
-                3066993 // Green color
+                3066993// Green color
             );
 
         } catch (Exception $e) {

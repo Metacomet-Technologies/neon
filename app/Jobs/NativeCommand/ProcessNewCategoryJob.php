@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Discord\Parts\Channel\Channel;
 use Exception;
 use Illuminate\Foundation\Queue\Queueable;
@@ -39,7 +39,7 @@ final class ProcessNewCategoryJob extends ProcessBaseJob
     {
         // Validate that required IDs are provided.
         if (! $this->discordUserId || ! $this->channelId) {
-            $discord = new Discord;
+            $discord = app(DiscordService::class);
             $discord->channel($this->channelId)->send("{$this->command['usage']}\n{$this->command['example']}");
 
             $this->nativeCommandRequest->update([
@@ -57,7 +57,7 @@ final class ProcessNewCategoryJob extends ProcessBaseJob
         }
 
         // 1️⃣ Ensure the user has permission to create categories
-        $discord = new Discord;
+        $discord = app(DiscordService::class);
         if (! $discord->guild($this->guildId)->member($this->discordUserId)->canManageChannels()) {
             $discord->channel($this->channelId)->send('❌ You are not allowed to create categories.');
 
@@ -116,7 +116,7 @@ final class ProcessNewCategoryJob extends ProcessBaseJob
             throw new Exception('Failed to create category.');
         }
 
-        $discordService = app(DiscordApiService::class);
+        $discordService = app(DiscordService::class);
         $payload = json_decode($jsonPayload, true);
         $apiResponse = $discordService->post("/guilds/{$this->guildId}/channels", $payload);
 

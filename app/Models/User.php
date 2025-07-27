@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use App\Services\Discord\Enums\PermissionEnum;
 use Exception;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -149,7 +149,7 @@ final class User extends Authenticatable
     {
         $guilds = Cache::remember('user-guilds-' . $this->id, now()->addMinutes(1), function () {
             try {
-                $discord = Discord::forUser($this);
+                $discord = DiscordService::forUser($this);
 
                 return $discord->userGuildsWithPermission(PermissionEnum::ADMINISTRATOR);
             } catch (Exception $e) {

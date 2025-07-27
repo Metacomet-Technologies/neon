@@ -24,9 +24,7 @@ final class EnsureGuildHasActiveLicense
         }
 
         // Get guild ID from route parameter, request input, or query parameter
-        $guildId = $request->route('guild_id')
-            ?? $request->input('guild_id')
-            ?? $request->query('guild_id');
+        $guildId = $request->route('guild_id') ?? $request->input('guild_id') ?? $request->query('guild_id');
 
         if (! $guildId) {
             return response()->json(['error' => 'Guild ID is required'], 400);
@@ -45,12 +43,6 @@ final class EnsureGuildHasActiveLicense
                 'message' => 'A paid license is required to access this content',
             ], 403);
         }
-
-        // Optional: Check if the user owns the license (uncomment if needed)
-        // $userOwnsLicense = $user->activeLicenses()->where('assigned_guild_id', $guildId)->exists();
-        // if (!$userOwnsLicense) {
-        //     return response()->json(['error' => 'You do not own the license for this guild'], 403);
-        // }
 
         return $next($request);
     }

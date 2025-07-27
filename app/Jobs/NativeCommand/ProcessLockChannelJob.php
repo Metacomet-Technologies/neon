@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 
 final class ProcessLockChannelJob extends ProcessBaseJob
@@ -24,7 +24,7 @@ final class ProcessLockChannelJob extends ProcessBaseJob
         parent::__construct($discordUserId, $channelId, $guildId, $messageContent, $command, $commandSlug, $parameters);
 
         // Parse parameters immediately in constructor
-        [$this->targetChannelId, $newValue] = Discord::parseChannelEditCommand($messageContent, 'lock-channel');
+        [$this->targetChannelId, $newValue] = DiscordService::parseChannelEditCommand($messageContent, 'lock-channel');
         $this->lockStatus = $newValue ? $this->validateBoolean($newValue, 'Lock status') : null;
     }
 
@@ -43,7 +43,7 @@ final class ProcessLockChannelJob extends ProcessBaseJob
 
         try {
             // 3. Use SDK to handle channel locking
-            $discord = new Discord;
+            $discord = app(DiscordService::class);
             $guild = $discord->guild($this->guildId);
             $channel = $discord->channel($this->targetChannelId);
 

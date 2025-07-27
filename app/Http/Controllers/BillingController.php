@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Guild;
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -82,7 +82,7 @@ final class BillingController
         // Get user's Discord guilds and sync with database
         $userGuilds = [];
         try {
-            $discord = Discord::forUser($user);
+            $discord = DiscordService::forUser($user);
             $discordGuilds = $discord->userGuildsWithPermission();
 
             // Sync guilds with database and check bot membership
@@ -98,12 +98,8 @@ final class BillingController
                 // Check bot membership if we haven't checked recently
                 if ($guild->needsBotMembershipCheck()) {
                     try {
-                        try {
-                            (new Discord)->guild($guild->id)->get();
-                            $isBotMember = true;
-                        } catch (Exception) {
-                            $isBotMember = false;
-                        }
+                        $botDiscord = app(DiscordService::class);
+                        $isBotMember = $botDiscord->isBotInGuild($guild->id);
                         $guild->update([
                             'is_bot_member' => $isBotMember,
                             'last_bot_check_at' => now(),

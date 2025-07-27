@@ -30,10 +30,10 @@ import {
 } from '@heroicons/react/16/solid';
 import { usePage } from '@inertiajs/react';
 
+import ThemeToggle from '@/Components/ThemeToggle';
 import { Toaster } from '@/Components/ui/toaster';
 import { useCallback } from 'react';
 import Flash from './Flash';
-import ThemeToggle from '@/Components/ThemeToggle';
 
 /**
  * Layout component that provides the structure for the application.

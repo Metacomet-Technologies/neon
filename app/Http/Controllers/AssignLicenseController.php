@@ -19,8 +19,9 @@ final class AssignLicenseController
      */
     public function __invoke(Request $request, License $license): RedirectResponse
     {
+        $user = $request->user();
         // Ensure the license belongs to the current user
-        if ($license->user_id !== auth()->id()) {
+        if ($license->user_id !== $user->id) {
             return redirect()->back()->with('error', 'License not found.');
         }
 
@@ -50,7 +51,7 @@ final class AssignLicenseController
             Log::error('License assignment failed', [
                 'license_id' => $license->id,
                 'guild_id' => $guild->id,
-                'user_id' => auth()->id(),
+                'user_id' => $user->id,
                 'error' => $e->getMessage(),
             ]);
 

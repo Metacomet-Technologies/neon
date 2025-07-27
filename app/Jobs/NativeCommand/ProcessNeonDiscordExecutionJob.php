@@ -7,7 +7,7 @@ namespace App\Jobs\NativeCommand;
 use App\Helpers\Discord\SendMessage;
 use App\Models\NativeCommand;
 use App\Services\CommandAnalyticsService;
-use App\Services\DiscordApiService;
+use App\Services\Discord\DiscordService;
 use Exception;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -436,7 +436,7 @@ final class ProcessNeonDiscordExecutionJob extends ProcessBaseJob
     protected function categoryExists(string $categoryName): bool
     {
         try {
-            $discordService = app(DiscordApiService::class);
+            $discordService = app(DiscordService::class);
             $response = $discordService->get("/guilds/{$this->guildId}/channels");
 
             if ($response->successful()) {
@@ -466,7 +466,7 @@ final class ProcessNeonDiscordExecutionJob extends ProcessBaseJob
     protected function channelExists(string $channelName): bool
     {
         try {
-            $discordService = app(DiscordApiService::class);
+            $discordService = app(DiscordService::class);
             $response = $discordService->get("/guilds/{$this->guildId}/channels");
 
             if ($response->successful()) {
@@ -496,7 +496,7 @@ final class ProcessNeonDiscordExecutionJob extends ProcessBaseJob
     protected function roleExists(string $roleName): bool
     {
         try {
-            $discordService = app(DiscordApiService::class);
+            $discordService = app(DiscordService::class);
             $response = $discordService->get("/guilds/{$this->guildId}/roles");
 
             if ($response->successful()) {

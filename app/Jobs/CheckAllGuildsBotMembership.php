@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Helpers\Discord\CheckBotMembership;
 use App\Models\Guild;
+use App\Services\Discord\DiscordService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -19,12 +19,10 @@ final class CheckAllGuildsBotMembership implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(): void
+    public function handle(DiscordService $discord): void
     {
-        $checker = new CheckBotMembership;
-
         // Get all guilds the bot is currently in
-        $botGuilds = collect($checker->getBotGuilds())->pluck('id')->toArray();
+        $botGuilds = $discord->guilds()->pluck('id')->toArray();
 
         Log::info('Checking bot membership for all guilds', [
             'bot_guild_count' => count($botGuilds),
@@ -55,7 +53,7 @@ final class CheckAllGuildsBotMembership implements ShouldQueue
             Log::info('Bot no longer in guild', ['guild_id' => $guild->id]);
 
             // Park any active licenses
-            $guild->licenses()->active()->each(function ($license) {
+            $guild->licenses()->active()->each(function ($license) use ($guild) {
                 $license->park();
                 Log::info('Parked license due to bot leaving guild', [
                     'license_id' => $license->id,

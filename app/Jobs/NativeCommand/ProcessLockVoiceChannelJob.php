@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 use Illuminate\Support\Facades\Log;
 
@@ -31,7 +31,7 @@ final class ProcessLockVoiceChannelJob extends ProcessBaseJob
 
     protected function executeCommand(): void
     {
-        $discord = new Discord;
+        $discord = app(DiscordService::class);
         if (! $discord->guild($this->guildId)->member($this->discordUserId)->canManageChannels()) {
             $discord->channel($this->channelId)->send('❌ You do not have permission to lock/unlock voice channels in this server.');
             throw new Exception('User does not have permission to manage channels', 403);
@@ -52,7 +52,7 @@ final class ProcessLockVoiceChannelJob extends ProcessBaseJob
             throw new Exception('Invalid parameters provided.', 400);
         }
         // Get all roles in the guild
-        $discord = new Discord;
+        $discord = app(DiscordService::class);
 
         try {
             $roles = $discord->guild($this->guildId)->roles();

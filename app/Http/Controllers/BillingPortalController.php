@@ -6,16 +6,16 @@ namespace App\Http\Controllers;
 
 use Exception;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
 
 final class BillingPortalController
 {
     /**
      * Redirect to Stripe billing portal.
      */
-    public function __invoke(): RedirectResponse
+    public function __invoke(Request $request): RedirectResponse
     {
-        $user = Auth::user();
+        $user = $request->user();
 
         if (! $user->hasStripeId()) {
             return redirect()->back()->with('error', 'No billing information found. You need to make a purchase first.');

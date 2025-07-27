@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs\NativeCommand;
 
 use App\Services\CommandAnalyticsService;
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use App\Traits\DiscordPermissionTrait;
 use App\Traits\DiscordResponseTrait;
 use App\Traits\DiscordValidatorTrait;
@@ -132,7 +132,7 @@ class ProcessBaseJob implements ShouldQueue
         if ($additionalInfo) {
             $response .= "\n\n" . $additionalInfo;
         }
-        $discord = new Discord;
+        $discord = app(DiscordService::class);
         $discord->channel($this->channelId)->send($response);
     }
 

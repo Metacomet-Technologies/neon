@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
-use App\Services\DiscordApiService;
+use App\Services\Discord\DiscordService;
 use Exception;
 use Illuminate\Support\Facades\Log;
 
@@ -41,7 +40,7 @@ final class ProcessDisconnectUserJob extends ProcessBaseJob
             throw new Exception('No user ID provided.', 400);
         }
         // Check if user has permission to manage channels
-        $discord = new Discord;
+        $discord = app(DiscordService::class);
         if (! $discord->guild($this->guildId)->member($this->discordUserId)->canManageChannels()) {
             $discord->channel($this->channelId)->send('❌ You do not have permission to disconnect users from voice channels in this server.');
             throw new Exception('User does not have permission to manage channels.', 403);
@@ -49,7 +48,7 @@ final class ProcessDisconnectUserJob extends ProcessBaseJob
         $failedUsers = [];
 
         // Disconnect each user from their current voice channel
-        $discordService = app(DiscordApiService::class);
+        $discordService = app(DiscordService::class);
         foreach ($this->targetUserIds as $userId) {
             $response = retry($this->maxRetries, function () use ($discordService, $userId) {
                 return $discordService->patch("/guilds/{$this->guildId}/members/{$userId}", ['channel_id' => null]);

@@ -7,7 +7,6 @@ namespace App\Http\Controllers\Api\License;
 use App\Models\Guild;
 use App\Models\License;
 use Exception;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -18,16 +17,11 @@ use Illuminate\Http\Response;
  */
 final class AssignLicenseController
 {
-    use AuthorizesRequests;
-
     /**
      * Assign a license to a guild.
      */
     public function __invoke(Request $request, License $license): JsonResponse
     {
-        // The policy will automatically check if the authenticated user owns the license
-        $this->authorize('assign', $license);
-
         $request->validate([
             'guild_id' => 'required|string|exists:guilds,id',
         ]);

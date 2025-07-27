@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use DateTime;
 use DateTimeZone;
 use Exception;
@@ -44,7 +44,7 @@ final class ProcessNewEventJob extends ProcessBaseJob
 
     protected function executeCommand(): void
     {
-        $discord = new Discord;
+        $discord = app(DiscordService::class);
 
         // Check permissions
         $canCreateEvents = $discord->guild($this->guildId)->member($this->discordUserId)->canCreateEvents();
@@ -144,7 +144,7 @@ final class ProcessNewEventJob extends ProcessBaseJob
 
     private function sendEventCreatedMessage(array $event): void
     {
-        $discord = new Discord;
+        $discord = app(DiscordService::class);
         $locationInfo = isset($event['channel_id'])
             ? "<#{$event['channel_id']}>"
             : ($event['entity_metadata']['location'] ?? 'Unknown Location');

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Nova\Metrics;
 
-use App\Services\DiscordApiService;
+use App\Services\Discord\DiscordService;
 use DateTimeInterface;
 use Laravel\Nova\Http\Requests\NovaRequest;
 use Laravel\Nova\Metrics\Value;
@@ -16,7 +16,7 @@ final class DiscordRateLimitUsage extends Value
      */
     public function calculate(NovaRequest $request): mixed
     {
-        $service = app(DiscordApiService::class);
+        $service = app(DiscordService::class);
         $stats = $service->getRateLimitStats();
 
         return $this->result($stats['global_usage_percentage'])
@@ -58,13 +58,5 @@ final class DiscordRateLimitUsage extends Value
     public function name(): string
     {
         return 'Discord Global Rate Limit Usage';
-    }
-
-    /**
-     * Get the help text for the metric.
-     */
-    public function help(): string
-    {
-        return 'Percentage of Discord global rate limit (50 req/sec) currently being used. Contact Discord support if consistently above 80%.';
     }
 }

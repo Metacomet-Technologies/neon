@@ -6,7 +6,7 @@ namespace App\Jobs\NativeCommand;
 
 use App\Helpers\Discord\SendMessage;
 use App\Services\CommandAnalyticsService;
-use App\Services\DiscordApiService;
+use App\Services\Discord\DiscordService;
 use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -240,7 +240,7 @@ final class ProcessNeonChatGPTJob extends ProcessBaseJob implements ShouldQueue
 
         return Cache::remember($cacheKey, now()->addMinutes(5), function () {
             try {
-                $discordService = app(DiscordApiService::class);
+                $discordService = app(DiscordService::class);
                 $response = $discordService->get("/guilds/{$this->guildId}/channels");
 
                 if ($response->failed()) {
@@ -683,7 +683,7 @@ For action requests: Generate practical, working Discord commands using ONLY the
         }
 
         // Send the confirmation message using DiscordApiService to get message ID
-        $discordService = app(DiscordApiService::class);
+        $discordService = app(DiscordService::class);
 
         $embed = [
             'title' => '🤖 Neon AI - Action Plan',
@@ -715,7 +715,7 @@ For action requests: Generate practical, working Discord commands using ONLY the
 
     private function addReactionToMessage(string $messageId, string $emoji): void
     {
-        $discordService = app(DiscordApiService::class);
+        $discordService = app(DiscordService::class);
         $encodedEmoji = urlencode($emoji);
 
         $discordService->put("/channels/{$this->channelId}/messages/{$messageId}/reactions/{$encodedEmoji}/@me");

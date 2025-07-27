@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 
 final class ProcessPinMessagesJob extends ProcessBaseJob
@@ -38,7 +38,7 @@ final class ProcessPinMessagesJob extends ProcessBaseJob
             throw new Exception('Invalid input for !pin. Expected a valid message ID or the keyword "this".');
         }
         // 1️⃣ Ensure the user has permission to pin messages
-        $discord = new Discord;
+        $discord = app(DiscordService::class);
         $canManageChannels = $discord->guild($this->guildId)->member($this->discordUserId)->canManageChannels();
         if (! $canManageChannels) {
             $discord->channel($this->channelId)->send('❌ You are not allowed to pin messages.');
@@ -63,7 +63,7 @@ final class ProcessPinMessagesJob extends ProcessBaseJob
     {
 
         try {
-            $discord = new Discord;
+            $discord = app(DiscordService::class);
             $messages = $discord->channel($this->channelId)->getMessages(['limit' => 2]);
 
             // The first message will be the last message (the current command)
@@ -77,7 +77,7 @@ final class ProcessPinMessagesJob extends ProcessBaseJob
 
             return $previousMessage['id'] ?? null;
         } catch (Exception $e) {
-            $discord = new Discord;
+            $discord = app(DiscordService::class);
             $discord->channel($this->channelId)->send('❌ Failed to fetch the last message. Please try again later.');
             throw new Exception('Operation failed', 500);
         }
@@ -85,7 +85,7 @@ final class ProcessPinMessagesJob extends ProcessBaseJob
 
     private function userHasPermission(string $userId): bool
     {
-        $discord = new Discord;
+        $discord = app(DiscordService::class);
         $member = $discord->guild($this->guildId)->member($userId);
 
         // Check for both the ADMINISTRATOR and MANAGE_MESSAGES permissions
@@ -100,7 +100,7 @@ final class ProcessPinMessagesJob extends ProcessBaseJob
     {
 
         try {
-            $discord = new Discord;
+            $discord = app(DiscordService::class);
             $discord->channel($this->channelId)->pinMessage($this->messageId);
 
             // ✅ Success! Send confirmation message

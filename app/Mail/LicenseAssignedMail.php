@@ -17,10 +17,7 @@ final class LicenseAssignedMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public License $license, public Guild $guild)
-    {
-        //
-    }
+    public function __construct(public License $license, public Guild $guild) {}
 
     /**
      * Get the message envelope.

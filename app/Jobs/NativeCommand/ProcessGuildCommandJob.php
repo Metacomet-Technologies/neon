@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\CommandAnalyticsService;
+use App\Services\Discord\DiscordService;
 use Exception;
 use Illuminate\Support\Facades\Log;
-
-// TODO: check this file to make sure it is still functional as intended
 
 final class ProcessGuildCommandJob extends ProcessBaseJob
 {
@@ -36,7 +35,7 @@ final class ProcessGuildCommandJob extends ProcessBaseJob
     public function handle(CommandAnalyticsService $analytics): void
     {
         try {
-            $discord = new Discord;
+            $discord = app(DiscordService::class);
 
             // Check if command contains embed data
             if (isset($this->command['is_embed']) && $this->command['is_embed']) {

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Nova\Metrics;
 
-use App\Services\DiscordApiService;
+use App\Services\Discord\DiscordService;
 use DateTimeInterface;
 use Laravel\Nova\Http\Requests\NovaRequest;
 use Laravel\Nova\Metrics\Value;
@@ -16,7 +16,7 @@ final class DiscordInvalidRequests extends Value
      */
     public function calculate(NovaRequest $request): mixed
     {
-        $service = app(DiscordApiService::class);
+        $service = app(DiscordService::class);
         $stats = $service->getRateLimitStats();
 
         return $this->result($stats['invalid_requests_count'])
@@ -58,13 +58,5 @@ final class DiscordInvalidRequests extends Value
     public function name(): string
     {
         return 'Discord Invalid Requests';
-    }
-
-    /**
-     * Get the help text for the metric.
-     */
-    public function help(): string
-    {
-        return 'Number of invalid requests to Discord API in the last 10 minutes. Cloudflare will ban us if we hit 10,000.';
     }
 }

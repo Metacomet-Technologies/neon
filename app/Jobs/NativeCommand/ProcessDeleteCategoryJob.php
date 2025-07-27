@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 use Illuminate\Support\Facades\Log;
 
@@ -25,7 +25,7 @@ final class ProcessDeleteCategoryJob extends ProcessBaseJob
     protected function executeCommand(): void
     {
         // Ensure the user has permission to manage channels
-        $discord = new Discord;
+        $discord = app(DiscordService::class);
         if (! $discord->guild($this->guildId)->member($this->discordUserId)->canManageChannels()) {
             $discord->channel($this->channelId)->send('❌ You do not have permission to manage categories in this server.');
             throw new Exception('User does not have permission to manage categories in this server.', 403);
@@ -46,7 +46,7 @@ final class ProcessDeleteCategoryJob extends ProcessBaseJob
             throw new Exception('Operation failed', 500);
         }
         // Fetch all channels to verify the category exists and is a category
-        $discord = new Discord;
+        $discord = app(DiscordService::class);
 
         try {
             $channels = collect($discord->guild($this->guildId)->channels());

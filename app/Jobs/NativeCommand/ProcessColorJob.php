@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 
 final class ProcessColorJob extends ProcessBaseJob
@@ -29,7 +29,7 @@ final class ProcessColorJob extends ProcessBaseJob
     {
         // No permission check needed for color lookup
 
-        $params = Discord::extractParameters($this->messageContent, 'color');
+        $params = DiscordService::extractParameters($this->messageContent, 'color');
 
         // If no parameters, show usage
         if (empty($params)) {

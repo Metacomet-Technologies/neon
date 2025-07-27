@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 
 final class ProcessUnpinMessagesJob extends ProcessBaseJob
@@ -40,7 +40,7 @@ final class ProcessUnpinMessagesJob extends ProcessBaseJob
             throw new Exception('Invalid input for !unpin. Expected a valid message ID, "latest", or "oldest".');
         }
         // 1️⃣ Ensure the user has permission to pin messages
-        $discord = new Discord;
+        $discord = app(DiscordService::class);
         $canManageChannels = $discord->guild($this->guildId)->member($this->discordUserId)->canManageChannels();
         if (! $canManageChannels) {
             $discord->channel($this->channelId)->send('❌ You are not allowed to pin messages.');
@@ -73,7 +73,7 @@ final class ProcessUnpinMessagesJob extends ProcessBaseJob
 
     private function userHasPermission(string $userId): bool
     {
-        $discord = new Discord;
+        $discord = app(DiscordService::class);
         $member = $discord->guild($this->guildId)->member($userId);
 
         return $member->canManageChannels() || $member->canManageMessages();
@@ -83,7 +83,7 @@ final class ProcessUnpinMessagesJob extends ProcessBaseJob
     {
 
         try {
-            $discord = new Discord;
+            $discord = app(DiscordService::class);
             $discord->channel($this->channelId)->unpinMessage($messageId);
 
             // ✅ Success
@@ -102,7 +102,7 @@ final class ProcessUnpinMessagesJob extends ProcessBaseJob
     {
 
         try {
-            $discord = new Discord;
+            $discord = app(DiscordService::class);
             $pinnedMessages = $discord->channel($this->channelId)->getPinnedMessages();
 
             if (empty($pinnedMessages)) {
@@ -116,7 +116,7 @@ final class ProcessUnpinMessagesJob extends ProcessBaseJob
 
             $this->unpinMessage($messageToUnpin['id']);
         } catch (Exception $e) {
-            $discord = new Discord;
+            $discord = app(DiscordService::class);
             $discord->channel($this->channelId)->send('❌ Failed to fetch pinned messages. Please try again later.');
             throw new Exception('Operation failed', 500);
         }

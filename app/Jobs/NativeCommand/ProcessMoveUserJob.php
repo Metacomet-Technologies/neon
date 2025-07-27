@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 
 final class ProcessMoveUserJob extends ProcessBaseJob
@@ -57,8 +57,8 @@ final class ProcessMoveUserJob extends ProcessBaseJob
             return [null, null];
         }
 
-        $userId = Discord::extractUserId($parts[1]);
-        $channelId = Discord::extractChannelId($parts[2]);
+        $userId = DiscordService::extractUserId($parts[1]);
+        $channelId = DiscordService::extractChannelId($parts[2]);
 
         return [$userId, $channelId];
     }

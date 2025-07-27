@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\NativeCommand;
 
-use App\Services\Discord\Discord;
+use App\Services\Discord\DiscordService;
 use Exception;
 
 final class ProcessUnbanUserJob extends ProcessBaseJob
@@ -15,7 +15,7 @@ final class ProcessUnbanUserJob extends ProcessBaseJob
         $this->requireBanPermission();
 
         // 2. Parse and validate input using service
-        $targetUserId = Discord::parseUserCommand($this->messageContent, 'unban');
+        $targetUserId = DiscordService::parseUserCommand($this->messageContent, 'unban');
 
         if (! $targetUserId) {
             $this->sendUsageAndExample();
